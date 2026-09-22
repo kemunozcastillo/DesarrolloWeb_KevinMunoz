@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Poke bowls frescos, armados a tu gusto, todos los días." />
+    <title>Poke Fresh</title>
+    <link rel="icon" href="img/logo.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+
+    <!-- Scripts clásicos (no módulos): así la página funciona abriendo el
+         archivo con doble clic, sin servidor. El orden importa. -->
+    <script src="js/ui.js" defer></script>
+    <script src="js/geografia.js" defer></script>
+    <script src="js/datos.js" defer></script>
+    <script src="js/cuentas.js" defer></script>
+    <script src="js/tienda.js" defer></script>
+    <script src="js/pedidos.js" defer></script>
+    <script src="js/ejemplo.js" defer></script>
+    <script src="js/router.js" defer></script>
+    <script src="js/formularios.js" defer></script>
+    <script src="js/editor-bowl.js" defer></script>
+    <script src="js/views/inicio.js" defer></script>
+    <script src="js/views/menu.js" defer></script>
+    <script src="js/views/armar.js" defer></script>
+    <script src="js/views/promo.js" defer></script>
+    <script src="js/views/carrito.js" defer></script>
+    <script src="js/views/checkout.js" defer></script>
+    <script src="js/views/compra.js" defer></script>
+    <script src="js/views/cuenta.js" defer></script>
+    <script src="js/views/admin.js" defer></script>
+    <script src="js/views/admin-pedidos.js" defer></script>
+    <script src="js/views/admin-reportes.js" defer></script>
+    <script src="js/views/admin-cuentas.js" defer></script>
+    <script src="js/views/paginas.js" defer></script>
+    <script src="js/main.js" defer></script>
+  </head>
+  <body>
+    <a class="saltar" href="#" data-saltar>Saltar al contenido</a>
+
+    <header class="cabecera">
+      <div class="cabecera__interior">
+        <a class="marca" href="#/" aria-label="Poke Fresh, inicio">
+          <img src="img/logo.svg" alt="" width="28" height="28" />
+          <span>Poke Fresh</span>
+        </a>
+
+        <nav class="nav" aria-label="Principal">
+          <a href="#/menu" data-nav="/menu">Menú</a>
+          <a href="#/arma-tu-bowl" data-nav="/arma-tu-bowl">Arma tu bowl</a>
+          <a href="#/ubicacion" data-nav="/ubicacion">Ubicación</a>
+          <a href="#/contacto" data-nav="/contacto">Contacto</a>
+        </nav>
+
+        <div class="cabecera__acciones">
+          <div class="cuenta-cabecera" data-cuenta></div>
+          <a class="carrito-boton" href="#/carrito" data-nav="/carrito">
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+              <path
+                d="M3 4h2l2.4 11.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.8L20 8H6.2"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <circle cx="9" cy="20" r="1.4" fill="currentColor" />
+              <circle cx="17" cy="20" r="1.4" fill="currentColor" />
+            </svg>
+            <span class="visualmente-oculto">Carrito</span>
+            <span class="carrito-boton__cuenta" data-carrito-cuenta hidden>0</span>
+          </a>
+
+          <div class="redes">
+            <a href="https://instagram.com" target="_blank" rel="noopener" aria-label="Instagram">
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="1.8" />
+                <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8" />
+                <circle cx="17.5" cy="6.5" r="1.1" fill="currentColor" />
+              </svg>
+            </a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main id="contenido" tabindex="-1">
+      <noscript>
+        <p class="aviso">Esta página necesita JavaScript para mostrar el menú y armar tu bowl.</p>
+      </noscript>
+    </main>
+
+    <footer class="pie">
+      <div class="pie__interior">
+        <div class="pie__marca">
+          <a class="marca marca--pie" href="#/">
+            <img src="img/logo.svg" alt="" width="22" height="22" />
+            <span>Poke Fresh</span>
+          </a>
+          <p>Poke bowls frescos, armados a tu gusto, todos los días.</p>
+        </div>
+
+        <nav class="pie__columnas" aria-label="Pie de página">
+          <div>
+            <h2>Menú</h2>
+            <a href="#/arma-tu-bowl">Arma tu bowl</a>
+            <a href="#/menu?categoria=bases">Bases</a>
+            <a href="#/menu?categoria=proteinas">Proteínas</a>
+            <a href="#/menu?categoria=bebidas">Bebidas</a>
+            <a href="#/menu?categoria=promociones">Promociones</a>
+          </div>
+          <div>
+            <h2>Pedidos</h2>
+            <a href="#/carrito">Tu carrito</a>
+            <a href="#/mis-pedidos">Mis pedidos</a>
+            <a href="#/ubicacion">Retiro en local</a>
+          </div>
+          <div>
+            <h2>Contacto</h2>
+            <a href="#/contacto">Escríbenos</a>
+            <a href="#/ubicacion">Cómo llegar</a>
+            <a href="#/ayuda">Ayuda</a>
+            <a href="#/ingresar">Acceso del personal</a>
+          </div>
+        </nav>
+
+        <a class="pie__mapa" href="#/ubicacion" aria-label="Ver ubicación">
+          <svg viewBox="0 0 48 64" width="56" height="74" aria-hidden="true">
+            <path d="M24 2C12 2 3 11 3 23c0 16 21 39 21 39s21-23 21-39C45 11 36 2 24 2z" fill="#34A853" />
+            <path d="M24 2C12 2 3 11 3 23c0 5 2 10 5 15L24 23z" fill="#EA4335" />
+            <path d="M8 38c3 6 8 12 16 24V23z" fill="#FBBC04" />
+            <path d="M24 2c12 0 21 9 21 21 0 3-1 6-2 9L24 23z" fill="#4285F4" />
+            <circle cx="24" cy="23" r="7" fill="#fff" />
+          </svg>
+        </a>
+      </div>
+    </footer>
+
+    <div class="avisos" data-avisos aria-live="polite"></div>
+  </body>
+</html>
