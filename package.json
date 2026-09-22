@@ -1,0 +1,21 @@
+{
+  "name": "poke-fresh-gateway",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "API gateway de Poke Fresh: única entrada hacia la API REST (FastAPI + MongoDB) y la API GraphQL (Apollo)",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20.12"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "http-proxy-middleware": "^3.0.3"
+  }
+}
