@@ -1,62 +1,69 @@
-# Poke Fresh
-Sitio web de Poke Fresh, una tienda de poke bowls. Corresponde al caso 24 del ramo de Desarrollo Web, basado en el caso 19 (Fukusuke Sushi): venta online con registro de clientes, pago externo, boleta digital y despacho. Está hecho solo con HTML, CSS y JavaScript, sin frameworks ni servidor.
+# Poke Fresh: API gateway
 
-## Cómo abrirlo
-Basta con abrir `index.html` en el navegador. También está publicado en GitHub Pages: `https://tu-usuario.github.io/nombre-del-repo/`
+Gateway hecho en Express que funciona como entrada única a la API de Poke Fresh. Recibe todas las peticiones y las manda al servicio que corresponde:
 
-Si se descarga, hay que mantener las carpetas `css`, `js` e `img` junto al `index.html`.
+- `/api/v1/menu` va a la API REST del menú (FastAPI + MongoDB).
+- `/api/v1/graphql` va a la API GraphQL de la tienda (Apollo).
 
-## Cuentas de prueba
-El sitio viene con datos de ejemplo (clientes, usuarios y un mes de ventas). En la pantalla de ingreso aparecen estas cuentas y se pueden completar con un clic:
+## Cómo correrlo
 
-| Perfil | Correo | Contraseña |
+Primero hay que levantar las dos APIs. Después:
+
+```bash
+cd gateway
+npm install
+cp .env.example .env
+npm start
+```
+
+Queda en `http://localhost:3000`. Para ver si los dos servicios están respondiendo, abrir `http://localhost:3000/api/salud`.
+
+## Rutas
+
+| Ruta | Va a | Métodos |
 |---|---|---|
-| Cliente | cliente@correo.cl | Cliente2026 |
-| Administrador | admin@pokefresh.cl | Admin2026 |
-| Dueño | dueno@pokefresh.cl | Dueno2026 |
-| Cocina | cocina@pokefresh.cl | Cocina2026 |
-| Despacho | despacho@pokefresh.cl | Despacho2026 |
+| `/api/v1/menu` | `/items` de la API REST | GET, POST |
+| `/api/v1/menu/:id` | `/items/:id` de la API REST | GET, PUT, DELETE |
+| `/api/v1/graphql` | `/graphql` de la API GraphQL | GET, POST |
+| `/api/salud` | Estado de los dos servicios | GET |
+| `/api` | Lista de rutas disponibles | GET |
 
-Para ver el flujo completo se pueden usar varias pestañas, porque cada una tiene su propia sesión: en una se entra como cocina y en otra como cliente. Cuando el cliente paga, el pedido aparece en cocina con un aviso.
+La query se mantiene: `/api/v1/menu?categoria=SALSA` llega como `/items?categoria=SALSA`. Las rutas están definidas en `src/rutas.js`.
 
-## Qué se puede hacer
-- Ver el menú, buscar productos y filtrar por categoría.
-- Armar un bowl eligiendo tamaño, bases, proteínas, salsas y toppings, con el precio calculado al momento.
-- Armar las promociones (combo con bebida o dúo de bowls).
-- Registrarse, verificar el correo e iniciar sesión.
-- Pagar, revisar los pedidos, ver la boleta y anular un pedido indicando el motivo.
-- Cocina acepta los pedidos pagados y los marca listos; despacho asigna chofer y registra la entrega.
-- El dueño ve lo recaudado y un reporte de ventas por período, que se puede descargar en CSV.
-- El administrador maneja productos, clientes, usuarios y pedidos.
+Ejemplos:
 
-## Cómo está armado
-Es una aplicación de una sola página. Hay un solo `index.html` y cada sección es una vista en `js/views/`. El router usa el hash de la URL (`#/menu`, `#/arma-tu-bowl`, `#/orden/PF-00012`), así funciona tanto abriendo el archivo directo como en GitHub Pages.
+```bash
+curl "http://localhost:3000/api/v1/menu?categoria=SALSA"
 
-Varias pantallas guardan su estado en la URL. Por ejemplo, `#/menu?categoria=salsas` abre solo las salsas y `#/arma-tu-bowl?base=base_gohan&proteina=pro_salmon` abre el armador con esos ingredientes elegidos.
-
-Los datos se guardan en el `localStorage` del navegador. Para volver a los datos iniciales, entrar como administrador y usar "Restaurar datos de ejemplo" en Productos.
-
-```
-index.html
-css/styles.css
-img/
-js/
-  main.js          rutas del sitio
-  router.js        router por hash
-  datos.js         catálogo y reglas de precio
-  tienda.js        precio del bowl, promociones y carrito
-  cuentas.js       clientes, usuarios y sesión
-  pedidos.js       pedidos, pagos, boletas, cocina y despacho
-  views/           una vista por pantalla
+curl -X POST http://localhost:3000/api/v1/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ tamanos { id precio } }"}'
 ```
 
-## Qué está simulado
-Como no hay backend, algunas partes del caso se simulan:
+## Qué más hace
 
-- El pago con Servipag es una pantalla de prueba.
-- El correo de verificación y el envío de la boleta se muestran en pantalla en vez de enviarse.
-- El radio de despacho de 3 km se aproxima con las comunas cercanas al local.
-- El aviso a cocina solo llega a otras pestañas del mismo navegador.
+- Maneja el CORS para que el frontend en GitHub Pages pueda llamar a la API. Los orígenes permitidos se configuran en el `.env`.
+- Limita la cantidad de peticiones por minuto, con un límite más bajo para crear, editar y borrar en la API REST.
+- Responde los errores en JSON: 404 si la ruta no existe, 405 si el método no corresponde, 502 si un servicio está caído y 504 si tarda demasiado.
+- Le pone un `X-Request-Id` a cada petición y lo manda al servicio, para poder seguirla en los logs.
 
-## Fotos
-Las fotos van en `img/menu/` con el nombre del producto en minúsculas, sin tildes y con guiones. Por ejemplo, "Salmón fresco" se busca como `salmon-fresco.jpg`. Si una foto no está, se muestra un fondo verde.
+## Configuración
+
+Las variables están en `.env.example`:
+
+| Variable | Para qué |
+|---|---|
+| `PORT` | Puerto del gateway (3000) |
+| `URL_API_REST` | Dirección de la API REST |
+| `URL_API_GRAPHQL` | Dirección de la API GraphQL |
+| `ORIGENES_PERMITIDOS` | Sitios que pueden llamar a la API, separados por coma |
+| `TIEMPO_MAXIMO_MS` | Cuánto esperar a un servicio antes de responder 504 |
+| `LIMITE_GENERAL` y `LIMITE_ESCRITURA` | Peticiones por minuto |
+
+## Pruebas
+
+```bash
+npm test
+```
+
+Son 20 pruebas que usan servicios de mentira, así que no hace falta tener MongoDB ni las APIs corriendo.
