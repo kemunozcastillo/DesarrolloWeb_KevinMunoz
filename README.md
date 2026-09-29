@@ -1,62 +1,119 @@
-# Poke Fresh
-Sitio web de Poke Fresh, una tienda de poke bowls. Corresponde al caso 24 del ramo de Desarrollo Web, basado en el caso 19 (Fukusuke Sushi): venta online con registro de clientes, pago externo, boleta digital y despacho. Está hecho solo con HTML, CSS y JavaScript, sin frameworks ni servidor.
+# Poke Fresh: gateway con seguridad
 
-## Cómo abrirlo
-Basta con abrir `index.html` en el navegador. También está publicado en GitHub Pages: `https://tu-usuario.github.io/nombre-del-repo/`
+Gateway que protege la API de Productos. Ahora nadie puede consultar los productos sin un token, y el backend rechaza cualquier llamada que no venga del gateway.
 
-Si se descarga, hay que mantener las carpetas `css`, `js` e `img` junto al `index.html`.
+```
+Cliente ──Bearer token──> Gateway ──consulta──> Vault
+                             │
+                             └──X-Credencial-Interna──> API de Productos
+```
 
-## Cuentas de prueba
-El sitio viene con datos de ejemplo (clientes, usuarios y un mes de ventas). En la pantalla de ingreso aparecen estas cuentas y se pueden completar con un clic:
+1. El cliente manda su token en la cabecera `Authorization: Bearer <token>`.
+2. El gateway busca en Vault cuál es el token válido y lo compara.
+3. Si coincide, agrega una credencial interna (otro secreto guardado en Vault) y reenvía la petición al backend.
+4. El backend revisa esa credencial. Si no viene o no coincide, responde 403.
 
-| Perfil | Correo | Contraseña |
+Ninguna contraseña está escrita en el código. Los dos secretos están en Vault, y lo único que va en el `.env` es el token para conectarse a Vault.
+
+## Códigos de error
+
+| Código | Cuándo |
+|---|---|
+| 401 | No se mandó token, el formato no es `Bearer`, o el token es incorrecto |
+| 403 | Alguien llamó directo al backend sin pasar por el gateway |
+| 500 | Vault responde pero el gateway no puede leer sus secretos (token o ruta mal configurados) |
+| 502 | Vault o el backend están caídos |
+| 504 | El backend tardó demasiado en responder |
+
+## Cómo correrlo
+
+**1. Levantar Vault en modo desarrollo.** Con Vault instalado (en Windows: `winget install Hashicorp.Vault`):
+
+```bash
+vault server -dev -dev-root-token-id=root
+```
+
+O con Docker:
+
+```bash
+docker run --cap-add=IPC_LOCK -e VAULT_DEV_ROOT_TOKEN_ID=root -p 8200:8200 hashicorp/vault
+```
+
+**2. Cargar los secretos.** El script genera el token de los clientes y la credencial interna al azar, los guarda en Vault y crea un token de Vault para cada servicio:
+
+```bash
+cd gateway-seguro
+npm install
+VAULT_TOKEN=root npm run secretos
+```
+
+En PowerShell el comando es `$env:VAULT_TOKEN="root"; npm run secretos`.
+
+El script muestra el token del cliente y el `VAULT_TOKEN` que va en el `.env` del gateway y en el del backend.
+
+**3. Levantar el backend** con su `VAULT_TOKEN` en el `.env` (ver el README de la API).
+
+**4. Levantar el gateway:**
+
+```bash
+cp .env.example .env    # y pegar el VAULT_TOKEN del gateway
+npm start
+```
+
+**5. Probar los casos:**
+
+```bash
+npm run demo -- <token del cliente>
+```
+
+Muestra el 401 sin token, el 401 con token incorrecto, el 200 con el correcto y los dos 403 al llamar directo al backend. Para ver el 502, se apaga Vault o el backend y se vuelve a correr.
+
+Vault en modo desarrollo guarda todo en memoria: si se reinicia, hay que volver a correr `npm run secretos` y actualizar los `VAULT_TOKEN` de los `.env`.
+
+## Rutas
+
+| Ruta | Protegida | Va a |
 |---|---|---|
-| Cliente | cliente@correo.cl | Cliente2026 |
-| Administrador | admin@pokefresh.cl | Admin2026 |
-| Dueño | dueno@pokefresh.cl | Dueno2026 |
-| Cocina | cocina@pokefresh.cl | Cocina2026 |
-| Despacho | despacho@pokefresh.cl | Despacho2026 |
+| `/api/v1/productos` | Sí | `/items` del backend |
+| `/api/v1/productos/:id` | Sí | `/items/:id` del backend |
+| `/api/salud` | No | Estado del gateway, de Vault y del backend |
 
-Para ver el flujo completo se pueden usar varias pestañas, porque cada una tiene su propia sesión: en una se entra como cocina y en otra como cliente. Cuando el cliente paga, el pedido aparece en cocina con un aviso.
+Ejemplo con curl:
 
-## Qué se puede hacer
-- Ver el menú, buscar productos y filtrar por categoría.
-- Armar un bowl eligiendo tamaño, bases, proteínas, salsas y toppings, con el precio calculado al momento.
-- Armar las promociones (combo con bebida o dúo de bowls).
-- Registrarse, verificar el correo e iniciar sesión.
-- Pagar, revisar los pedidos, ver la boleta y anular un pedido indicando el motivo.
-- Cocina acepta los pedidos pagados y los marca listos; despacho asigna chofer y registra la entrega.
-- El dueño ve lo recaudado y un reporte de ventas por período, que se puede descargar en CSV.
-- El administrador maneja productos, clientes, usuarios y pedidos.
-
-## Cómo está armado
-Es una aplicación de una sola página. Hay un solo `index.html` y cada sección es una vista en `js/views/`. El router usa el hash de la URL (`#/menu`, `#/arma-tu-bowl`, `#/orden/PF-00012`), así funciona tanto abriendo el archivo directo como en GitHub Pages.
-
-Varias pantallas guardan su estado en la URL. Por ejemplo, `#/menu?categoria=salsas` abre solo las salsas y `#/arma-tu-bowl?base=base_gohan&proteina=pro_salmon` abre el armador con esos ingredientes elegidos.
-
-Los datos se guardan en el `localStorage` del navegador. Para volver a los datos iniciales, entrar como administrador y usar "Restaurar datos de ejemplo" en Productos.
-
-```
-index.html
-css/styles.css
-img/
-js/
-  main.js          rutas del sitio
-  router.js        router por hash
-  datos.js         catálogo y reglas de precio
-  tienda.js        precio del bowl, promociones y carrito
-  cuentas.js       clientes, usuarios y sesión
-  pedidos.js       pedidos, pagos, boletas, cocina y despacho
-  views/           una vista por pantalla
+```bash
+curl http://localhost:3000/api/v1/productos -H "Authorization: Bearer <token del cliente>"
 ```
 
-## Qué está simulado
-Como no hay backend, algunas partes del caso se simulan:
+## Detalles de seguridad
 
-- El pago con Servipag es una pantalla de prueba.
-- El correo de verificación y el envío de la boleta se muestran en pantalla en vez de enviarse.
-- El radio de despacho de 3 km se aproxima con las comunas cercanas al local.
-- El aviso a cocina solo llega a otras pestañas del mismo navegador.
+- El token del cliente y la credencial interna están en rutas distintas de Vault. El gateway puede leer las dos, pero el backend solo la suya, así que si alguien consiguiera el acceso del backend a Vault, no vería el token de los clientes. Las políticas están en la carpeta `vault/`.
+- El gateway no le pasa al backend el token del cliente, y si el cliente intenta mandar su propia `X-Credencial-Interna`, se reemplaza por la real.
+- Los secretos se comparan en tiempo constante, para que no se puedan adivinar midiendo cuánto tarda la respuesta.
+- Por defecto se consulta Vault en cada petición: si se cambia el token en Vault, el cambio aplica al instante, y si Vault se cae, el error aparece de inmediato. Con `VAULT_CACHE_SEGUNDOS` se puede guardar un rato para no consultarlo tanto.
 
-## Fotos
-Las fotos van en `img/menu/` con el nombre del producto en minúsculas, sin tildes y con guiones. Por ejemplo, "Salmón fresco" se busca como `salmon-fresco.jpg`. Si una foto no está, se muestra un fondo verde.
+## Pruebas
+
+```bash
+npm test
+```
+
+Son 19 pruebas con un Vault simulado y un backend falso. Revisan los 401, el 403, los 500 y 502, que la credencial interna llegue al backend y el token del cliente no, y que el backend no pueda leer el token de los clientes en Vault.
+
+## Estructura
+
+```
+src/
+  server.js           arranque
+  app.js              rutas del gateway
+  autenticacion.js    validación del Bearer Token contra Vault
+  vault.js            lectura de secretos en Vault
+  proxy.js            reenvío al backend con la credencial interna
+  config.js           variables de entorno
+scripts/
+  cargar-secretos.js  prepara Vault
+  demo.js             muestra los códigos de error
+vault/
+  politica-gateway.hcl
+  politica-backend.hcl
+test/
+```
