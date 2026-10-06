@@ -1,0 +1,22 @@
+{
+  "name": "poke-fresh-gateway-seguro",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Gateway de Poke Fresh con Bearer Token validado contra HashiCorp Vault y credencial interna hacia la API de Productos",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "secretos": "node scripts/cargar-secretos.js",
+    "demo": "node scripts/demo.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20.12"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "http-proxy-middleware": "^3.0.3"
+  }
+}

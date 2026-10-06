@@ -1,0 +1,17 @@
+PORT=4100
+
+# Vault. El token lo entrega "npm run secretos" en el gateway y solo puede
+# leer el pepper y el secreto de introspección.
+VAULT_ADDR=http://127.0.0.1:8200
+VAULT_TOKEN=
+VAULT_CACHE_SEGUNDOS=30
+
+ARCHIVO_USUARIOS=data/usuarios.json
+
+# Duración de las sesiones, en segundos
+SESION_INACTIVIDAD_SEG=1800
+SESION_MAXIMA_SEG=28800
+
+# Bloqueo por intentos fallidos
+MAX_INTENTOS=5
+BLOQUEO_SEG=300
