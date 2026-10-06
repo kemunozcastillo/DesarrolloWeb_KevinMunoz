@@ -1,62 +1,83 @@
-# Poke Fresh
-Sitio web de Poke Fresh, una tienda de poke bowls. Corresponde al caso 24 del ramo de Desarrollo Web, basado en el caso 19 (Fukusuke Sushi): venta online con registro de clientes, pago externo, boleta digital y despacho. Está hecho solo con HTML, CSS y JavaScript, sin frameworks ni servidor.
+# Poke Fresh: Auth Service
 
-## Cómo abrirlo
-Basta con abrir `index.html` en el navegador. También está publicado en GitHub Pages: `https://tu-usuario.github.io/nombre-del-repo/`
+Servicio de autenticación de Poke Fresh. Maneja el login con usuario y contraseña, crea las sesiones y le responde al gateway si una sesión sigue activa y qué rol tiene el usuario.
 
-Si se descarga, hay que mantener las carpetas `css`, `js` e `img` junto al `index.html`.
+Es un servicio interno: solo escucha en `127.0.0.1` y solo atiende al gateway, que se identifica con un secreto guardado en Vault. Los usuarios nunca le hablan directo.
 
-## Cuentas de prueba
-El sitio viene con datos de ejemplo (clientes, usuarios y un mes de ventas). En la pantalla de ingreso aparecen estas cuentas y se pueden completar con un clic:
+## Endpoints
 
-| Perfil | Correo | Contraseña |
+| Método | Ruta | Qué hace |
 |---|---|---|
-| Cliente | cliente@correo.cl | Cliente2026 |
-| Administrador | admin@pokefresh.cl | Admin2026 |
-| Dueño | dueno@pokefresh.cl | Dueno2026 |
-| Cocina | cocina@pokefresh.cl | Cocina2026 |
-| Despacho | despacho@pokefresh.cl | Despacho2026 |
+| POST | `/login` | Recibe `usuario` y `clave`. Si son correctos, crea una sesión y devuelve el token |
+| POST | `/introspect` | Recibe un `token` y responde si está activo, de quién es y qué rol tiene |
+| POST | `/logout` | Recibe un `token` y cierra esa sesión |
+| GET | `/salud` | Estado del servicio y de Vault (no pide credencial) |
 
-Para ver el flujo completo se pueden usar varias pestañas, porque cada una tiene su propia sesión: en una se entra como cocina y en otra como cliente. Cuando el cliente paga, el pedido aparece en cocina con un aviso.
+Todas menos `/salud` exigen `Authorization: Basic` con el usuario `gateway` y el secreto de introspección.
 
-## Qué se puede hacer
-- Ver el menú, buscar productos y filtrar por categoría.
-- Armar un bowl eligiendo tamaño, bases, proteínas, salsas y toppings, con el precio calculado al momento.
-- Armar las promociones (combo con bebida o dúo de bowls).
-- Registrarse, verificar el correo e iniciar sesión.
-- Pagar, revisar los pedidos, ver la boleta y anular un pedido indicando el motivo.
-- Cocina acepta los pedidos pagados y los marca listos; despacho asigna chofer y registra la entrega.
-- El dueño ve lo recaudado y un reporte de ventas por período, que se puede descargar en CSV.
-- El administrador maneja productos, clientes, usuarios y pedidos.
+## Cómo funcionan las sesiones
 
-## Cómo está armado
-Es una aplicación de una sola página. Hay un solo `index.html` y cada sección es una vista en `js/views/`. El router usa el hash de la URL (`#/menu`, `#/arma-tu-bowl`, `#/orden/PF-00012`), así funciona tanto abriendo el archivo directo como en GitHub Pages.
+- El token es un valor aleatorio de 256 bits que no contiene información. Lo que significa (quién es, qué rol tiene, cuándo vence) solo lo sabe este servicio, por eso el gateway tiene que preguntar con `/introspect`.
+- Gracias a eso, cerrar sesión o desactivar un usuario tiene efecto inmediato. Con un token autocontenido como un JWT no se podría: seguiría sirviendo hasta que venza.
+- Una sesión vence a los 30 minutos sin uso o a las 8 horas como máximo, lo que pase primero. Cada uso renueva el plazo de inactividad.
+- Se guarda el hash de cada token, no el token. Si alguien leyera la memoria del servicio, no obtendría tokens que sirvan.
+- Las sesiones viven en memoria: si se reinicia el servicio, todos tienen que volver a iniciar sesión.
 
-Varias pantallas guardan su estado en la URL. Por ejemplo, `#/menu?categoria=salsas` abre solo las salsas y `#/arma-tu-bowl?base=base_gohan&proteina=pro_salmon` abre el armador con esos ingredientes elegidos.
+## Contraseñas
 
-Los datos se guardan en el `localStorage` del navegador. Para volver a los datos iniciales, entrar como administrador y usar "Restaurar datos de ejemplo" en Productos.
+- Se guardan con scrypt, cada una con su propia sal. En `data/usuarios.json` solo queda el hash, nunca la contraseña.
+- Antes del hash, la contraseña se mezcla con un pepper que vive en Vault. Si alguien se robara el archivo de usuarios, sin el pepper no podría ni empezar a probar contraseñas.
+- Tras 5 intentos fallidos seguidos, el usuario queda bloqueado 5 minutos (responde 429).
+- Usuario inexistente y contraseña incorrecta dan el mismo mensaje y tardan lo mismo, así no se puede averiguar qué usuarios existen.
+
+## Roles
+
+| Rol | Puede |
+|---|---|
+| `admin` | Ver, crear, editar y borrar productos |
+| `usuario` | Ver, crear y editar productos, pero no borrar |
+
+La regla de qué puede cada rol la aplica el gateway. Este servicio solo informa el rol.
+
+## Cómo correrlo
+
+Primero hay que tener Vault con los secretos cargados (ver el README del gateway).
+
+```bash
+cd auth-service
+npm install
+cp .env.example .env          # y pegar el VAULT_TOKEN del auth-service
+npm run usuarios-ejemplo      # crea admin y vendedor
+npm start
+```
+
+`npm run usuarios-ejemplo` muestra las contraseñas una sola vez; hay que anotarlas. Para crear otro usuario:
+
+```bash
+npm run usuario -- maria usuario "María González"
+```
+
+Si el usuario ya existe, se actualiza su nombre, rol y contraseña. Los cambios se notan al instante, sin reiniciar: si a alguien se le cambia el rol o se desactiva, su sesión abierta lo refleja en la petición siguiente.
+
+## Pruebas
+
+```bash
+npm test
+```
+
+Son 20 pruebas con un Vault simulado y un reloj controlable, para probar la expiración sin esperar 30 minutos. Revisan el login, el bloqueo por intentos, la introspección, las dos expiraciones, el logout, los cambios de rol y desactivación, el hash de las contraseñas y los errores cuando Vault no responde.
+
+## Estructura
 
 ```
-index.html
-css/styles.css
-img/
-js/
-  main.js          rutas del sitio
-  router.js        router por hash
-  datos.js         catálogo y reglas de precio
-  tienda.js        precio del bowl, promociones y carrito
-  cuentas.js       clientes, usuarios y sesión
-  pedidos.js       pedidos, pagos, boletas, cocina y despacho
-  views/           una vista por pantalla
+src/
+  server.js           arranque
+  app.js              endpoints
+  sesiones.js         sesiones e intentos fallidos
+  usuarios.js         usuarios en data/usuarios.json
+  claves.js           hash de contraseñas con scrypt y pepper
+  vault.js            lectura de secretos
+  config.js           variables de entorno
+scripts/crear-usuario.js
+test/
 ```
-
-## Qué está simulado
-Como no hay backend, algunas partes del caso se simulan:
-
-- El pago con Servipag es una pantalla de prueba.
-- El correo de verificación y el envío de la boleta se muestran en pantalla en vez de enviarse.
-- El radio de despacho de 3 km se aproxima con las comunas cercanas al local.
-- El aviso a cocina solo llega a otras pestañas del mismo navegador.
-
-## Fotos
-Las fotos van en `img/menu/` con el nombre del producto en minúsculas, sin tildes y con guiones. Por ejemplo, "Salmón fresco" se busca como `salmon-fresco.jpg`. Si una foto no está, se muestra un fondo verde.

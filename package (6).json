@@ -1,0 +1,20 @@
+{
+  "name": "poke-fresh-auth-service",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Servicio de autenticación de Poke Fresh: login, sesiones con expiración e introspección, con secretos en HashiCorp Vault",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "usuario": "node scripts/crear-usuario.js",
+    "usuarios-ejemplo": "node scripts/crear-usuario.js --ejemplo",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20.12"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
