@@ -1,0 +1,4 @@
+stomp.py>=8.1
+
+# Solo para correr las pruebas
+pytest>=8
