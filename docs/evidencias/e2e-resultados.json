@@ -1,6 +1,6 @@
 {
-  "fecha": "2026-11-08T00:24:21",
-  "gateway": "http://127.0.0.1:8080",
+  "fecha": "2026-11-08T12:01:07",
+  "gateway": "http://localhost:8080",
   "resultados": [
     {
       "caso": "7.1",
@@ -11,9 +11,9 @@
       "obtenido": "200, 29 productos, ninguno trae stock",
       "componente": "Gateway (ruta pública) + inventario",
       "ok": true,
-      "ms": 28,
+      "ms": 79,
       "detalle": {
-        "requestId": "e2e-77ff85fcc341"
+        "requestId": "e2e-ea577e42b882"
       }
     },
     {
@@ -25,9 +25,9 @@
       "obtenido": "401 SIN_SESION",
       "componente": "Gateway",
       "ok": true,
-      "ms": 3,
+      "ms": 8,
       "detalle": {
-        "requestId": "e2e-8f85d8f03b1c"
+        "requestId": "e2e-62eb7b78adc1"
       }
     },
     {
@@ -39,13 +39,13 @@
       "obtenido": "cocina DELETE 403, dueño DELETE 403, cliente /clientes 403, cocina reportes 403",
       "componente": "Gateway (matriz de rutas) + inventario",
       "ok": true,
-      "ms": 17,
+      "ms": 65,
       "detalle": {
         "requestIds": [
-          "e2e-e173b821c11d",
-          "e2e-ff6bab1cd431",
-          "e2e-8ffa3e80eb11",
-          "e2e-b95f6ce2510e"
+          "e2e-8f9f908b8fe4",
+          "e2e-5512aef799c3",
+          "e2e-f0b9d489e600",
+          "e2e-2a61f9f91dd9"
         ]
       }
     },
@@ -58,9 +58,9 @@
       "obtenido": "403: la identidad la pone el gateway, no el navegador",
       "componente": "Gateway",
       "ok": true,
-      "ms": 3,
+      "ms": 14,
       "detalle": {
-        "requestId": "e2e-b862e095a3f1"
+        "requestId": "e2e-5bdd7e6b5f56"
       }
     },
     {
@@ -72,9 +72,9 @@
       "obtenido": "201 PF-00081, total 7890 (el 1 enviado se ignoró)",
       "componente": "Pedidos + inventario + clientes",
       "ok": true,
-      "ms": 145,
+      "ms": 290,
       "detalle": {
-        "requestId": "e2e-ac56de279d1c",
+        "requestId": "e2e-f25af13be237",
         "pedido": "PF-00081"
       }
     },
@@ -87,12 +87,12 @@
       "obtenido": "REST 404 sin datos; GraphQL resumenPedido = null; la dueña sí lo ve (200)",
       "componente": "Pedidos (propiedad del recurso) + GraphQL Gateway",
       "ok": true,
-      "ms": 59,
+      "ms": 196,
       "detalle": {
         "requestIds": [
-          "e2e-f2e294280326",
-          "e2e-fc0bbcd60226",
-          "e2e-b1942125c3d2"
+          "e2e-7c702ff41746",
+          "e2e-a1b4a5decb3f",
+          "e2e-2e1dbfa67542"
         ]
       }
     },
@@ -105,12 +105,12 @@
       "obtenido": "monto cobrado 7890 (no 1); notificación sin firma 401, firma falsa 401; pedido sigue PENDIENTE_PAGO",
       "componente": "Pagos (firma HMAC, monto del pedido)",
       "ok": true,
-      "ms": 163,
+      "ms": 330,
       "detalle": {
         "requestIds": [
-          "e2e-f5c9c3a42920",
-          "e2e-b9dd156cec82",
-          "e2e-b684aa227421"
+          "e2e-280a9ce1d014",
+          "e2e-c022a32ffc3b",
+          "e2e-889942599534"
         ]
       }
     },
@@ -120,12 +120,12 @@
       "entrada": "POST /pagos dos veces con la misma Idempotency-Key",
       "identidad": "cliente",
       "esperado": "el mismo pago",
-      "obtenido": "mismo pago PAG-7805240F5C33",
+      "obtenido": "mismo pago PAG-2E9AA428EE35",
       "componente": "Pagos (idempotencia)",
       "ok": true,
-      "ms": 6,
+      "ms": 59,
       "detalle": {
-        "requestId": "e2e-6090ea916d47"
+        "requestId": "e2e-8f271732d25e"
       }
     },
     {
@@ -134,10 +134,10 @@
       "entrada": "POST pasarela /pagar/{token} APROBADO (dos veces)",
       "identidad": "cliente (navegador en Servipag)",
       "esperado": "pedido PAGADO con boleta; el segundo envío no hace nada",
-      "obtenido": "PAGADO, venta N° 79, boleta N° 79, ref. SVP-74940386; un solo paso PAGADO",
+      "obtenido": "PAGADO, venta N° 79, boleta N° 79, ref. SVP-58854374; un solo paso PAGADO",
       "componente": "Pasarela -> gateway -> pagos -> pedidos -> ActiveMQ",
       "ok": true,
-      "ms": 81,
+      "ms": 845,
       "detalle": {
         "pedido": "PF-00081"
       }
@@ -151,7 +151,7 @@
       "obtenido": "despacho→aceptar 403, cocina→despachar 403; pasos [200, 409, 200, 200, 200]; cocina ve solo nombre y teléfono; final ENTREGADO",
       "componente": "Gateway + pedidos",
       "ok": true,
-      "ms": 64,
+      "ms": 264,
       "detalle": {
         "pedido": "PF-00081"
       }
@@ -165,9 +165,9 @@
       "obtenido": "pedido + pago APROBADO + 4 categorías de productos; campo cliente negado al cliente (PROHIBIDO)",
       "componente": "GraphQL Gateway",
       "ok": true,
-      "ms": 26,
+      "ms": 109,
       "detalle": {
-        "requestId": "e2e-e2cc6ad5e585"
+        "requestId": "e2e-c599df6ab3f9"
       }
     },
     {
@@ -179,7 +179,7 @@
       "obtenido": "costo: «La consulta cuesta 11102 y el máximo permitido es 1000.»; página >50: BAD_USER_INPUT",
       "componente": "GraphQL Gateway",
       "ok": true,
-      "ms": 13,
+      "ms": 80,
       "detalle": {}
     },
     {
@@ -191,7 +191,7 @@
       "obtenido": "dueño: 24 ventas, 5 categorías, 24 pagos aprobados; cocina: PROHIBIDO",
       "componente": "GraphQL Gateway + pedidos + pagos + inventario",
       "ok": true,
-      "ms": 27,
+      "ms": 165,
       "detalle": {}
     },
     {
@@ -203,7 +203,7 @@
       "obtenido": "pedido de 2: 409 SIN_STOCK; pedido de 1: stock 0 y el catálogo lo muestra agotado; anulación: stock vuelve a 1",
       "componente": "Inventario (reservas) + pedidos",
       "ok": true,
-      "ms": 135,
+      "ms": 413,
       "detalle": {}
     },
     {
@@ -215,9 +215,9 @@
       "obtenido": "PF-00083: ANULADO, venta anulada, pago DEVUELTO",
       "componente": "Pedidos + pagos + pasarela + inventario",
       "ok": true,
-      "ms": 234,
+      "ms": 1342,
       "detalle": {
-        "requestId": "e2e-96d0d21f9763"
+        "requestId": "e2e-6b717ab42375"
       }
     },
     {
@@ -229,9 +229,9 @@
       "obtenido": "404 RUTA_INEXISTENTE",
       "componente": "Gateway (matriz de rutas)",
       "ok": true,
-      "ms": 4,
+      "ms": 48,
       "detalle": {
-        "requestId": "e2e-94aca53f23f0"
+        "requestId": "e2e-4131c439cfeb"
       }
     },
     {
@@ -243,9 +243,9 @@
       "obtenido": "403 ORIGEN_NO_PERMITIDO",
       "componente": "Gateway",
       "ok": true,
-      "ms": 1,
+      "ms": 6,
       "detalle": {
-        "requestId": "e2e-7d2ba9bcacba"
+        "requestId": "e2e-13ba9b0ecaab"
       }
     },
     {
@@ -257,49 +257,8 @@
       "obtenido": "HttpOnly; SameSite=Lax; Path=/api; el token no viaja en el cuerpo; tras logout el mismo token responde 401",
       "componente": "Gateway",
       "ok": true,
-      "ms": 72,
+      "ms": 872,
       "detalle": {}
-    },
-    {
-      "caso": "7.9",
-      "nombre": "Acceso directo a los servicios privados",
-      "entrada": "GET a pedidos, inventario y GraphQL sin pasar por el gateway, con X-Usuario-Rol: admin",
-      "identidad": "atacante en la red",
-      "esperado": "403 en todos",
-      "obtenido": "pedidos 403, inventario 403, GraphQL 403, Auth Service 401",
-      "componente": "Cada servicio (credencial interna de Vault)",
-      "ok": true,
-      "ms": 51,
-      "detalle": {}
-    },
-    {
-      "caso": "7.10",
-      "nombre": "Un servicio no puede leer secretos ajenos en Vault",
-      "entrada": "token de inventario lee la credencial de pagos y el pepper",
-      "identidad": "inventario",
-      "esperado": "403 de Vault",
-      "obtenido": "propia 200; credencial de pagos 403; pepper 403",
-      "componente": "Vault (políticas por servicio)",
-      "ok": true,
-      "ms": 48,
-      "detalle": {}
-    },
-    {
-      "caso": "10.7",
-      "nombre": "Indisponibilidad de Vault",
-      "entrada": "Vault sellado; GET /catalogo/items y login",
-      "identidad": "anónimo",
-      "esperado": "503 SECRETOS_NO_DISPONIBLES (no deja pasar)",
-      "obtenido": "catálogo 503 SECRETOS_NO_DISPONIBLES; login 503",
-      "componente": "Gateway / Vault",
-      "ok": true,
-      "ms": 31050,
-      "detalle": {
-        "requestIds": [
-          "e2e-2ba2024bc1bd",
-          "e2e-279d26f227e6"
-        ]
-      }
     },
     {
       "caso": "7.11",
@@ -310,7 +269,7 @@
       "obtenido": "401 en los primeros 5; 429 desde el intento 6",
       "componente": "Auth Service (5 intentos) + gateway (20/min por IP)",
       "ok": true,
-      "ms": 296,
+      "ms": 1929,
       "detalle": {
         "codigos": [
           401,

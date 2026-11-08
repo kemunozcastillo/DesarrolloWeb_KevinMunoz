@@ -18,14 +18,7 @@
     "15-verificacion-correo",
     "16-cliente-nuevo-con-sesion"
   ],
-  "erroresConsola": [
-    "http://127.0.0.1:8080/: Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
-    "http://127.0.0.1:8080/#/orden/PF-00084: Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
-    "http://127.0.0.1:8080/#/ingresar: Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
-    "http://127.0.0.1:8080/#/ingresar: Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
-    "http://127.0.0.1:8080/#/ingresar: Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
-    "http://127.0.0.1:8080/#/registro: Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED"
-  ],
+  "erroresConsola": [],
   "llamadasApi": [
     "GET /v1/auth/config",
     "GET /v1/auth/sesion",
