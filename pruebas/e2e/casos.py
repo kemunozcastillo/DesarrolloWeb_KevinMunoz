@@ -25,13 +25,16 @@ from pathlib import Path
 import httpx
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--gateway", default="http://localhost:8080")
-parser.add_argument("--pasarela", default="http://localhost:9000")
+parser.add_argument("--gateway", default="https://localhost:8080")
+parser.add_argument("--pasarela", default="https://localhost:9000")
+parser.add_argument("--ca", default=None, help="ca.pem de la CA de prueba para verificar el certificado (si no, no se verifica)")
 parser.add_argument("--directo", action="store_true")
 parser.add_argument("--salida", default=str(Path(__file__).resolve().parents[2] / "docs" / "evidencias"))
 args = parser.parse_args()
 
 API = f"{args.gateway}/api/v1"
+# Con HTTPS y la CA de prueba (--ca) se verifica el certificado; sin ella, no (certificado autofirmado).
+VERIFICAR = args.ca if args.ca else not args.gateway.startswith("https://")
 resultados: list[dict] = []
 
 
@@ -40,7 +43,7 @@ class Navegador:
 
     def __init__(self, nombre: str):
         self.nombre = nombre
-        self.http = httpx.Client(base_url=API, timeout=15, headers={"Origin": args.gateway})
+        self.http = httpx.Client(base_url=API, timeout=15, headers={"Origin": args.gateway}, verify=VERIFICAR)
 
     def pedir(self, metodo, ruta, **kw):
         kw.setdefault("headers", {})["X-Request-Id"] = f"e2e-{uuid.uuid4().hex[:12]}"
@@ -190,8 +193,8 @@ def _():
 
 @caso("10.3", "Pago aprobado en la pasarela y notificación firmada", "POST pasarela /pagar/{token} APROBADO (dos veces)", "cliente (navegador en Servipag)", "pedido PAGADO con boleta; el segundo envío no hace nada", "Pasarela -> gateway -> pagos -> pedidos -> ActiveMQ")
 def _():
-    url = estado["pago"]["urlPago"].replace("http://localhost:9000", args.pasarela).replace("http://127.0.0.1:9000", args.pasarela)
-    with httpx.Client(timeout=15) as nav:
+    url = estado["pago"]["urlPago"].replace("https://localhost:9000", args.pasarela).replace("http://localhost:9000", args.pasarela).replace("http://127.0.0.1:9000", args.pasarela)
+    with httpx.Client(timeout=15, verify=VERIFICAR) as nav:
         r = nav.post(url, data={"decision": "APROBADO"}, follow_redirects=False)
         r2 = nav.post(url, data={"decision": "APROBADO"}, follow_redirects=False)
     assert r.status_code == 303 and r2.status_code == 303
@@ -281,8 +284,8 @@ def _():
 def _():
     p = cliente.pedir("POST", "/pedidos", json={"modoEntrega": "RETIRO", "lineas": [{"tipo": "ITEM", "cantidad": 1, "itemId": "beb_te"}]}).json()
     pago = cliente.pedir("POST", "/pagos", json={"pedidoId": p["id"]}, headers={"Idempotency-Key": str(uuid.uuid4())}).json()
-    with httpx.Client(timeout=15) as nav:
-        nav.post(pago["urlPago"].replace("http://localhost:9000", args.pasarela).replace("http://127.0.0.1:9000", args.pasarela), data={"decision": "APROBADO"})
+    with httpx.Client(timeout=15, verify=VERIFICAR) as nav:
+        nav.post(pago["urlPago"].replace("https://localhost:9000", args.pasarela).replace("http://localhost:9000", args.pasarela).replace("http://127.0.0.1:9000", args.pasarela), data={"decision": "APROBADO"})
     r = cliente.pedir("POST", f"/pedidos/{p['id']}/anular", json={"motivo": "Me equivoqué de dirección"})
     a = r.json()
     pagos = cliente.pedir("GET", "/pagos", params={"pedidoId": p["id"]}).json()
@@ -310,13 +313,34 @@ def _():
     r = n.ingresar("cliente@correo.cl", "Cliente2026")
     cookie = r.headers["set-cookie"]
     assert "HttpOnly" in cookie and "SameSite=Lax" in cookie and "Path=/api" in cookie
+    if args.gateway.startswith("https://"):
+        assert "Secure" in cookie
     token = re.search(r"pf_sesion=([^;]+)", cookie).group(1)
     assert token not in r.text
     salir = n.pedir("POST", "/auth/logout")
     despues = n.http.get("/pedidos", headers={"Cookie": f"pf_sesion={token}"})
     assert salir.status_code == 204 and despues.status_code == 401
-    return "HttpOnly; SameSite=Lax; Path=/api; el token no viaja en el cuerpo; tras logout el mismo token responde 401", {}
+    return "HttpOnly; Secure; SameSite=Lax; Path=/api; el token no viaja en el cuerpo; tras logout el mismo token responde 401" if args.gateway.startswith("https://") else "HttpOnly; SameSite=Lax; Path=/api; el token no viaja en el cuerpo; tras logout el mismo token responde 401", {}
 
+
+# Solo aplica con HTTPS (en el entorno local sin Docker todo va en HTTP).
+if args.gateway.startswith("https://"):
+
+    @caso("7.12", "Transporte cifrado en el borde", "GET en claro y por HTTPS al gateway; cabeceras de la respuesta", "anónimo", "el puerto no atiende HTTP en claro; HTTPS con HSTS; la CA de prueba verifica el certificado", "Gateway (TLS)")
+    def _():
+        en_claro = args.gateway.replace("https://", "http://", 1)
+        try:
+            r = httpx.get(f"{en_claro}/api/salud", timeout=5)
+            claro = f"respondió {r.status_code}"
+            rechazado = r.status_code >= 400 or not r.text.startswith("{")
+        except httpx.HTTPError:
+            claro = "sin respuesta en claro"
+            rechazado = True
+        assert rechazado, f"el gateway atiende HTTP en claro ({claro})"
+        seguro = httpx.get(f"{args.gateway}/api/salud", timeout=10, verify=VERIFICAR)
+        assert seguro.status_code == 200 and "max-age" in seguro.headers.get("strict-transport-security", "")
+        verificado = "certificado verificado con la CA de prueba" if args.ca else "certificado no verificado (falta --ca)"
+        return f"HTTP en claro: {claro}; HTTPS 200 con Strict-Transport-Security; {verificado}", {"requestId": rid(seguro)}
 
 if args.directo:
 

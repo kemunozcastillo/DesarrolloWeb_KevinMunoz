@@ -15,7 +15,7 @@
  */
 
 const args = Object.fromEntries(process.argv.slice(2).reduce((acc, v, i, a) => (v.startsWith("--") ? [...acc, [v.slice(2), a[i + 1]]] : acc), []));
-const SITIO = args.sitio ?? "http://localhost:8080";
+const SITIO = args.sitio ?? "https://localhost:8080";
 const SEGUNDOS = Number(args.segundos ?? 20);
 const CONCURRENCIA = Number(args.concurrencia ?? 20);
 
