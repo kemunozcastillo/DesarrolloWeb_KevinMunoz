@@ -30,7 +30,7 @@ ACTIVEMQ_HOST=127.0.0.1 python3 -c "import sys; sys.path.insert(0,'$RAIZ/servici
 PORT=4100 VAULT_TOKEN_ARCHIVO="$PWD/tokens/auth.token" NODE_ENV=development node auth_memoria.mjs > logs/auth.log 2>&1 & echo $! >> logs/pids
 PORT=4000 VAULT_TOKEN_ARCHIVO="$PWD/tokens/graphql.token" node "$RAIZ/graphql-gateway/src/server.js" > logs/graphql.log 2>&1 & echo $! >> logs/pids
 sleep 3
-PORT=8080 VAULT_TOKEN_ARCHIVO="$PWD/tokens/gateway.token" COOKIE_SECURE=false DIR_FRONTEND="$RAIZ/frontend" \
+PORT=8080 LIMITE_POR_MINUTO=${LIMITE_POR_MINUTO:-300} VAULT_TOKEN_ARCHIVO="$PWD/tokens/gateway.token" COOKIE_SECURE=false DIR_FRONTEND="$RAIZ/frontend" \
   node "$RAIZ/gateway/src/server.js" > logs/gateway.log 2>&1 & echo $! >> logs/pids
 sleep 2
 curl -s http://127.0.0.1:8080/api/salud; echo

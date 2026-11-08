@@ -2665,3 +2665,7 @@ code {
   font-size: 0.9rem;
   color: var(--texto-2);
 }
+.orden__pagos + .estado__acciones,
+.aviso-parcial + .estado__acciones {
+  margin-top: 20px;
+}

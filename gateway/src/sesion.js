@@ -146,10 +146,8 @@ export function rutasSesion(config, auth) {
     }
   });
 
-  router.get("/sesion", (req, res) => {
-    if (!req.usuario) return error(res, 401, req.sesionVencida ? "SESION_EXPIRADA" : "SIN_SESION", "No hay una sesión activa.");
-    res.json(sesionPublica(req.usuario));
-  });
+  // Sin sesión responde null (no 401): el sitio lo pregunta al abrir y no es un error.
+  router.get("/sesion", (req, res) => res.json(req.usuario ? sesionPublica(req.usuario) : null));
 
   router.put("/clave", json, async (req, res, next) => {
     if (!req.usuario) return error(res, 401, "SIN_SESION", "Inicia sesión para continuar.");

@@ -1,0 +1,34 @@
+sequenceDiagram
+  autonumber
+  actor C as Cliente (navegador)
+  participant G as API Gateway
+  participant A as Auth Service
+  participant P as pedidos
+  participant CL as clientes
+  participant I as inventario
+  participant PG as pagos
+  participant S as Pasarela (Servipag)
+  participant MQ as ActiveMQ
+  C->>G: POST /api/v1/pedidos (cookie, Idempotency-Key, solo la selección)
+  G->>A: introspect(token)
+  A-->>G: active, rol cliente, sujeto cli_1
+  G->>P: POST /pedidos + credencial + X-Usuario-*
+  P->>CL: GET /internos/clientes/cli_1
+  P->>I: POST /internos/cotizar (precios del catálogo)
+  P->>I: POST /internos/reservas (descuenta stock)
+  P-->>C: 201 PF-00084, total calculado en el servidor
+  C->>G: POST /api/v1/pagos {pedidoId} + Idempotency-Key
+  G->>PG: POST /pagos (identidad)
+  PG->>P: GET /pedidos/PF-00084 (¿es suyo? ¿total?)
+  PG->>S: POST /api/transacciones (API key, monto del pedido)
+  PG-->>C: urlPago
+  C->>S: paga en la página de Servipag
+  S->>G: POST /api/v1/pagos/notificacion (X-Firma HMAC)
+  G->>PG: reenvía cuerpo exacto, sin identidad
+  PG->>PG: verifica firma, token y monto
+  PG->>P: POST /internos/pedidos/PF-00084/pago-confirmado
+  P->>P: venta + boleta (cajero virtual)
+  P-)MQ: /queue/correos y /queue/cocina
+  S-->>C: 303 a /#/orden/PF-00084
+  C->>G: POST /api/v1/graphql resumenPedido
+  G->>P: (vía GraphQL Gateway) pedido + pagos + productos

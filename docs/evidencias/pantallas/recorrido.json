@@ -1,0 +1,50 @@
+{
+  "pedido": "PF-00084",
+  "pantallas": [
+    "01-inicio",
+    "02-menu-desde-inventario",
+    "03-checkout",
+    "04-pago",
+    "05-pasarela-servipag",
+    "06-pedido-pagado-graphql",
+    "07-cocina",
+    "08-despacho",
+    "09-seguimiento-entregado",
+    "10-mis-pedidos",
+    "11-reportes-graphql",
+    "12-productos-stock",
+    "13-clientes",
+    "14-pedido-vista-admin",
+    "15-verificacion-correo",
+    "16-cliente-nuevo-con-sesion"
+  ],
+  "erroresConsola": [
+    "http://127.0.0.1:8080/: Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+    "http://127.0.0.1:8080/#/orden/PF-00084: Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+    "http://127.0.0.1:8080/#/ingresar: Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+    "http://127.0.0.1:8080/#/ingresar: Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+    "http://127.0.0.1:8080/#/ingresar: Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+    "http://127.0.0.1:8080/#/registro: Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED"
+  ],
+  "llamadasApi": [
+    "GET /v1/auth/config",
+    "GET /v1/auth/sesion",
+    "GET /v1/catalogo/configuracion",
+    "GET /v1/catalogo/items",
+    "GET /v1/clientes",
+    "GET /v1/clientes/yo",
+    "GET /v1/pedidos",
+    "GET /v1/pedidos/PF-00084",
+    "GET /v1/reportes/ventas",
+    "POST /v1/auth/login",
+    "POST /v1/auth/verificar",
+    "POST /v1/clientes/registro",
+    "POST /v1/graphql",
+    "POST /v1/pagos",
+    "POST /v1/pedidos",
+    "POST /v1/pedidos/PF-00084/aceptar",
+    "POST /v1/pedidos/PF-00084/entregar",
+    "POST /v1/pedidos/PF-00084/terminar"
+  ],
+  "ordenMuestraPagos": true
+}

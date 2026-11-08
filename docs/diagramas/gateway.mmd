@@ -1,0 +1,71 @@
+classDiagram
+  direction TB
+  class ApiGateway {
+    +servirFrontend()
+    +limitarPorMinuto(ip)
+    +verificarOrigen(req)
+    +resolver(metodo, ruta) RouteDefinition
+  }
+  class RouteDefinition {
+    metodo
+    patronPublico
+    destino
+    rutaDestino
+    acceso: publico|sesion|webhook|roles
+  }
+  class AuthenticationPolicy {
+    cookie pf_sesion HttpOnly
+    +identificar(token) introspección
+  }
+  class AuthorizationPolicy {
+    +permitido(acceso, usuario) bool
+  }
+  class ServiceTarget {
+    nombre
+    url privada
+    +reenviar(req, identidad)
+  }
+  class SecretProvider {
+    vault KV v2
+    cache 30 s
+    +leerValor(ruta, clave)
+  }
+  class AuthService {
+    +login() token opaco
+    +introspect(token)
+    +logout(token)
+  }
+  class GraphQLGateway {
+    +verificarCredencial()
+    +contexto(identidad)
+  }
+  class Schema {
+    resumenPedido(id)
+    misPedidos(primeros, despuesDe)
+    reporteVentas(desde, hasta)
+  }
+  class Resolver {
+    +llamar(servicio, ruta, identidad)
+  }
+  class DataLoader {
+    productos por id
+    pagos por pedido
+  }
+  class LimitesConsulta {
+    profundidad <= 6
+    costo <= 1000
+    página <= 50
+  }
+  ApiGateway "1" o-- "36" RouteDefinition
+  ApiGateway --> AuthenticationPolicy
+  AuthenticationPolicy --> AuthService
+  ApiGateway --> AuthorizationPolicy
+  RouteDefinition --> "1" ServiceTarget
+  ServiceTarget --> SecretProvider : credencial interna del destino
+  AuthenticationPolicy --> SecretProvider : secreto auth-gateway
+  ServiceTarget <|-- GraphQLGateway
+  GraphQLGateway --> Schema
+  GraphQLGateway --> LimitesConsulta
+  Schema --> "*" Resolver
+  Resolver --> DataLoader
+  Resolver --> SecretProvider

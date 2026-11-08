@@ -259,6 +259,8 @@ services:
       # Localhost sin HTTPS: la cookie no puede ser Secure. En producción, true.
       COOKIE_SECURE: "false"
       MODO_DEMO: ${MODO_DEMO:-true}
+      # Peticiones por minuto y por IP. Se sube solo para la prueba de carga.
+      LIMITE_POR_MINUTO: ${LIMITE_POR_MINUTO:-300}
     volumes:
       - tokens:/run/vault:ro
       - ./frontend:/app/frontend:ro

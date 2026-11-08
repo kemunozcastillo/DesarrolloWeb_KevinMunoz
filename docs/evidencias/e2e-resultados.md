@@ -1,6 +1,6 @@
 # Pruebas de punta a punta
 
-Ejecutadas el 08-11-2026 00:15 contra `http://127.0.0.1:8080`. 22 de 22 correctas.
+Ejecutadas el 08-11-2026 00:24 contra `http://127.0.0.1:8080`. 22 de 22 correctas.
 El detalle de cada petición (con su X-Request-Id para buscarla en los logs) está en `e2e-resultados.json`.
 
 | Caso | Prueba | Entrada | Identidad | Esperado | Obtenido | Componente que lo verifica | Resultado |
@@ -12,8 +12,8 @@ El detalle de cada petición (con su X-Request-Id para buscarla en los logs) est
 | 10.1 | Compra completa: pedido con precio calculado en el servidor | POST /pedidos con precioUnitario: 1 en la línea | cliente | 201, total = precio del catálogo | 201 PF-00081, total 7890 (el 1 enviado se ignoró) | Pedidos + inventario + clientes | ✅ |
 | 7.5 | Consulta de un pedido ajeno (REST y GraphQL) | GET /pedidos/{id}; resumenPedido(id) | otro cliente | 404 sin datos; GraphQL null | REST 404 sin datos; GraphQL resumenPedido = null; la dueña sí lo ve (200) | Pedidos (propiedad del recurso) + GraphQL Gateway | ✅ |
 | 7.6 | Pago con datos alterados desde el frontend | POST /pagos {monto: 1}; POST /pagos/notificacion sin firma y con firma falsa | cliente | monto = total del pedido; notificaciones 401 | monto cobrado 7890 (no 1); notificación sin firma 401, firma falsa 401; pedido sigue PENDIENTE_PAGO | Pagos (firma HMAC, monto del pedido) | ✅ |
-| 10.2 | Pago duplicado (doble clic) | POST /pagos dos veces con la misma Idempotency-Key | cliente | el mismo pago | mismo pago PAG-D8AB2B052EC1 | Pagos (idempotencia) | ✅ |
-| 10.3 | Pago aprobado en la pasarela y notificación firmada | POST pasarela /pagar/{token} APROBADO (dos veces) | cliente (navegador en Servipag) | pedido PAGADO con boleta; el segundo envío no hace nada | PAGADO, venta N° 79, boleta N° 79, ref. SVP-60397082; un solo paso PAGADO | Pasarela -> gateway -> pagos -> pedidos -> ActiveMQ | ✅ |
+| 10.2 | Pago duplicado (doble clic) | POST /pagos dos veces con la misma Idempotency-Key | cliente | el mismo pago | mismo pago PAG-7805240F5C33 | Pagos (idempotencia) | ✅ |
+| 10.3 | Pago aprobado en la pasarela y notificación firmada | POST pasarela /pagar/{token} APROBADO (dos veces) | cliente (navegador en Servipag) | pedido PAGADO con boleta; el segundo envío no hace nada | PAGADO, venta N° 79, boleta N° 79, ref. SVP-74940386; un solo paso PAGADO | Pasarela -> gateway -> pagos -> pedidos -> ActiveMQ | ✅ |
 | 10.4 | Flujo de cocina y despacho con permisos | aceptar/terminar (cocina), despachar/entregar (despacho), y cruzados | cocina, despacho | estados en orden; cruzados 403 | despacho→aceptar 403, cocina→despachar 403; pasos [200, 409, 200, 200, 200]; cocina ve solo nombre y teléfono; final ENTREGADO | Gateway + pedidos | ✅ |
 | 8.1 | Agregación GraphQL desde la pantalla del pedido | resumenPedido(id) con pedido, pagos y productos | cliente | datos de pedidos + pagos + inventario en una respuesta | pedido + pago APROBADO + 4 categorías de productos; campo cliente negado al cliente (PROHIBIDO) | GraphQL Gateway | ✅ |
 | 8.2 | Límites GraphQL | consulta de costo alto; misPedidos(primeros: 500) | cliente | rechazadas antes de ejecutar | costo: «La consulta cuesta 11102 y el máximo permitido es 1000.»; página >50: BAD_USER_INPUT | GraphQL Gateway | ✅ |
