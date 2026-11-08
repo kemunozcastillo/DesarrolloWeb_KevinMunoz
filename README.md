@@ -17,7 +17,7 @@ El informe con las matrices, los diagramas y las pruebas está en [docs/INFORME.
 | `servicios/` | Microservicios en FastAPI: `inventario`, `clientes`, `pedidos`, `pagos`, la pasarela de pago simulada y el notificador de ActiveMQ |
 | `vault/` | Políticas de Vault por servicio y el script que prepara Vault y Mongo |
 | `pruebas/` | Pruebas de punta a punta, recorrido de pantallas, prueba de carga y un entorno local sin Docker |
-| `docs/` | Informe, diagramas (Mermaid, editables), ADR y evidencias |
+| `docs/` | Informe, diagramas (Mermaid y un modelo C4 en Structurizr DSL, editables), ADR y evidencias |
 
 ## Cómo levantarlo
 

@@ -8,7 +8,7 @@
 | **Versión del frontend** | 2.0: SPA en HTML, CSS y JavaScript sin frameworks, integrada con la API (rama `Evaluacion-2`). La versión 1.0 (entrega de frontend) guardaba todo en `localStorage`. |
 | **Fecha** | 09-11-2026 |
 
-Los diagramas están en `docs/diagramas/` como archivos Mermaid (`.mmd`, editables en cualquier editor de texto o en mermaid.live) y su imagen (`.png`). Las evidencias de ejecución están en `docs/evidencias/`.
+Los diagramas están en `docs/diagramas/` como archivos Mermaid (`.mmd`, editables en cualquier editor de texto o en mermaid.live) y su imagen (`.png`). Las evidencias de ejecución están en `docs/evidencias/`. Además, [`docs/diagramas/poke-fresh.dsl`](diagramas/poke-fresh.dsl) modela el sistema en C4 con Structurizr DSL (adaptación del modelo de referencia del curso): contexto, contenedores, componentes, 14 flujos dinámicos y 2 despliegues.
 
 ## Índice
 
@@ -231,6 +231,8 @@ Cada servicio modifica solo su base. Las colaboraciones usan contratos explícit
 ### Mapa de componentes y despliegue
 
 ![Mapa de componentes](diagramas/componentes.png)
+
+Modelo C4 (`docs/diagramas/poke-fresh.dsl`): 25 vistas, validadas con el comando `validate` de Structurizr (imagen `structurizr/structurizr`) y exportables a Mermaid. Incluye C1 (contexto con la pasarela externa), C2 (contenedores, con recortes de catálogo, pedidos y pagos, y secretos), C3 de API Gateway, GraphQL Gateway, Auth Service y pedidos, vistas dinámicas de los flujos de los casos de validación (catálogo y su recuperación, pedido y su reintento, pedido propio y ajeno, sesión expirada, GraphQL con éxito, con error parcial y sobre el límite, pago, confirmación firmada y notificación falsa) y dos despliegues: `Docker_Compose` (el entregado) y `Local_Sin_Docker` (pruebas, con Mongo, Vault y ActiveMQ en memoria). Para verlo: pegar el archivo en https://structurizr.com/dsl o usar el CLI. No hay imágenes renderizadas de estas vistas en el repositorio; los `.png` de arriba siguen siendo los diagramas de referencia del informe.
 
 Despliegue (`docker-compose.yml`): 14 contenedores en dos redes. `privada` es `internal: true` (sin puertos al equipo ni salida a Internet). Solo el gateway (8080) y la pasarela simulada (9000) publican puertos.
 
