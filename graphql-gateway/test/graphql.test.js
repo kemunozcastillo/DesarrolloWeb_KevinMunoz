@@ -162,12 +162,13 @@ describe("GraphQL Gateway", () => {
   test("consultas demasiado profundas o costosas se rechazan antes de ejecutarse", async () => {
     const profunda = await datos("{ resumenPedido(id: \"PF-00001\") { pedido { lineas { productos { id } } } } }", { variables: {} });
     assert.equal(profunda.errors, undefined);
+    const antes = estado.llamadas.pedidos;
 
     const costosa = await datos("{ misPedidos(primeros: 50) { nodos { id lineas { descripcion cantidad productos { id nombre categoria disponibleHoy } } } } }");
     // Apollo marca los errores de validación como GRAPHQL_VALIDATION_FAILED; el motivo va en el mensaje.
     assert.equal(costosa.errors[0].extensions.code, "GRAPHQL_VALIDATION_FAILED");
     assert.match(costosa.errors[0].message, /cuesta \d+ y el máximo permitido es 1000/);
-    assert.equal(estado.llamadas.pedidos, 0);
+    assert.equal(estado.llamadas.pedidos, antes); // no se ejecutó
   });
 
   test("límite de profundidad", async () => {
