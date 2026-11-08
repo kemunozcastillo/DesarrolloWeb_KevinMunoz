@@ -60,9 +60,9 @@ Lo que no se implementa como en producción, por qué, y qué lo reemplaza:
 | Desbloqueo de Vault | Entorno de desarrollo | La clave de desbloqueo y el token raíz quedan en un volumen local para que el sistema arranque solo. En producción: auto-unseal con KMS y token raíz revocado |
 | Distribución de tokens de Vault | Docker Compose no entrega un archivo distinto a cada contenedor sin un orquestador | Cada servicio tiene su propio token con su propia política, pero todos se escriben en un mismo volumen de solo lectura. En producción, el orquestador (Docker secrets o Kubernetes) monta cada token solo en su contenedor |
 | Sesiones del Auth Service | Se guardan en memoria | Un reinicio del Auth Service cierra todas las sesiones (falla segura: hay que volver a ingresar) |
-| ActiveMQ sin autenticación | Broker solo accesible en la red privada | Si se expone, se activa usuario y clave en el broker y se guardan en Vault |
+| ActiveMQ sin autenticación | Broker solo accesible en la red privada y solo por STOMP sobre TLS (sin consola web ni otros protocolos) | Si se expone, se activa usuario y clave en el broker y se guardan en Vault |
 | Aviso a cocina "en vivo" | Sin WebSocket ni SSE | La pantalla de cocina consulta cada 8 s y avisa con sonido; ActiveMQ ya publica el evento por si se quiere empujar (ver ADR 0001) |
-| Casos 7.9, 7.10 y 10.7 no se ejecutan contra Docker | Prueban acceso directo a los servicios, secretos ajenos en Vault y Vault sellado, y desde el equipo la red privada no se alcanza (es lo que se busca) | Corren con `casos.py --directo` en el entorno local sin Docker (22 casos en total); en Docker la separación de redes se comprueba porque solo se publican los puertos 8080 y 9000 |
+| Casos 7.9, 7.10 y 10.7 no se ejecutan contra Docker | Prueban acceso directo a los servicios, secretos ajenos en Vault y Vault sellado, y desde el equipo la red privada no se alcanza (es lo que se busca) | Corren con `casos.py --directo` en el entorno local sin Docker, donde todo va en HTTP (22 casos en total: los 19 que aplican sin TLS más esos 3; el 7.12 solo aplica con HTTPS); en Docker la separación de redes se comprueba porque solo se publican los puertos 8080 y 9000 |
 | GitHub Pages | El frontend ahora necesita la API | Se sirve desde el gateway (mismo origen que la API). La versión estática de la entrega anterior sigue en la rama `Front-end` |
 
 ---
@@ -699,6 +699,7 @@ Ambas en el caso 7.5 (`evidencias/e2e-resultados.json`, con sus `X-Request-Id`, 
 ### Operación
 
 - **Iniciar y detener:** ver `README.md` (`docker compose up -d --build`, `docker compose down`).
+- **Acceso:** `https://localhost:8080` (tienda y API) y `https://localhost:9000` (pasarela). Los certificados los firma una CA de prueba que crea `tls-init`, así que el navegador, o un antivirus que revise HTTPS, mostrará una advertencia en cada puerto; hay que aceptarla en ambos. Si otro programa ocupa el puerto 8080 en IPv4, hay que detenerlo (ver README).
 - **Configurar secretos:** solo `.env` con la clave raíz de Mongo; el resto lo crea `vault-init`. Para rotar un secreto: borrarlo en Vault y volver a correr `docker compose up -d` (excepto el pepper).
 - **Datos de prueba:** automáticos con `MODO_DEMO=true` (servicio `semilla`).
 - **Health checks:** cada servicio tiene `/salud` (estado de Mongo y Vault), usado por Docker; `GET /api/salud` reúne todos.
