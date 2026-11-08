@@ -36,13 +36,22 @@ const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
 let raiz = null;
 
 async function vault(metodo, ruta, cuerpo) {
-  const r = await fetch(`${VAULT}/v1/${ruta}`, {
-    method: metodo,
-    headers: { "Content-Type": "application/json", ...(raiz ? { "X-Vault-Token": raiz } : {}) },
-    body: cuerpo ? JSON.stringify(cuerpo) : undefined,
-  });
-  const texto = await r.text();
-  return { estado: r.status, datos: texto ? JSON.parse(texto) : null };
+  // Recién montado el motor KV v2, Vault responde unos segundos con error
+  // mientras lo prepara ("upgrading"): se reintenta hasta 15 veces.
+  for (let intento = 1; ; intento++) {
+    const r = await fetch(`${VAULT}/v1/${ruta}`, {
+      method: metodo,
+      headers: { "Content-Type": "application/json", ...(raiz ? { "X-Vault-Token": raiz } : {}) },
+      body: cuerpo ? JSON.stringify(cuerpo) : undefined,
+    });
+    const texto = await r.text();
+    const reintentar = (r.status === 400 || r.status >= 500) && /upgrad|not ready|sealed/i.test(texto);
+    if (reintentar && intento < 15) {
+      await esperar(1000);
+      continue;
+    }
+    return { estado: r.status, datos: texto ? JSON.parse(texto) : null };
+  }
 }
 
 async function esperarVault() {
