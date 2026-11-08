@@ -66,7 +66,7 @@ Desbloqueo de Vault & Entorno de desarrollo & La clave de desbloqueo y el token 
 Distribución de tokens de Vault & Docker Compose no entrega un archivo distinto a cada contenedor sin un orquestador & Cada servicio tiene su propio token con su propia política, pero todos se escriben en un mismo volumen de solo lectura. En producción, el orquestador (Docker secrets o Kubernetes) monta cada token solo en su contenedor \\ \hline
 Sesiones del Auth Service & Se guardan en memoria & Un reinicio del Auth Service cierra todas las sesiones (falla segura: hay que volver a ingresar) \\ \hline
 ActiveMQ sin autenticación & Broker solo accesible en la red privada y solo por STOMP sobre TLS (sin consola web ni otros protocolos) & Si se expone, se activa usuario y clave en el broker y se guardan en Vault \\ \hline
-Aviso a cocina “en vivo” & Sin WebSocket ni SSE & La pantalla de cocina consulta cada 8 s y avisa con sonido; ActiveMQ ya publica el evento por si se quiere empujar (ver ADR 0001) \\ \hline
+Aviso a cocina “en vivo” & Sin WebSocket ni SSE & La pantalla de cocina consulta cada 8~s y avisa con sonido; ActiveMQ ya publica el evento por si se quiere empujar (ver ADR 0001) \\ \hline
 GitHub Pages & El frontend ahora necesita la API & Se sirve desde el gateway (mismo origen que la API). La versión estática de la entrega anterior sigue en la rama \texttt{Front-\allowbreak{}end} \\ \hline
 \end{longtable}
 }

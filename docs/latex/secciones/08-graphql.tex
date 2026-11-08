@@ -149,12 +149,12 @@ El cliente pidió \texttt{cliente \{ email \}} y no lo obtuvo: la selección de 
 Profundidad máxima & 6 & \texttt{graphql-\allowbreak{}gateway/\allowbreak{}test} \\ \hline
 Costo máximo (listas multiplican) & 1.000 & \texttt{test} y caso 8.2 (consulta de costo 11.102 rechazada) \\ \hline
 Paginación & \texttt{primeros} $\leq$ 50, cursor \texttt{despuesDe} & \texttt{test} y caso 8.2 \\ \hline
-Tiempo máximo por llamada & 3 s & — \\ \hline
+Tiempo máximo por llamada & 3~s & — \\ \hline
 Errores parciales & campo \texttt{null} + \texttt{errors} con \texttt{servicio} & \texttt{test} (pagos caído) \\ \hline
 Batching & DataLoader (productos, pagos) & \texttt{test}: 2 líneas, 3 productos $\rightarrow$ 1 llamada \\ \hline
 Introspección & Desactivada con \texttt{NODE\_\allowbreak{}ENV=\allowbreak{}production} & — \\ \hline
 Acceso directo & 403 sin credencial interna & \texttt{test} y caso 7.9 \\ \hline
-Cuerpo máximo & 20 KB & — \\ \hline
+Cuerpo máximo & 20~KB & — \\ \hline
 \end{longtable}
 }
 

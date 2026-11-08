@@ -17,8 +17,8 @@ Esta sección responde cómo se impide que alguien llegue a los servicios sin pa
 \item \textbf{RouteDefinition} (\texttt{gateway/\allowbreak{}src/\allowbreak{}rutas.\allowbreak{}js}): 36 filas; lo que no está, responde 404. Las rutas \texttt{/\allowbreak{}internos/\allowbreak{}*} de los servicios nunca se publican.
 \item \textbf{AuthenticationPolicy} (\texttt{sesion.\allowbreak{}js}): cookie \texttt{pf\_\allowbreak{}sesion} HttpOnly; introspección en el Auth Service en cada petición.
 \item \textbf{AuthorizationPolicy} (\texttt{rutas.\allowbreak{}js:\allowbreak{} permitido}): público, sesión, webhook o lista de roles.
-\item \textbf{ServiceTarget} (\texttt{reenvio.\allowbreak{}js}): arma cabeceras nuevas, agrega la credencial del destino y la identidad, reenvía el cuerpo exacto; 502 si no responde, 504 si tarda más de 8 s.
-\item \textbf{SecretProvider} (\texttt{vault.\allowbreak{}js}): lee de Vault con el token del gateway, guarda 30 s.
+\item \textbf{ServiceTarget} (\texttt{reenvio.\allowbreak{}js}): arma cabeceras nuevas, agrega la credencial del destino y la identidad, reenvía el cuerpo exacto; 502 si no responde, 504 si tarda más de 8~s.
+\item \textbf{SecretProvider} (\texttt{vault.\allowbreak{}js}): lee de Vault con el token del gateway, guarda 30~s.
 \item \textbf{GraphQLGateway, Schema, Resolver, DataLoader, LimitesConsulta}: en \texttt{graphql-\allowbreak{}gateway/\allowbreak{}} (sección 8).
 \item No hay clientes gRPC (ADR 0001).
 \end{itemize}
@@ -63,7 +63,7 @@ Internas (nunca publicadas) & 11 & Inventario: cotizar, reservar y liberar. Clie
 \hline
 \textbf{Frontera} & \textbf{Qué se verifica al cruzarla} \\ \hline
 \endhead
-Navegador $\rightarrow$ gateway & TLS (HTTPS con HSTS), sesión (cookie + introspección), rol, origen (CSRF), límite por IP, tamaño del cuerpo (100 KB). Se descartan \texttt{X-\allowbreak{}Usuario-\allowbreak{}*}, \texttt{X-\allowbreak{}Credencial-\allowbreak{}Interna}, \texttt{Authorization} y la cookie antes de reenviar \\ \hline
+Navegador $\rightarrow$ gateway & TLS (HTTPS con HSTS), sesión (cookie + introspección), rol, origen (CSRF), límite por IP, tamaño del cuerpo (100~KB). Se descartan \texttt{X-\allowbreak{}Usuario-\allowbreak{}*}, \texttt{X-\allowbreak{}Credencial-\allowbreak{}Interna}, \texttt{Authorization} y la cookie antes de reenviar \\ \hline
 Pasarela $\rightarrow$ gateway $\rightarrow$ pagos & Firma HMAC del cuerpo exacto, token y monto \\ \hline
 Gateway $\rightarrow$ servicio & Credencial interna del servicio de destino (cada servicio tiene la suya) \\ \hline
 Servicio $\rightarrow$ servicio & Credencial del destino + identidad del usuario original (el destino aplica sus reglas) \\ \hline
