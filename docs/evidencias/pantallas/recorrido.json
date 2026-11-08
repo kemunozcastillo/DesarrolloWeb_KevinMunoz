@@ -16,7 +16,13 @@
     "13-clientes",
     "14-pedido-vista-admin",
     "15-verificacion-correo",
-    "16-cliente-nuevo-con-sesion"
+    "16-cliente-nuevo-con-sesion",
+    "m01-inicio-movil",
+    "m02-menu-movil",
+    "m03-checkout-movil",
+    "m04-seguimiento-movil",
+    "m05-mis-pedidos-movil",
+    "m06-despacho-movil"
   ],
   "erroresConsola": [],
   "llamadasApi": [
@@ -39,5 +45,13 @@
     "POST /v1/pedidos/PF-00084/entregar",
     "POST /v1/pedidos/PF-00084/terminar"
   ],
-  "ordenMuestraPagos": true
+  "ordenMuestraPagos": true,
+  "desbordeHorizontalMovil": {
+    "m01-inicio-movil": false,
+    "m02-menu-movil": false,
+    "m03-checkout-movil": false,
+    "m04-seguimiento-movil": false,
+    "m05-mis-pedidos-movil": false,
+    "m06-despacho-movil": false
+  }
 }

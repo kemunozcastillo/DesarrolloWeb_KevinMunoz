@@ -1,5 +1,5 @@
 {
-  "fecha": "2026-11-08T12:01:07",
+  "fecha": "2026-11-08T12:25:24",
   "gateway": "http://localhost:8080",
   "resultados": [
     {
@@ -11,9 +11,9 @@
       "obtenido": "200, 29 productos, ninguno trae stock",
       "componente": "Gateway (ruta pública) + inventario",
       "ok": true,
-      "ms": 79,
+      "ms": 78,
       "detalle": {
-        "requestId": "e2e-ea577e42b882"
+        "requestId": "e2e-ebfc44484a22"
       }
     },
     {
@@ -25,9 +25,9 @@
       "obtenido": "401 SIN_SESION",
       "componente": "Gateway",
       "ok": true,
-      "ms": 8,
+      "ms": 7,
       "detalle": {
-        "requestId": "e2e-62eb7b78adc1"
+        "requestId": "e2e-e582156810af"
       }
     },
     {
@@ -39,13 +39,13 @@
       "obtenido": "cocina DELETE 403, dueño DELETE 403, cliente /clientes 403, cocina reportes 403",
       "componente": "Gateway (matriz de rutas) + inventario",
       "ok": true,
-      "ms": 65,
+      "ms": 77,
       "detalle": {
         "requestIds": [
-          "e2e-8f9f908b8fe4",
-          "e2e-5512aef799c3",
-          "e2e-f0b9d489e600",
-          "e2e-2a61f9f91dd9"
+          "e2e-6212fd829b0b",
+          "e2e-bfd4e74baea2",
+          "e2e-7050c4aaada6",
+          "e2e-457624376665"
         ]
       }
     },
@@ -58,9 +58,9 @@
       "obtenido": "403: la identidad la pone el gateway, no el navegador",
       "componente": "Gateway",
       "ok": true,
-      "ms": 14,
+      "ms": 18,
       "detalle": {
-        "requestId": "e2e-5bdd7e6b5f56"
+        "requestId": "e2e-3c1d6aac16b6"
       }
     },
     {
@@ -72,9 +72,9 @@
       "obtenido": "201 PF-00081, total 7890 (el 1 enviado se ignoró)",
       "componente": "Pedidos + inventario + clientes",
       "ok": true,
-      "ms": 290,
+      "ms": 349,
       "detalle": {
-        "requestId": "e2e-f25af13be237",
+        "requestId": "e2e-ef5ca3e631e2",
         "pedido": "PF-00081"
       }
     },
@@ -87,12 +87,12 @@
       "obtenido": "REST 404 sin datos; GraphQL resumenPedido = null; la dueña sí lo ve (200)",
       "componente": "Pedidos (propiedad del recurso) + GraphQL Gateway",
       "ok": true,
-      "ms": 196,
+      "ms": 193,
       "detalle": {
         "requestIds": [
-          "e2e-7c702ff41746",
-          "e2e-a1b4a5decb3f",
-          "e2e-2e1dbfa67542"
+          "e2e-aa841d3aa8f9",
+          "e2e-5379f3f452db",
+          "e2e-3d93c45e1897"
         ]
       }
     },
@@ -105,12 +105,12 @@
       "obtenido": "monto cobrado 7890 (no 1); notificación sin firma 401, firma falsa 401; pedido sigue PENDIENTE_PAGO",
       "componente": "Pagos (firma HMAC, monto del pedido)",
       "ok": true,
-      "ms": 330,
+      "ms": 377,
       "detalle": {
         "requestIds": [
-          "e2e-280a9ce1d014",
-          "e2e-c022a32ffc3b",
-          "e2e-889942599534"
+          "e2e-9dabb7893671",
+          "e2e-5de49ba087d9",
+          "e2e-d894262e1c7e"
         ]
       }
     },
@@ -120,12 +120,12 @@
       "entrada": "POST /pagos dos veces con la misma Idempotency-Key",
       "identidad": "cliente",
       "esperado": "el mismo pago",
-      "obtenido": "mismo pago PAG-2E9AA428EE35",
+      "obtenido": "mismo pago PAG-37F8EA452841",
       "componente": "Pagos (idempotencia)",
       "ok": true,
       "ms": 59,
       "detalle": {
-        "requestId": "e2e-8f271732d25e"
+        "requestId": "e2e-195c7a56f721"
       }
     },
     {
@@ -134,10 +134,10 @@
       "entrada": "POST pasarela /pagar/{token} APROBADO (dos veces)",
       "identidad": "cliente (navegador en Servipag)",
       "esperado": "pedido PAGADO con boleta; el segundo envío no hace nada",
-      "obtenido": "PAGADO, venta N° 79, boleta N° 79, ref. SVP-58854374; un solo paso PAGADO",
+      "obtenido": "PAGADO, venta N° 79, boleta N° 79, ref. SVP-78958231; un solo paso PAGADO",
       "componente": "Pasarela -> gateway -> pagos -> pedidos -> ActiveMQ",
       "ok": true,
-      "ms": 845,
+      "ms": 941,
       "detalle": {
         "pedido": "PF-00081"
       }
@@ -151,7 +151,7 @@
       "obtenido": "despacho→aceptar 403, cocina→despachar 403; pasos [200, 409, 200, 200, 200]; cocina ve solo nombre y teléfono; final ENTREGADO",
       "componente": "Gateway + pedidos",
       "ok": true,
-      "ms": 264,
+      "ms": 274,
       "detalle": {
         "pedido": "PF-00081"
       }
@@ -165,9 +165,9 @@
       "obtenido": "pedido + pago APROBADO + 4 categorías de productos; campo cliente negado al cliente (PROHIBIDO)",
       "componente": "GraphQL Gateway",
       "ok": true,
-      "ms": 109,
+      "ms": 98,
       "detalle": {
-        "requestId": "e2e-c599df6ab3f9"
+        "requestId": "e2e-a8116e483c47"
       }
     },
     {
@@ -179,7 +179,7 @@
       "obtenido": "costo: «La consulta cuesta 11102 y el máximo permitido es 1000.»; página >50: BAD_USER_INPUT",
       "componente": "GraphQL Gateway",
       "ok": true,
-      "ms": 80,
+      "ms": 77,
       "detalle": {}
     },
     {
@@ -191,7 +191,7 @@
       "obtenido": "dueño: 24 ventas, 5 categorías, 24 pagos aprobados; cocina: PROHIBIDO",
       "componente": "GraphQL Gateway + pedidos + pagos + inventario",
       "ok": true,
-      "ms": 165,
+      "ms": 150,
       "detalle": {}
     },
     {
@@ -203,7 +203,7 @@
       "obtenido": "pedido de 2: 409 SIN_STOCK; pedido de 1: stock 0 y el catálogo lo muestra agotado; anulación: stock vuelve a 1",
       "componente": "Inventario (reservas) + pedidos",
       "ok": true,
-      "ms": 413,
+      "ms": 412,
       "detalle": {}
     },
     {
@@ -215,9 +215,9 @@
       "obtenido": "PF-00083: ANULADO, venta anulada, pago DEVUELTO",
       "componente": "Pedidos + pagos + pasarela + inventario",
       "ok": true,
-      "ms": 1342,
+      "ms": 1159,
       "detalle": {
-        "requestId": "e2e-6b717ab42375"
+        "requestId": "e2e-323f2c8d0db8"
       }
     },
     {
@@ -229,9 +229,9 @@
       "obtenido": "404 RUTA_INEXISTENTE",
       "componente": "Gateway (matriz de rutas)",
       "ok": true,
-      "ms": 48,
+      "ms": 47,
       "detalle": {
-        "requestId": "e2e-4131c439cfeb"
+        "requestId": "e2e-c6f93c062fd4"
       }
     },
     {
@@ -243,9 +243,9 @@
       "obtenido": "403 ORIGEN_NO_PERMITIDO",
       "componente": "Gateway",
       "ok": true,
-      "ms": 6,
+      "ms": 5,
       "detalle": {
-        "requestId": "e2e-13ba9b0ecaab"
+        "requestId": "e2e-3b2983824422"
       }
     },
     {
@@ -257,7 +257,7 @@
       "obtenido": "HttpOnly; SameSite=Lax; Path=/api; el token no viaja en el cuerpo; tras logout el mismo token responde 401",
       "componente": "Gateway",
       "ok": true,
-      "ms": 872,
+      "ms": 839,
       "detalle": {}
     },
     {
@@ -269,7 +269,7 @@
       "obtenido": "401 en los primeros 5; 429 desde el intento 6",
       "componente": "Auth Service (5 intentos) + gateway (20/min por IP)",
       "ok": true,
-      "ms": 1929,
+      "ms": 1936,
       "detalle": {
         "codigos": [
           401,
