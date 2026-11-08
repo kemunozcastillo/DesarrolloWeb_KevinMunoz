@@ -370,14 +370,15 @@ total = len(resultados)
 buenos = sum(r["ok"] for r in resultados)
 salida = Path(args.salida)
 salida.mkdir(parents=True, exist_ok=True)
-(salida / "e2e-resultados.json").write_text(json.dumps({"fecha": datetime.now().isoformat(timespec="seconds"), "gateway": args.gateway, "resultados": resultados}, ensure_ascii=False, indent=2))
+(salida / "e2e-resultados.json").write_text(json.dumps({"fecha": datetime.now().isoformat(timespec="seconds"), "gateway": args.gateway, "resultados": resultados}, ensure_ascii=False, indent=2), encoding="utf-8")
 
 filas = ["| Caso | Prueba | Entrada | Identidad | Esperado | Obtenido | Componente que lo verifica | Resultado |", "|---|---|---|---|---|---|---|---|"]
 for r in resultados:
     filas.append(f"| {r['caso']} | {r['nombre']} | {r['entrada']} | {r['identidad']} | {r['esperado']} | {r['obtenido']} | {r['componente']} | {'✅' if r['ok'] else '❌'} |")
 (salida / "e2e-resultados.md").write_text(
     f"# Pruebas de punta a punta\n\nEjecutadas el {datetime.now():%d-%m-%Y %H:%M} contra `{args.gateway}`. {buenos} de {total} correctas.\n"
-    f"El detalle de cada petición (con su X-Request-Id para buscarla en los logs) está en `e2e-resultados.json`.\n\n" + "\n".join(filas) + "\n"
+    f"El detalle de cada petición (con su X-Request-Id para buscarla en los logs) está en `e2e-resultados.json`.\n\n" + "\n".join(filas) + "\n",
+    encoding="utf-8",
 )
 print(f"\n{buenos}/{total} casos correctos. Evidencia en {salida}")
 sys.exit(0 if buenos == total else 1)

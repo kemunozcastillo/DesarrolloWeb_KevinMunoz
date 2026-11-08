@@ -38,6 +38,11 @@ def nuevo(navegador):
 
 def foto(pagina, nombre, completa=False):
     pagina.wait_for_timeout(400)
+    # Las fotos del menú son loading="lazy": se espera a las que están a la vista (con Docker tardan más que en local).
+    try:
+        pagina.wait_for_function("() => [...document.images].every(i => i.complete || i.getBoundingClientRect().top > innerHeight)", timeout=8000)
+    except Exception:
+        pass
     pagina.screenshot(path=str(SALIDA / f"{nombre}.png"), full_page=completa)
     pasos.append(nombre)
 
@@ -158,6 +163,6 @@ with sync_playwright() as p:
     nav.close()
 
 resumen = {"pedido": pedido, "pantallas": pasos, "erroresConsola": errores, "llamadasApi": sorted(set(llamadas)), "ordenMuestraPagos": "Aprobado" in texto_orden}
-(SALIDA / "recorrido.json").write_text(json.dumps(resumen, ensure_ascii=False, indent=2))
+(SALIDA / "recorrido.json").write_text(json.dumps(resumen, ensure_ascii=False, indent=2), encoding="utf-8")
 print(json.dumps({k: v for k, v in resumen.items() if k != "llamadasApi"}, ensure_ascii=False, indent=2))
 print(f"{len(set(llamadas))} rutas distintas de la API usadas por el frontend")
