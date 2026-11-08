@@ -4,7 +4,7 @@ Tienda web de poke bowls (caso 24) con su backend completo: frontend, API Gatewa
 
 Ramo: Desarrollo Web, UNAB. Evaluación de la Unidad 2.
 
-El informe con las matrices, los diagramas y las pruebas está en [docs/INFORME.md](docs/INFORME.md).
+El informe con las matrices, los diagramas y las pruebas está en [docs/INFORME.md](docs/INFORME.md). Hay una versión editable en LaTeX en [docs/latex/](docs/latex/) (portada reemplazable en `portada.tex`; se compila con `xelatex informe.tex`).
 
 ## Qué hay en cada carpeta
 

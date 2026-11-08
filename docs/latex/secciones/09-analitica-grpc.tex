@@ -1,0 +1,75 @@
+% Generado desde docs/INFORME.md. Editar libremente.
+
+\section{9. Analítica y gRPC}
+
+La decisión, con contexto, alternativas y consecuencias, está en ADR 0001 (\texttt{docs/\allowbreak{}adr/\allowbreak{}0001-\allowbreak{}analitica-\allowbreak{}y-\allowbreak{}grpc.\allowbreak{}md}).
+
+
+\subsection{Matriz de necesidades}
+
+{\small
+\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 0.1919\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.3858\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1805\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.2417\linewidth-2\tabcolsep\relax}|}
+\hline
+\textbf{Necesidad} & \textbf{Valor} & \textbf{Proyección / medición} & \textbf{¿Requiere analítica separada o gRPC?} \\ \hline
+\endfirsthead
+\hline
+\textbf{Necesidad} & \textbf{Valor} & \textbf{Proyección / medición} & \textbf{¿Requiere analítica separada o gRPC?} \\ \hline
+\endhead
+Volumen de datos & \textasciitilde{}55.000 pedidos/año, < 100 MB & Proyección & No \\ \hline
+Concurrencia en el pico & \textasciitilde{}5 peticiones/s & Proyección & No \\ \hline
+Capacidad medida & 209 a 316 peticiones/s, p95 92 a 147 ms, 0 \% de error (en Docker, con TLS) & \textbf{Medición} (\texttt{evidencias/\allowbreak{}carga.\allowbreak{}md}) & No \\ \hline
+Tamaño de mensaje & < 10 KB & Medición & No \\ \hline
+Frecuencia del reporte & Pocas veces al día & Proyección & No: consulta indexada en pedidos \\ \hline
+Latencia aceptada del reporte & $\leq$ 2 s & Objetivo & Cumple \\ \hline
+Streaming & No se necesita (aviso a cocina en segundos) & Requisito & No; los avisos asíncronos van por ActiveMQ \\ \hline
+\end{longtable}
+}
+
+\subsection{Por qué no se implementa cada componente}
+
+{\small
+\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 0.2286\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1322\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.3196\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.3196\linewidth-2\tabcolsep\relax}|}
+\hline
+\textbf{Componente} & \textbf{¿Se implementa?} & \textbf{Requisito del caso y carga que lo justificarían} & \textbf{Por qué no} \\ \hline
+\endfirsthead
+\hline
+\textbf{Componente} & \textbf{¿Se implementa?} & \textbf{Requisito del caso y carga que lo justificarían} & \textbf{Por qué no} \\ \hline
+\endhead
+Servicio de analítica separado & No & Reportes de ventas por período, unas pocas veces al día & Los resuelve una consulta indexada en pedidos (< 100 MB al año) más la agregación GraphQL (S32); un almacén aparte sería costo sin beneficio \\ \hline
+gRPC unary (cotizar, reservar) & No & 2 a 4 llamadas internas por petición, mensajes de menos de 10 KB & REST con JSON cumple la latencia con margen de 42 a 63 veces el pico \\ \hline
+gRPC streaming (avisos a cocina) & No & Cocina se entera en segundos, no en milisegundos & La pantalla consulta cada 8 s; el evento ya sale por ActiveMQ, que además recupera lo pendiente tras una desconexión \\ \hline
+Trabajo largo asíncrono con identificador & No & No hay operaciones largas & El correo y la boleta ya son asíncronos por ActiveMQ y no bloquean el pago \\ \hline
+Carga y fallos & Sí, medidos & Objetivos de p95 y 0 \% de error (ADR 0001) & \texttt{evidencias/\allowbreak{}carga.\allowbreak{}md} (tres escenarios) y pruebas de servicio caído (\texttt{502}), Vault caído (\texttt{503}) y error parcial en GraphQL \\ \hline
+\end{longtable}
+}
+
+\subsection{gRPC: por qué sí y por qué no}
+
+\textbf{Por qué sí podría usarse.} Aporta contratos tipados y generados (\texttt{.\allowbreak{}proto}), plazos y cancelación entre servicios, streaming del servidor con control de flujo, HTTP/2 con mensajes binarios y TLS o TLS mutuo con identidad en metadatos.
+
+
+\textbf{Por qué no se usa en este caso.}
+
+
+\begin{itemize}[nosep,leftmargin=*]
+\item \textbf{Ningún flujo lo necesita.} Todas las llamadas internas son puntuales y pequeñas (menos de 10 KB; de 2 a 4 por petición): cotizar y reservar (una por pedido), ficha del cliente, confirmar un pago y las lecturas del GraphQL con DataLoader. Ninguna es de alta frecuencia ni larga.
+\item \textbf{No hay un requisito de streaming.} Cocina debe enterarse en segundos; el evento sale por ActiveMQ y la pantalla consulta cada 8 s.
+\item \textbf{Lo que daría ya está cubierto:} plazo de 4 s por llamada interna (\texttt{502/\allowbreak{}504}), \texttt{X-\allowbreak{}Request-\allowbreak{}Id} e identidad propagados, operaciones idempotentes, TLS entre todos los saltos y contratos validados en el servidor con pruebas.
+\item \textbf{El navegador no habla gRPC.} Habría que mantener REST hacia afuera y \texttt{.\allowbreak{}proto} hacia adentro para lo mismo, o agregar un proxy gRPC-Web.
+\item \textbf{Costo de operación:} generación de código en Node y Python, un servidor gRPC junto a cada FastAPI y rehacer \texttt{healthcheck}, pruebas y controles de seguridad para otro protocolo.
+\item \textbf{El rendimiento ya cumple:} 209 a 316 peticiones/s con REST y TLS, de 42 a 63 veces el pico proyectado.
+\end{itemize}
+
+\textbf{Limitación.} No se midió gRPC contra REST; por eso no se afirma que sea más rápido, más lento ni que consuma más o menos CPU o memoria. La decisión se apoya en que el caso no tiene un requisito que lo justifique y en la capacidad medida del diseño actual.
+
+
+\textbf{Cuándo sería sí.} Un consumidor privado que necesite un flujo continuo de eventos con reanudación (por ejemplo, un monitor de despacho en tiempo real), una llamada interna que supere la capacidad medida, varios equipos o lenguajes que exijan contratos generados, o una operación larga que haya que cancelar. En ese caso: \texttt{unary} con plazo de 4 s para cotizar y reservar, un stream del servidor para eventos de pedido con el último evento recibido para reanudar sin duplicar, identidad en metadatos y un adaptador con Server-Sent Events en el gateway para el navegador. Es una propuesta y \textbf{no está implementada ni probada}.
+
+
+El análisis completo, con una evaluación flujo por flujo, está en el ADR 0001 (\texttt{docs/\allowbreak{}adr/\allowbreak{}0001-\allowbreak{}analitica-\allowbreak{}y-\allowbreak{}grpc.\allowbreak{}md}).
+
+
+\textbf{Conclusión:} no se implementa un servicio de analítica separado ni gRPC, porque la carga proyectada es entre 42 y 63 veces menor que la medida y no hay flujos de streaming. La alternativa implementada (reporte en pedidos + agregación GraphQL + eventos por ActiveMQ) cumple los objetivos con la prueba de carga como evidencia. El ADR indica cuándo revisar la decisión.
+

@@ -1,0 +1,70 @@
+% Generado desde docs/INFORME.md. Editar libremente.
+
+\section{0. Requisitos y brechas declaradas}
+
+\subsection{Requisitos del caso}
+
+{\small
+\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 0.1665\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.8335\linewidth-2\tabcolsep\relax}|}
+\hline
+\textbf{Id} & \textbf{Requisito} \\ \hline
+\endfirsthead
+\hline
+\textbf{Id} & \textbf{Requisito} \\ \hline
+\endhead
+R1 & Catálogo por categorías (bases, proteínas, salsas, toppings, bebidas, promociones), con dos tamaños y reglas de armado (bases y proteínas incluidas, recargos por extra e ingredientes premium) \\ \hline
+R2 & Armar un bowl personalizado y ver su precio \\ \hline
+R3 & Promociones armables (combo con bebida, dúo de bowls) \\ \hline
+R4 & Carrito de compra \\ \hline
+R5 & Registro de clientes con RUN, nombre, dirección, región/provincia/comuna, fecha de nacimiento, sexo, correo y teléfono; verificación del correo \\ \hline
+R6 & Ingreso de clientes y de usuarios internos con perfiles: administrador, dueño, cocina y encargado de despacho \\ \hline
+R7 & Venta solo a clientes registrados; retiro en local o despacho gratis dentro de 3 km \\ \hline
+R8 & Pago en línea en Servipag; con el pago confirmado, el cajero virtual registra la venta y emite la boleta electrónica, que se envía al correo \\ \hline
+R9 & Cocina recibe los pedidos pagados en orden de llegada, con aviso, los acepta y los marca listos \\ \hline
+R10 & Despacho asigna chofer y registra la entrega; los retiros quedan listos en el local \\ \hline
+R11 & Anulación con motivo mientras cocina no acepte; si estaba pagado, se devuelve el pago \\ \hline
+R12 & Mantenedores: productos (precio, disponibilidad, stock), clientes (incluido el registro en el local con clave temporal) y usuarios internos \\ \hline
+R13 & Caja web del día y reporte de ventas por período, descargable en CSV \\ \hline
+R14 & Seguimiento del pedido, boleta e historial del cliente \\ \hline
+\end{longtable}
+}
+
+\subsection{Convenciones y punto de partida}
+
+\begin{itemize}[nosep,leftmargin=*]
+\item \textbf{Público y privado.} Una ruta es \emph{pública} cuando el gateway la publica hacia el navegador, y puede exigir sesión. Un servicio es \emph{privado} cuando solo lo alcanzan componentes autorizados (red \texttt{privada}, credencial interna). Son clasificaciones distintas: \texttt{pedidos} es un servicio privado y aun así tiene rutas públicas.
+\item \textbf{Dato público y restringido.} Solo los datos del catálogo (nombre, descripción, precio, disponibilidad) son públicos. RUN, dirección, correo, teléfono, fecha de nacimiento, sexo y el historial de pedidos son restringidos aunque aparezcan en pantalla (sección 7).
+\item \textbf{Requisitos y decisiones.} R1 a R14 vienen del caso. Las decisiones de arquitectura (un solo API Gateway, sesiones opacas en un Auth Service, Vault, GraphQL privado, TLS, ADR 0001) son del diseño y se justifican en las secciones 2 a 9.
+\item \textbf{Escritorio y móvil.} Es una sola SPA responsiva: una variación visual no genera un servicio nuevo, y los mismos S01 a S44 sirven a ambos tamaños. Hay capturas de los dos (sección 10).
+\item \textbf{Pantallas y operaciones.} Todas las funciones del caso tienen pantalla; no quedó ninguna brecha de pantalla. Cuatro operaciones existen como contrato pero ninguna pantalla las usa: S19 (el frontend trae su propia lista de choferes, que el servidor igual valida), S28 (los pagos de un pedido se ven con S30), S31 (la lista de pedidos usa S16) y S44 (es para quien opera el sistema).
+\item \textbf{Identificadores.} Cada operación tiene un ID de servicio (S01 a S44) que se repite en la trazabilidad, la matriz de permisos, la matriz de rutas, el UML y la matriz final de requisitos. Los requisitos son R1 a R14 y las pantallas son las rutas del frontend (\texttt{\#/\allowbreak{}.\allowbreak{}.\allowbreak{}.\allowbreak{}}).
+\end{itemize}
+
+\subsection{Brechas declaradas}
+
+Lo que no se implementa como en producción, por qué, y qué lo reemplaza:
+
+
+{\small
+\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 0.2965\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.3517\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.3517\linewidth-2\tabcolsep\relax}|}
+\hline
+\textbf{Brecha} & \textbf{Motivo} & \textbf{Cómo se cubre} \\ \hline
+\endfirsthead
+\hline
+\textbf{Brecha} & \textbf{Motivo} & \textbf{Cómo se cubre} \\ \hline
+\endhead
+Servipag no tiene un entorno de pruebas abierto & Proveedor externo sin sandbox público & \texttt{servicios/\allowbreak{}pasarela}: simulador con el mismo contrato que una pasarela real (API key del comercio, página de pago, notificación firmada con HMAC, reintentos, devoluciones). El servicio de pagos se integra igual que con una real \\ \hline
+Correo (código de verificación, boleta) & Sin proveedor de correo & En modo demo el código vuelve en la respuesta y se muestra como “correo simulado”; la boleta se publica en ActiveMQ y el notificador registra el envío. Con \texttt{MODO\_\allowbreak{}DEMO=\allowbreak{}false} no se devuelve \\ \hline
+Radio de 3 km & Sin servicio de mapas & Se aproxima por comuna (Providencia, Ñuñoa, Santiago, Recoleta y Las Condes), validado en el servidor \\ \hline
+Certificados de prueba y sin TLS mutuo & Entorno local: no hay una CA pública que emita certificados para \texttt{localhost} & Hay TLS en todos los saltos (navegador $\rightarrow$ gateway, gateway $\rightarrow$ servicios, servicio $\rightarrow$ servicio, Vault, Mongo y ActiveMQ) con una CA propia que crea \texttt{tls-\allowbreak{}init} en el arranque. El navegador avisa que esa CA no es de confianza. Los clientes verifican al servidor con la CA, pero no presentan certificado propio (se autentican con credencial: TLS mutuo queda para producción) y las claves privadas están en un volumen compartido de solo lectura, igual que los tokens de Vault. La red privada además sigue siendo \texttt{internal}. En producción: certificados de una CA real con renovación automática \\ \hline
+Desbloqueo de Vault & Entorno de desarrollo & La clave de desbloqueo y el token raíz quedan en un volumen local para que el sistema arranque solo. En producción: auto-unseal con KMS y token raíz revocado \\ \hline
+Distribución de tokens de Vault & Docker Compose no entrega un archivo distinto a cada contenedor sin un orquestador & Cada servicio tiene su propio token con su propia política, pero todos se escriben en un mismo volumen de solo lectura. En producción, el orquestador (Docker secrets o Kubernetes) monta cada token solo en su contenedor \\ \hline
+Sesiones del Auth Service & Se guardan en memoria & Un reinicio del Auth Service cierra todas las sesiones (falla segura: hay que volver a ingresar) \\ \hline
+ActiveMQ sin autenticación & Broker solo accesible en la red privada y solo por STOMP sobre TLS (sin consola web ni otros protocolos) & Si se expone, se activa usuario y clave en el broker y se guardan en Vault \\ \hline
+Aviso a cocina “en vivo” & Sin WebSocket ni SSE & La pantalla de cocina consulta cada 8 s y avisa con sonido; ActiveMQ ya publica el evento por si se quiere empujar (ver ADR 0001) \\ \hline
+Casos 7.9, 7.10 y 10.7 no se ejecutan contra Docker & Prueban acceso directo a los servicios, secretos ajenos en Vault y Vault sellado, y desde el equipo la red privada no se alcanza (es lo que se busca) & Corren con \texttt{casos.\allowbreak{}py -\allowbreak{}-\allowbreak{}directo} en el entorno local sin Docker, donde todo va en HTTP (22 casos en total: los 19 que aplican sin TLS más esos 3; el 7.12 solo aplica con HTTPS); en Docker la separación de redes se comprueba porque solo se publican los puertos 8080 y 9000 \\ \hline
+GitHub Pages & El frontend ahora necesita la API & Se sirve desde el gateway (mismo origen que la API). La versión estática de la entrega anterior sigue en la rama \texttt{Front-\allowbreak{}end} \\ \hline
+\end{longtable}
+}

@@ -1,0 +1,91 @@
+% Generado desde docs/INFORME.md. Editar libremente.
+
+\begin{landscape}
+\section{7. Datos sensibles y secretos del cliente}
+\subsection{Clasificación de datos}
+\vspace{0.6em}
+{\scriptsize
+\setlength{\LTpre}{0pt}\setlength{\LTpost}{0pt}
+\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 0.1441\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1129\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1061\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.0863\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1239\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.0880\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1706\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1681\linewidth-2\tabcolsep\relax}|}
+\hline
+\textbf{Dato o credencial} & \textbf{Finalidad} & \textbf{Clasificación} & \textbf{Sistema custodio} & \textbf{Roles autorizados} & \textbf{En el frontend} & \textbf{Protección} & \textbf{Retención} \\ \hline
+\endfirsthead
+\hline
+\textbf{Dato o credencial} & \textbf{Finalidad} & \textbf{Clasificación} & \textbf{Sistema custodio} & \textbf{Roles autorizados} & \textbf{En el frontend} & \textbf{Protección} & \textbf{Retención} \\ \hline
+\endhead
+Nombre, descripción, precio de productos & Vender & Público & inventario & Todos; editar admin/dueño & Menú & Validación en servidor & Mientras exista el producto \\ \hline
+Stock & Evitar sobreventa & Interno & inventario & admin, dueño & Solo panel & DTO por rol & Siempre actualizado \\ \hline
+RUN & Boleta e identificación del comprador (caso) & Personal & clientes (y copia en el pedido) & El cliente, admin, dueño & Mis datos, boleta & No sale a cocina ni despacho; no va en logs & Mientras la cuenta exista; en la boleta, lo que exija la ley tributaria \\ \hline
+Nombre y teléfono & Contacto y entrega & Personal & clientes (copia en el pedido) & Cliente, personal & Panel, orden & Mínimo necesario & Igual \\ \hline
+Dirección y comuna & Despacho & Personal & clientes (copia si es despacho) & Cliente, admin, cocina y despacho en el pedido & Orden de despacho & No va en el catálogo ni en logs & Igual \\ \hline
+Correo & Cuenta, boleta & Personal & clientes y Auth & Cliente, admin & Mis datos & No va en logs (el notificador registra solo el dominio) & Igual \\ \hline
+Fecha de nacimiento, sexo & Requeridos por el caso para el registro & Personal & clientes & Cliente, admin & Mis datos & Nunca salen en pedidos & Igual \\ \hline
+Contraseña & Autenticar & Credencial & Auth (solo el hash) & Nadie la ve & Formulario & scrypt (N=16384) + sal por cuenta + pepper en Vault; nunca se devuelve & El hash, mientras exista la cuenta \\ \hline
+Código de verificación & Verificar correo & Credencial temporal & Auth (solo su hash) & El dueño del correo & Correo simulado (modo demo) & SHA-256, vence en 24 h, se borra al usarlo & 24 h \\ \hline
+Token de sesión & Mantener la sesión & Credencial & Auth (hash) y cookie & El navegador del usuario & Nunca lo ve JavaScript (HttpOnly) & 256 bits, opaco, SameSite, Path=/api & 30 min sin uso u 8 h \\ \hline
+Pedido, líneas, totales & Vender y preparar & Personal-comercial & pedidos & Dueño del pedido, personal según rol & Orden, panel & Propiedad, DTO por rol & Indefinida (registro de ventas) \\ \hline
+Pago (monto, estado, referencia) & Cobro y conciliación & Financiero & pagos & Dueño del pedido, admin, dueño & Orden, reportes & Token de pasarela nunca sale; idempotencia & Indefinida \\ \hline
+Datos de tarjeta & Pagar & Financiero sensible & \textbf{Solo la pasarela} & — & Nunca pasan por Poke Fresh & El cliente paga en la página del proveedor & No se guardan \\ \hline
+Credenciales internas, pepper, claves de Mongo y pasarela & Integración & Secreto & Vault & Cada servicio, solo las suyas & Nunca & Políticas por servicio & Hasta su rotación \\ \hline
+\end{longtable}
+}
+\end{landscape}
+
+\subsection{Decisión sobre secretos del cliente}
+
+\textbf{No: Poke Fresh no custodia secretos asociados al cliente.} El cliente paga en la página de la pasarela; ningún dato de tarjeta pasa por el navegador de la tienda, el gateway ni los servicios. Lo que se guarda del pago es el monto, el estado y una referencia de la pasarela, que no permite operar la cuenta de nadie. La contraseña del cliente es una credencial, no un secreto custodiado: se guarda su hash irreversible. El token de la transacción (\texttt{token} en pagos) es un identificador de la operación con alcance limitado a esa transacción; aun así no se devuelve al navegador. La única clave secreta de pago es la del comercio (\texttt{api\_\allowbreak{}key} y \texttt{secreto\_\allowbreak{}firma}), que vive en Vault y nunca llega al navegador.
+
+
+\subsection{Recorrido de un dato restringido: el RUN}
+
+\begin{enumerate}[nosep,leftmargin=*]
+\item \textbf{Captura:} el cliente lo escribe en \texttt{\#/\allowbreak{}registro}. El frontend valida el dígito verificador por comodidad.
+\item \textbf{Transporte:} viaja en el cuerpo de \texttt{POST /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}clientes/\allowbreak{}registro} (por HTTPS; el navegador solo habla con el gateway, y con TLS). El gateway no lo registra en logs (solo método, ruta, estado y rol).
+\item \textbf{Validación y almacenamiento:} el servicio de clientes vuelve a validar formato, dígito verificador y unicidad (índice único) y lo guarda en \texttt{pf\_\allowbreak{}clientes}, normalizado (\texttt{16459723-\allowbreak{}7}).
+\item \textbf{Uso:} al crear un pedido, pedidos copia nombre, RUN, correo y teléfono en el pedido (la boleta debe mostrar los datos del momento de la venta).
+\item \textbf{Exposición mínima:} cocina y despacho reciben del pedido solo nombre y teléfono; el RUN lo ven el propio cliente, el administrador y el dueño (boleta y CSV del reporte).
+\item \textbf{Eliminación o conservación:} al desactivar al cliente, su ficha queda inactiva y su cuenta no puede ingresar. La copia en pedidos y boletas se conserva justificadamente como respaldo tributario de la venta. Una eliminación de la ficha a petición del titular borraría la ficha y la cuenta, conservando solo los documentos de venta.
+\end{enumerate}
+
+\subsection{Sesiones y tokens}
+
+\begin{itemize}[nosep,leftmargin=*]
+\item El token es opaco (no es un JWT): no contiene datos y el Auth Service guarda solo su hash.
+\item Va en una cookie \texttt{HttpOnly; Secure; SameSite=\allowbreak{}Lax; Path=\allowbreak{}/\allowbreak{}api} (solo viaja por HTTPS). El JavaScript de la página no puede leerlo, así que un script inyectado no lo roba.
+\item Expira a los 30 minutos sin uso (cada petición lo renueva) o a las 8 horas.
+\item \textbf{Revocación inmediata:} logout, desactivar la cuenta, cambiar el correo, el rol o la clave borran las sesiones; la siguiente petición responde 401.
+\item \textbf{Ninguna clave compartida vive en el navegador:} el frontend no tiene API keys ni secretos; todo lo que necesita autenticarse lo hace el gateway.
+\end{itemize}
+
+\subsection{Casos de validación ejecutados}
+
+Ejecutados contra el backend implementado con \texttt{pruebas/\allowbreak{}e2e/\allowbreak{}casos.\allowbreak{}py}. Resultados completos y verificables en \texttt{evidencias/\allowbreak{}e2e-\allowbreak{}resultados.\allowbreak{}md} y \texttt{e2e-\allowbreak{}resultados.\allowbreak{}json} (\texttt{docs/\allowbreak{}evidencias/\allowbreak{}e2e-\allowbreak{}resultados.\allowbreak{}json}) (con el \texttt{X-\allowbreak{}Request-\allowbreak{}Id} de cada petición).
+
+
+{\footnotesize
+\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 0.1715\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1880\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1009\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.2342\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.2045\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1009\linewidth-2\tabcolsep\relax}|}
+\hline
+\textbf{Caso} & \textbf{Entrada} & \textbf{Identidad} & \textbf{Esperado} & \textbf{Obtenido} & \textbf{Lo verifica} \\ \hline
+\endfirsthead
+\hline
+\textbf{Caso} & \textbf{Entrada} & \textbf{Identidad} & \textbf{Esperado} & \textbf{Obtenido} & \textbf{Lo verifica} \\ \hline
+\endhead
+7.1 Acceso anónimo al catálogo & \texttt{GET /\allowbreak{}catalogo/\allowbreak{}items} & anónimo & 200 sin stock & 200, 29 productos sin stock & Gateway + inventario \\ \hline
+7.2 Operación protegida sin sesión & \texttt{GET /\allowbreak{}pedidos} & anónimo & 401 & 401 SIN\_\allowbreak{}SESION & Gateway \\ \hline
+7.3 Administración con rol sin permiso & \texttt{DELETE} producto, \texttt{GET /\allowbreak{}clientes}, reportes & cocina, dueño, cliente & 403 & 403 en las cuatro & Gateway + inventario \\ \hline
+7.4 Identidad falsificada & \texttt{X-\allowbreak{}Usuario-\allowbreak{}Rol:\allowbreak{} admin} & cliente & 403 & 403 & Gateway \\ \hline
+7.5 Pedido ajeno & REST y GraphQL & otro cliente & 404 / null & 404 sin datos; \texttt{resumenPedido:\allowbreak{} null} & pedidos \\ \hline
+7.6 Pago alterado desde el frontend & \texttt{monto:\allowbreak{} 1}; notificación sin firma / firma falsa & cliente & monto real; 401 & monto 7.890; 401 y 401; pedido sigue pendiente & pagos \\ \hline
+7.7 CSRF & \texttt{Origin} ajeno & cliente & 403 & 403 ORIGEN\_\allowbreak{}NO\_\allowbreak{}PERMITIDO & Gateway \\ \hline
+7.8 Cookie y logout & login, logout & cliente & HttpOnly y Secure; 401 tras logout & Cumple & Gateway + Auth \\ \hline
+7.9 Acceso directo al backend & servicios sin gateway & atacante en la red & 403/401 & pedidos 403, inventario 403, GraphQL 403, Auth 401 & Cada servicio \\ \hline
+7.10 Secreto ajeno en Vault & token de inventario & inventario & 403 & propio 200; pagos 403; pepper 403 & Vault \\ \hline
+7.11 Fuerza bruta & 25 logins fallidos & anónimo & bloqueo & 429 desde el intento 6 & Auth + gateway \\ \hline
+7.12 Transporte cifrado & GET en claro y por HTTPS & anónimo & sin HTTP en claro; HTTPS con HSTS; certificado verificado con la CA & Cumple & Gateway (TLS) \\ \hline
+\end{longtable}
+}
+
+\textbf{Control antes de entregar.} No hay secretos en JavaScript, HTML ni capturas (las cuentas de prueba las informa el gateway solo en modo demo y están documentadas como datos de demostración). Los datos devueltos son los mínimos por rol. Aunque la pantalla esté en Internet, el navegador no recibe nada que su rol no pueda ver, porque el filtro está en el servidor.
+

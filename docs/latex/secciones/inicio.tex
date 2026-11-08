@@ -1,0 +1,29 @@
+% Generado desde docs/INFORME.md. Editar libremente.
+
+\section*{Acerca de este documento}\addcontentsline{toc}{section}{Acerca de este documento}
+
+Los diagramas están en \texttt{docs/\allowbreak{}diagramas/\allowbreak{}} como archivos Mermaid (\texttt{.\allowbreak{}mmd}, editables en cualquier editor de texto o en mermaid.live) y su imagen (\texttt{.\allowbreak{}png}). Las evidencias de ejecución están en \texttt{docs/\allowbreak{}evidencias/\allowbreak{}}. Además, \texttt{docs/\allowbreak{}diagramas/\allowbreak{}poke-\allowbreak{}fresh.\allowbreak{}dsl} modela el sistema en C4 con Structurizr DSL (adaptación del modelo de referencia del curso): contexto, contenedores, componentes, 14 flujos dinámicos y 2 despliegues.
+
+
+\subsection*{Correspondencia con la pauta de evaluación}\addcontentsline{toc}{subsection}{Correspondencia con la pauta de evaluación}
+
+{\small
+\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 0.3366\linewidth-2\tabcolsep\relax}|>{\raggedleft\arraybackslash}p{\dimexpr 0.1468\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.5166\linewidth-2\tabcolsep\relax}|}
+\hline
+\textbf{Criterio de la rúbrica} & \textbf{Puntos} & \textbf{Dónde está la evidencia} \\ \hline
+\endfirsthead
+\hline
+\textbf{Criterio de la rúbrica} & \textbf{Puntos} & \textbf{Dónde está la evidencia} \\ \hline
+\endhead
+Servicios y contratos & 10 & Sección 1: trazabilidad de pantallas, matriz de las 44 operaciones (S01 a S44) y contratos de ejemplo \\ \hline
+UML y límites de microservicios & 10 & Sección 2: UML (\texttt{diagramas/\allowbreak{}dominio.\allowbreak{}png}), cardinalidades, DTO y límites; sección 8 (mapa de clasificación) \\ \hline
+Sistemas y persistencia & 10 & Sección 3 (matriz de los cuatro sistemas, estados y fallos); sección 10 (MongoDB, índices, datos de ejemplo, pruebas de reglas) \\ \hline
+Stakeholders y seguridad & 10 & Sección 4 (permisos por rol), sección 7 (clasificación de datos y casos de validación ejecutados) \\ \hline
+API Gateway y secretos & 10 & Sección 5 (UML, fronteras, gateways), sección 6 (rutas, secretos, identidades); \texttt{gateway/\allowbreak{}}, \texttt{vault/\allowbreak{}}, redes en \texttt{docker-\allowbreak{}compose.\allowbreak{}yml} \\ \hline
+Agregaciones GraphQL & 15 & Sección 8: schema, resolvers, matriz de autorización, límites y capturas desde el frontend; \texttt{graphql-\allowbreak{}gateway/\allowbreak{}} \\ \hline
+Analítica y gRPC según aplicabilidad & 10 & Sección 9, ADR 0001 (\texttt{docs/\allowbreak{}adr/\allowbreak{}0001-\allowbreak{}analitica-\allowbreak{}y-\allowbreak{}grpc.\allowbreak{}md}) y \texttt{evidencias/\allowbreak{}carga.\allowbreak{}md} \\ \hline
+Backend completo e integración & 15 & Sección 10: matriz requisito, pantalla, servicio, prueba y evidencia; capturas en escritorio, móvil y navegador real \\ \hline
+Pruebas y reproducibilidad & 10 & Sección 10 (pruebas y resultados), \texttt{README.\allowbreak{}md} (inicio y pruebas), \texttt{evidencias/\allowbreak{}} \\ \hline
+\end{longtable}
+}

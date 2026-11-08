@@ -7,3 +7,13 @@ __pycache__/
 
 # CA de prueba exportada del volumen tls para verificar el certificado (cambia con cada docker compose down -v)
 /ca.pem
+
+# Archivos auxiliares al compilar el informe en LaTeX
+docs/latex/*.aux
+docs/latex/*.log
+docs/latex/*.out
+docs/latex/*.toc
+docs/latex/*.pdf
+docs/latex/*.xdv
+docs/latex/*.fdb_latexmk
+docs/latex/*.fls

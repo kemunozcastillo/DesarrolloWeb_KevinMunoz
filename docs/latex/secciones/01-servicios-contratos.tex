@@ -1,0 +1,272 @@
+% Generado desde docs/INFORME.md. Editar libremente.
+
+\section{1. Servicios y contratos}
+
+\subsection{Trazabilidad de pantallas}
+
+{\footnotesize
+\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 0.2447\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1096\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.2417\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.2974\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1066\linewidth-2\tabcolsep\relax}|}
+\hline
+\textbf{Pantalla (ruta del frontend)} & \textbf{Requisito} & \textbf{Operaciones} & \textbf{Servicio y endpoint (vía \texttt{/\allowbreak{}api/\allowbreak{}v1})} & \textbf{IDs} \\ \hline
+\endfirsthead
+\hline
+\textbf{Pantalla (ruta del frontend)} & \textbf{Requisito} & \textbf{Operaciones} & \textbf{Servicio y endpoint (vía \texttt{/\allowbreak{}api/\allowbreak{}v1})} & \textbf{IDs} \\ \hline
+\endhead
+Todas las pantallas (barra superior) & R6 & Saber quién tiene sesión, cerrar sesión & gateway: \texttt{GET /\allowbreak{}auth/\allowbreak{}sesion}; Auth: \texttt{POST /\allowbreak{}auth/\allowbreak{}logout} & S35, S34 \\ \hline
+Inicio, Menú \texttt{\#/\allowbreak{}menu}, Arma tu bowl, Promo, Carrito & R1 a R4 & Ver catálogo, tamaños, reglas y promociones & inventario: \texttt{GET /\allowbreak{}catalogo/\allowbreak{}items}, \texttt{GET /\allowbreak{}catalogo/\allowbreak{}configuracion} & S01, S03 \\ \hline
+Ingresar \texttt{\#/\allowbreak{}ingresar} & R6 & Login, cuentas de prueba (demo) & gateway + Auth Service: \texttt{POST /\allowbreak{}auth/\allowbreak{}login}, \texttt{GET /\allowbreak{}auth/\allowbreak{}config} & S33, S36 \\ \hline
+Registro \texttt{\#/\allowbreak{}registro}, Verificar \texttt{\#/\allowbreak{}verificar} & R5 & Crear cuenta, verificar correo, reenviar código & clientes: \texttt{POST /\allowbreak{}clientes/\allowbreak{}registro}; Auth: \texttt{POST /\allowbreak{}auth/\allowbreak{}verificar}, \texttt{POST /\allowbreak{}auth/\allowbreak{}reenviar} & S07, S38, S39 \\ \hline
+Mis datos \texttt{\#/\allowbreak{}mi-\allowbreak{}cuenta} & R14 & Ver y editar ficha, cambiar clave & clientes: \texttt{GET/\allowbreak{}PUT /\allowbreak{}clientes/\allowbreak{}yo}; Auth: \texttt{PUT /\allowbreak{}auth/\allowbreak{}clave} & S08, S09, S37 \\ \hline
+Mis pedidos \texttt{\#/\allowbreak{}mis-\allowbreak{}pedidos} & R14 & Historial propio & pedidos: \texttt{GET /\allowbreak{}pedidos} & S16 \\ \hline
+Confirmar pedido \texttt{\#/\allowbreak{}checkout} & R4, R7 & Crear pedido (solo la selección) & pedidos (+ clientes + inventario): \texttt{POST /\allowbreak{}pedidos} & S15 \\ \hline
+Pago \texttt{\#/\allowbreak{}pago/\allowbreak{}:\allowbreak{}id} & R8 & Iniciar pago e ir a Servipag & pagos (+ pedidos + pasarela): \texttt{POST /\allowbreak{}pagos} & S27 \\ \hline
+Pedido \texttt{\#/\allowbreak{}orden/\allowbreak{}:\allowbreak{}id} & R8, R11, R14 & Seguimiento, pagos, anular & \textbf{GraphQL} \texttt{resumenPedido}; pedidos: \texttt{POST /\allowbreak{}pedidos/\allowbreak{}:\allowbreak{}id/\allowbreak{}anular} & S30, S25 \\ \hline
+Boleta \texttt{\#/\allowbreak{}boleta/\allowbreak{}:\allowbreak{}n} & R8, R14 & Ver e imprimir & pedidos: \texttt{GET /\allowbreak{}pedidos/\allowbreak{}boleta/\allowbreak{}:\allowbreak{}n} & S18 \\ \hline
+Panel: Pedidos \texttt{\#/\allowbreak{}admin/\allowbreak{}pedidos} & R11 & Filtrar, abrir, anular & pedidos: \texttt{GET /\allowbreak{}pedidos?\allowbreak{}estado\&\allowbreak{}q}, \texttt{GET /\allowbreak{}pedidos/\allowbreak{}:\allowbreak{}id}, \texttt{POST /\allowbreak{}pedidos/\allowbreak{}:\allowbreak{}id/\allowbreak{}anular} & S16, S17, S25 \\ \hline
+Panel: Cocina \texttt{\#/\allowbreak{}admin/\allowbreak{}cocina} & R9 & Cola, aceptar, marcar listo, orden imprimible & pedidos: \texttt{GET /\allowbreak{}pedidos?\allowbreak{}cola=\allowbreak{}cocina}, \texttt{POST /\allowbreak{}pedidos/\allowbreak{}:\allowbreak{}id/\allowbreak{}aceptar}, \texttt{/\allowbreak{}terminar}, \texttt{/\allowbreak{}impresa} & S16, S20, S21, S24 \\ \hline
+Panel: Despacho \texttt{\#/\allowbreak{}admin/\allowbreak{}despacho} & R10 & Cola, asignar chofer, entregar & pedidos: \texttt{GET /\allowbreak{}pedidos?\allowbreak{}cola=\allowbreak{}despacho}, \texttt{POST /\allowbreak{}pedidos/\allowbreak{}:\allowbreak{}id/\allowbreak{}despachar}, \texttt{/\allowbreak{}entregar} & S16, S22, S23 \\ \hline
+Panel: Caja \texttt{\#/\allowbreak{}admin/\allowbreak{}caja} & R13 & Ventas del día & pedidos: \texttt{GET /\allowbreak{}reportes/\allowbreak{}ventas} & S26 \\ \hline
+Panel: Reportes \texttt{\#/\allowbreak{}admin/\allowbreak{}reportes} & R13 & Reporte, CSV, categorías, conciliación & pedidos: \texttt{GET /\allowbreak{}reportes/\allowbreak{}ventas}; \textbf{GraphQL} \texttt{reporteVentas} & S26, S32 \\ \hline
+Panel: Productos \texttt{\#/\allowbreak{}admin} & R12 & CRUD, stock, disponibilidad & inventario: \texttt{GET/\allowbreak{}POST/\allowbreak{}PUT/\allowbreak{}DELETE /\allowbreak{}catalogo/\allowbreak{}items} & S01, S02, S04, S05, S06 \\ \hline
+Panel: Clientes \texttt{\#/\allowbreak{}admin/\allowbreak{}clientes} & R12 & Listar, registrar en local, editar, activar & clientes: \texttt{GET/\allowbreak{}POST /\allowbreak{}clientes}, \texttt{GET/\allowbreak{}PUT /\allowbreak{}clientes/\allowbreak{}:\allowbreak{}id}, \texttt{PATCH /\allowbreak{}clientes/\allowbreak{}:\allowbreak{}id/\allowbreak{}estado} & S10, S11, S12, S13, S14 \\ \hline
+Panel: Usuarios \texttt{\#/\allowbreak{}admin/\allowbreak{}usuarios} & R6, R12 & Listar, crear, editar, activar & Auth: \texttt{GET/\allowbreak{}POST /\allowbreak{}usuarios}, \texttt{PUT /\allowbreak{}usuarios/\allowbreak{}:\allowbreak{}id}, \texttt{PATCH /\allowbreak{}usuarios/\allowbreak{}:\allowbreak{}id/\allowbreak{}estado} & S40, S41, S42, S43 \\ \hline
+(sin pantalla) & — & Operaciones solo de contrato & \texttt{GET /\allowbreak{}pedidos/\allowbreak{}configuracion}, \texttt{GET /\allowbreak{}pagos?\allowbreak{}pedidoId}, GraphQL \texttt{misPedidos}, \texttt{GET /\allowbreak{}api/\allowbreak{}salud} & S19, S28, S31, S44 \\ \hline
+(la invoca la pasarela, no el navegador) & R8 & Confirmar el pago & pagos: \texttt{POST /\allowbreak{}pagos/\allowbreak{}notificacion} & S29 \\ \hline
+\end{longtable}
+}
+
+Los precios, totales y estados de pago nunca los manda el navegador como verdad: el servidor los calcula o los verifica (S15, S27, S29).
+
+
+\subsection{Catálogo de servicios}
+
+{\footnotesize
+\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 0.1223\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1173\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.2957\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1430\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1007\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.2210\linewidth-2\tabcolsep\relax}|}
+\hline
+\textbf{Servicio} & \textbf{Tecnología} & \textbf{Responsabilidad} & \textbf{Datos propios} & \textbf{Expuesto} & \textbf{IDs públicos} \\ \hline
+\endfirsthead
+\hline
+\textbf{Servicio} & \textbf{Tecnología} & \textbf{Responsabilidad} & \textbf{Datos propios} & \textbf{Expuesto} & \textbf{IDs públicos} \\ \hline
+\endhead
+API Gateway & Node, Express & Servir el frontend, sesión, autorización por rol, enrutamiento, límites, CSRF & Ninguno & Sí (8080) & S35, S36, S44 (y reenvía todos los demás) \\ \hline
+Auth Service & Node, Express & Cuentas, contraseñas, sesiones, introspección, verificación de correo, usuarios internos & \texttt{pf\_\allowbreak{}auth.\allowbreak{}cuentas} & No & S33, S34, S37 a S43 \\ \hline
+GraphQL Gateway & Node, Apollo Server 4 & Agregaciones de lectura entre servicios & Ninguno & No & S30 a S32 \\ \hline
+inventario & Python, FastAPI & Catálogo, precios, reglas, cotización, stock y reservas & \texttt{pf\_\allowbreak{}inventario.\allowbreak{}items}, \texttt{reservas} & No & S01 a S06 \\ \hline
+clientes & Python, FastAPI & Ficha del cliente & \texttt{pf\_\allowbreak{}clientes.\allowbreak{}clientes} & No & S07 a S14 \\ \hline
+pedidos & Python, FastAPI & Pedidos, estados, venta, boleta, colas, reporte & \texttt{pf\_\allowbreak{}pedidos.\allowbreak{}pedidos}, \texttt{contadores} & No & S15 a S26 \\ \hline
+pagos & Python, FastAPI & Pagos, idempotencia, notificaciones, devoluciones & \texttt{pf\_\allowbreak{}pagos.\allowbreak{}pagos} & No & S27 a S29 \\ \hline
+notificador & Python, stomp.py & Consumir \texttt{/\allowbreak{}queue/\allowbreak{}correos} y \texttt{/\allowbreak{}queue/\allowbreak{}cocina} & Ninguno & No & — (consume eventos) \\ \hline
+Pasarela (simulada) & Python, FastAPI & Proveedor externo de pago & Memoria & Sí (9000) & — (la usa el navegador para pagar y pagos por API) \\ \hline
+\end{longtable}
+}
+
+\begin{landscape}
+\subsection{Matriz de servicios: una fila por operación}
+Datos: \textbf{Púb.} público, \textbf{Rest.} restringido (personal), \textbf{Cred.} credencial, \textbf{Fin.} financiero. Todas las rutas van bajo \texttt{/\allowbreak{}api/\allowbreak{}v1}. Errores comunes a todas las rutas con sesión: \texttt{401 SIN\_\allowbreak{}SESION} y \texttt{403 PROHIBIDO} (rol sin permiso); todos tienen la misma forma (ver más abajo). Los códigos de la columna “Reglas y errores” son los relevantes de cada operación.
+
+\vspace{0.6em}
+{\scriptsize
+\setlength{\LTpre}{0pt}\setlength{\LTpost}{0pt}
+\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 0.0304\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.0347\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1390\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1333\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.0853\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1520\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1520\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1520\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.0475\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.0737\linewidth-2\tabcolsep\relax}|}
+\hline
+\textbf{ID} & \textbf{Req.} & \textbf{Pantalla y acción} & \textbf{Propósito} & \textbf{Verbo y ruta} & \textbf{Entrada} & \textbf{Salida} & \textbf{Reglas y errores} & \textbf{Datos} & \textbf{Acceso} \\ \hline
+\endfirsthead
+\hline
+\textbf{ID} & \textbf{Req.} & \textbf{Pantalla y acción} & \textbf{Propósito} & \textbf{Verbo y ruta} & \textbf{Entrada} & \textbf{Salida} & \textbf{Reglas y errores} & \textbf{Datos} & \textbf{Acceso} \\ \hline
+\endhead
+S01 & R1 & Menú, Arma tu bowl: cargar productos & Consultar catálogo & \texttt{GET /\allowbreak{}catalogo/\allowbreak{}items} & \texttt{categoria}, \texttt{ids} (opcionales; hasta 100) & \texttt{200} lista de \texttt{\{id,\allowbreak{} categoria,\allowbreak{} nombre,\allowbreak{} descripcion,\allowbreak{} precio,\allowbreak{} disponible\}}; \texttt{[\allowbreak{}]} si no hay & \texttt{400} categoría inválida; solo campos permitidos (el stock lo ven admin y dueño) & Púb. & Anónimo \\ \hline
+S02 & R1, R12 & Panel Productos: abrir un producto & Obtener un producto & \texttt{GET /\allowbreak{}catalogo/\allowbreak{}items/\allowbreak{}:\allowbreak{}id} & \texttt{id} & \texttt{200} producto & \texttt{404 NO\_\allowbreak{}ENCONTRADO} & Púb. & Anónimo \\ \hline
+S03 & R1 a R3 & Menú, Arma tu bowl, Promo: tamaños, reglas y promociones & Reglas del armado y recargos & \texttt{GET /\allowbreak{}catalogo/\allowbreak{}configuracion} & — & \texttt{200 \{tamanos,\allowbreak{} reglas,\allowbreak{} promos\}} & — & Púb. & Anónimo \\ \hline
+S04 & R12 & Productos: crear & Agregar un producto & \texttt{POST /\allowbreak{}catalogo/\allowbreak{}items} & Datos del producto (categoría, nombre, descripción, precio, stock, activo) & \texttt{201} producto & \texttt{400} datos inválidos; \texttt{409 DUPLICADO} (nombre) & Púb. (stock: interno) & admin, dueño \\ \hline
+S05 & R12 & Productos: editar precio, disponibilidad y stock & Modificar un producto & \texttt{PUT /\allowbreak{}catalogo/\allowbreak{}items/\allowbreak{}:\allowbreak{}id} & Datos del producto & \texttt{200} producto & \texttt{400}; \texttt{404}; \texttt{409} nombre repetido & Púb. (stock: interno) & admin, dueño \\ \hline
+S06 & R12 & Productos: eliminar & Solicitar la eliminación de un producto & \texttt{DELETE /\allowbreak{}catalogo/\allowbreak{}items/\allowbreak{}:\allowbreak{}id} & \texttt{id} & \texttt{204} & \texttt{404}; solo admin. Los pedidos ya hechos conservan la descripción y el precio copiados & Púb. & admin \\ \hline
+S07 & R5 & Registro: crear cuenta & Registrar cliente y su cuenta & \texttt{POST /\allowbreak{}clientes/\allowbreak{}registro} & \texttt{\{run,\allowbreak{} nombre,\allowbreak{} direccion,\allowbreak{} region,\allowbreak{} provincia,\allowbreak{} comuna,\allowbreak{} fechaNacimiento,\allowbreak{} sexo,\allowbreak{} email,\allowbreak{} telefono,\allowbreak{} clave\}} & \texttt{201 \{cliente,\allowbreak{} codigoDemo\}} (nunca la clave ni su hash) & \texttt{400} ficha o clave débil; \texttt{409 DUPLICADO} (RUN o correo); \texttt{429} (20 por minuto por IP) & Rest. y Cred. & Anónimo \\ \hline
+S08 & R14 & Mis datos: ver ficha & Ver la ficha propia & \texttt{GET /\allowbreak{}clientes/\allowbreak{}yo} & — (la identidad sale de la sesión) & \texttt{200} ficha & \texttt{403} si no es cliente & Rest. & cliente \\ \hline
+S09 & R14 & Mis datos: editar ficha & Modificar la ficha propia & \texttt{PUT /\allowbreak{}clientes/\allowbreak{}yo} & Campos editables (no \texttt{run}, \texttt{origen} ni \texttt{activo}) & \texttt{200} ficha & \texttt{400}; \texttt{409 DUPLICADO} (correo) & Rest. & cliente \\ \hline
+S10 & R12 & Clientes: listar y buscar & Consultar fichas & \texttt{GET /\allowbreak{}clientes} & \texttt{q} (opcional) & \texttt{200} lista con \texttt{emailVerificado} & \texttt{403} & Rest. & admin \\ \hline
+S11 & R12 & Clientes: registrar en el local & Alta con clave temporal & \texttt{POST /\allowbreak{}clientes} & Ficha (sin clave) & \texttt{201 \{cliente,\allowbreak{} claveTemporal\}} (la clave solo en modo demo) & \texttt{400}; \texttt{409 DUPLICADO} & Rest. y Cred. & admin \\ \hline
+S12 & R12 & Clientes: abrir ficha & Consultar un cliente & \texttt{GET /\allowbreak{}clientes/\allowbreak{}:\allowbreak{}id} & \texttt{id} & \texttt{200} ficha & \texttt{404} & Rest. & admin \\ \hline
+S13 & R12 & Clientes: editar & Modificar un cliente & \texttt{PUT /\allowbreak{}clientes/\allowbreak{}:\allowbreak{}id} & Campos de la ficha & \texttt{200} ficha & \texttt{400}; \texttt{404}; \texttt{409} & Rest. & admin \\ \hline
+S14 & R12 & Clientes: activar o desactivar & Cambiar el estado & \texttt{PATCH /\allowbreak{}clientes/\allowbreak{}:\allowbreak{}id/\allowbreak{}estado} & \texttt{\{activo:\allowbreak{} bool\}} & \texttt{200} ficha & \texttt{404}; desactivar cierra sus sesiones & Rest. & admin \\ \hline
+S15 & R4, R7 & Confirmar pedido: crear pedido & Crear el pedido desde la selección & \texttt{POST /\allowbreak{}pedidos} & \texttt{Idempotency-\allowbreak{}Key} (opcional); \texttt{\{modoEntrega,\allowbreak{} nota,\allowbreak{} lineas\}} solo con la selección & \texttt{201} pedido \texttt{PENDIENTE\_\allowbreak{}PAGO} con el total calculado por inventario & \texttt{400 FUERA\_\allowbreak{}DE\_\allowbreak{}RADIO}, \texttt{400 SELECCION\_\allowbreak{}INVALIDA}; \texttt{409 SIN\_\allowbreak{}STOCK}; \texttt{403} si no es cliente; \texttt{502/\allowbreak{}504} si inventario o clientes no responden & Rest. y Fin. & cliente \\ \hline
+S16 & R9, R10, R14 & Mis pedidos, Panel Pedidos, Cocina, Despacho, Caja: listar & Consultar pedidos según el rol & \texttt{GET /\allowbreak{}pedidos} & \texttt{estado}, \texttt{cola} (\texttt{cocina} o \texttt{despacho}), \texttt{q}, \texttt{limite} (1 a 500) & \texttt{200} lista filtrada por rol (cocina y despacho ven solo nombre y teléfono del cliente) & \texttt{400} parámetro inválido; el cliente solo ve los suyos & Rest. & Con sesión (todos los roles) \\ \hline
+S17 & R14 & Panel y Cocina: abrir un pedido & Consultar un pedido & \texttt{GET /\allowbreak{}pedidos/\allowbreak{}:\allowbreak{}id} & \texttt{id} & \texttt{200} pedido según el rol & \texttt{404} si no es suyo o no existe (no confirma existencia) & Rest. & Con sesión (todos los roles) \\ \hline
+S18 & R8, R14 & Boleta: ver e imprimir & Consultar la boleta & \texttt{GET /\allowbreak{}pedidos/\allowbreak{}boleta/\allowbreak{}:\allowbreak{}numero} & \texttt{numero} & \texttt{200} boleta (neto, IVA, total, RUN) & \texttt{404} si no es suya & Rest. y Fin. & cliente, admin, dueño \\ \hline
+S19 & — & (sin pantalla) & Estados, choferes y caja & \texttt{GET /\allowbreak{}pedidos/\allowbreak{}configuracion} & — & \texttt{200 \{estados,\allowbreak{} choferes,\allowbreak{} caja,\allowbreak{} cajero\}} & — & Interno & Con sesión (todos los roles) \\ \hline
+S20 & R9 & Cocina: aceptar & Pasar a preparación & \texttt{POST /\allowbreak{}pedidos/\allowbreak{}:\allowbreak{}id/\allowbreak{}aceptar} & \texttt{id} & \texttt{200} pedido \texttt{EN\_\allowbreak{}PREPARACION} & \texttt{409 ESTADO} si no está pagado o ya lo aceptó otro puesto; \texttt{404} & Rest. & admin, cocina \\ \hline
+S21 & R9 & Cocina: marcar listo & Dejar listo & \texttt{POST /\allowbreak{}pedidos/\allowbreak{}:\allowbreak{}id/\allowbreak{}terminar} & \texttt{id} & \texttt{200} pedido \texttt{LISTO\_\allowbreak{}DESPACHO} o \texttt{LISTO\_\allowbreak{}RETIRO} & \texttt{409 ESTADO}; \texttt{404} & Rest. & admin, cocina \\ \hline
+S22 & R10 & Despacho: asignar chofer & Despachar & \texttt{POST /\allowbreak{}pedidos/\allowbreak{}:\allowbreak{}id/\allowbreak{}despachar} & \texttt{\{chofer\}} (de la lista) & \texttt{200} pedido \texttt{EN\_\allowbreak{}DESPACHO} & \texttt{400} chofer inválido; \texttt{409 ESTADO} & Rest. & admin, despacho \\ \hline
+S23 & R10 & Despacho: registrar entrega & Entregar (o entregar el retiro) & \texttt{POST /\allowbreak{}pedidos/\allowbreak{}:\allowbreak{}id/\allowbreak{}entregar} & \texttt{id} & \texttt{200} pedido \texttt{ENTREGADO} & \texttt{409 ESTADO} & Rest. & admin, despacho \\ \hline
+S24 & R9, R10 & Cocina y Despacho: orden imprimible & Registrar que se imprimió & \texttt{POST /\allowbreak{}pedidos/\allowbreak{}:\allowbreak{}id/\allowbreak{}impresa} & \texttt{id} & \texttt{204} & \texttt{404} & Rest. & admin, cocina, despacho \\ \hline
+S25 & R11 & Pedido y Panel Pedidos: anular & Anular con motivo & \texttt{POST /\allowbreak{}pedidos/\allowbreak{}:\allowbreak{}id/\allowbreak{}anular} & \texttt{\{motivo\}} (5 a 200 caracteres) & \texttt{200} pedido \texttt{ANULADO}; si estaba pagado: venta anulada, devolución y stock liberado & \texttt{400} motivo; \texttt{409 ESTADO} si cocina ya lo aceptó; \texttt{404} & Rest. y Fin. & cliente (suyo), admin \\ \hline
+S26 & R13 & Caja y Reportes: consultar ventas & Reporte por período & \texttt{GET /\allowbreak{}reportes/\allowbreak{}ventas} & \texttt{desde}, \texttt{hasta} (AAAA-MM-DD) & \texttt{200} resumen (cantidad, monto, promedio, anuladas, por día, por entrega, más vendidos) y el detalle de ventas; el CSV lo arma el frontend con esta respuesta & \texttt{400} fechas inválidas o período de más de un año & Rest. y Fin. & admin, dueño \\ \hline
+S27 & R8 & Pago: ir a pagar & Iniciar el pago en la pasarela & \texttt{POST /\allowbreak{}pagos} & \texttt{Idempotency-\allowbreak{}Key} (obligatoria, 8 a 100 caracteres); \texttt{\{pedidoId\}} & \texttt{201} pago con \texttt{urlPago} & \texttt{400 SIN\_\allowbreak{}IDEMPOTENCIA}; \texttt{404} si el pedido no es suyo; \texttt{409} si no está pendiente; \texttt{502} si la pasarela no responde & Fin. & cliente \\ \hline
+S28 & — & (sin pantalla) & Consultar los pagos de un pedido & \texttt{GET /\allowbreak{}pagos?\allowbreak{}pedidoId=\allowbreak{}} & \texttt{pedidoId} & \texttt{200} lista de pagos (sin el token de la pasarela) & \texttt{404} si el pedido no es visible para quien consulta & Fin. & cliente, admin, dueño \\ \hline
+S29 & R8 & (la invoca la pasarela) Confirmar el resultado del pago & Notificación firmada & \texttt{POST /\allowbreak{}pagos/\allowbreak{}notificacion} & \texttt{X-\allowbreak{}Firma}; \texttt{\{token,\allowbreak{} orden,\allowbreak{} monto,\allowbreak{} estado,\allowbreak{} referencia\}} & \texttt{200 \{ok,\allowbreak{} repetido\}} & \texttt{401 FIRMA\_\allowbreak{}INVALIDA}; \texttt{409 MONTO\_\allowbreak{}DISTINTO}; repetida: \texttt{repetido:\allowbreak{} true} sin repetir efectos & Fin. & Sin sesión (firma HMAC) \\ \hline
+S30 & R8, R14 & Pedido \texttt{\#/\allowbreak{}orden/\allowbreak{}:\allowbreak{}id}: estado, productos y pagos & Agregar pedido, pagos y productos (y la ficha, solo admin) & \texttt{POST /\allowbreak{}graphql} (\texttt{resumenPedido}) & \texttt{\{query,\allowbreak{} variables:\allowbreak{} \{id\}\}} & \texttt{200 \{data,\allowbreak{} errors?\allowbreak{}\}}; \texttt{resumenPedido:\allowbreak{} null} si el pedido no es suyo & Error parcial: el campo queda \texttt{null} y \texttt{errors} dice cuál servicio falló; límites de profundidad, costo y paginación & Rest. y Fin. & Con sesión \\ \hline
+S31 & — & (sin pantalla) & Historial del cliente paginado & \texttt{POST /\allowbreak{}graphql} (\texttt{misPedidos}) & \texttt{primeros} (hasta 50), \texttt{despuesDe} & \texttt{\{nodos,\allowbreak{} siguiente\}} & Solo el cliente, solo los suyos & Rest. & cliente \\ \hline
+S32 & R13 & Reportes: categorías y conciliación & Reporte con productos y pagos & \texttt{POST /\allowbreak{}graphql} (\texttt{reporteVentas}) & \texttt{desde}, \texttt{hasta} & \texttt{reporteVentas} con \texttt{porCategoria} y \texttt{conciliacion} & \texttt{PROHIBIDO} si no es admin o dueño & Rest. y Fin. & admin, dueño \\ \hline
+S33 & R6 & Ingresar & Iniciar sesión & \texttt{POST /\allowbreak{}auth/\allowbreak{}login} & \texttt{\{email,\allowbreak{} clave\}} & \texttt{200} datos de sesión y cookie \texttt{pf\_\allowbreak{}sesion} (HttpOnly, Secure) & \texttt{401 CREDENCIALES} (mismo mensaje si el correo no existe); \texttt{403 SIN\_\allowbreak{}VERIFICAR} o \texttt{INACTIVA}; \texttt{429 BLOQUEADO} & Cred. & Anónimo \\ \hline
+S34 & R6 & Menú de usuario: cerrar sesión & Cerrar sesión & \texttt{POST /\allowbreak{}auth/\allowbreak{}logout} & Cookie & \texttt{204}; la sesión se revoca y la cookie se borra & — & Cred. & Anónimo (usa la cookie si existe) \\ \hline
+S35 & R6 & Todas: ¿quién soy? & Informar la sesión & \texttt{GET /\allowbreak{}auth/\allowbreak{}sesion} & Cookie & \texttt{200 \{tipo,\allowbreak{} id,\allowbreak{} perfil,\allowbreak{} nombre,\allowbreak{} email,\allowbreak{} expira\}} o \texttt{null} & Sin sesión no es un error: responde \texttt{null} & Rest. & Anónimo \\ \hline
+S36 & R6 & Ingresar: cuentas de demostración & Informar el modo demo & \texttt{GET /\allowbreak{}auth/\allowbreak{}config} & — & \texttt{200 \{modoDemo,\allowbreak{} cuentasDemo\}} (vacía si \texttt{MODO\_\allowbreak{}DEMO=\allowbreak{}false}) & — & Púb. & Anónimo \\ \hline
+S37 & R14 & Mis datos: cambiar clave & Cambiar la contraseña & \texttt{PUT /\allowbreak{}auth/\allowbreak{}clave} & \texttt{\{actual,\allowbreak{} nueva\}} & \texttt{204} & \texttt{400 CLAVE\_\allowbreak{}ACTUAL}, \texttt{400 CLAVE\_\allowbreak{}DEBIL}; la cuenta sale de la sesión & Cred. & Con sesión \\ \hline
+S38 & R5 & Verificar: confirmar el código & Verificar el correo & \texttt{POST /\allowbreak{}auth/\allowbreak{}verificar} & \texttt{\{email,\allowbreak{} codigo\}} & \texttt{200 \{verificado:\allowbreak{} true\}} & \texttt{400 CODIGO} o \texttt{VENCIDO}; no revela si el correo existe; 20 por minuto por IP & Cred. & Anónimo \\ \hline
+S39 & R5 & Verificar: reenviar el código & Pedir un código nuevo & \texttt{POST /\allowbreak{}auth/\allowbreak{}reenviar} & \texttt{\{email\}} & \texttt{200} (igual exista o no la cuenta) & 20 por minuto por IP & Cred. & Anónimo \\ \hline
+S40 & R12 & Usuarios: listar & Consultar usuarios internos & \texttt{GET /\allowbreak{}usuarios} & — & \texttt{200} lista (sin hash) & \texttt{403} & Rest. & admin \\ \hline
+S41 & R6, R12 & Usuarios: crear & Crear un usuario interno & \texttt{POST /\allowbreak{}usuarios} & \texttt{\{nombre,\allowbreak{} email,\allowbreak{} rol,\allowbreak{} clave\}} & \texttt{201} usuario & \texttt{400 CLAVE\_\allowbreak{}DEBIL}, perfil inválido & Rest. y Cred. & admin \\ \hline
+S42 & R12 & Usuarios: editar & Modificar un usuario interno & \texttt{PUT /\allowbreak{}usuarios/\allowbreak{}:\allowbreak{}id} & \texttt{\{nombre,\allowbreak{} email,\allowbreak{} rol,\allowbreak{} clave?\allowbreak{}\}} & \texttt{200} usuario; cambiar la clave o el perfil cierra sus sesiones & \texttt{400 ULTIMO\_\allowbreak{}ADMIN}, \texttt{400 PROPIO\_\allowbreak{}PERFIL}; \texttt{404} & Rest. y Cred. & admin \\ \hline
+S43 & R12 & Usuarios: activar o desactivar & Cambiar el estado & \texttt{PATCH /\allowbreak{}usuarios/\allowbreak{}:\allowbreak{}id/\allowbreak{}estado} & \texttt{\{activo:\allowbreak{} bool\}} & \texttt{200} usuario; al desactivar se cierran sus sesiones & \texttt{400 PROPIA\_\allowbreak{}CUENTA}, \texttt{400 ULTIMO\_\allowbreak{}ADMIN}; \texttt{404} & Rest. & admin \\ \hline
+S44 & — & (operación de TI) & Estado del sistema & \texttt{GET /\allowbreak{}api/\allowbreak{}salud} & — & \texttt{200 \{gateway,\allowbreak{} vault,\allowbreak{} auth,\allowbreak{} .\allowbreak{}.\allowbreak{}.\allowbreak{}\}} o \texttt{503} si algo no responde & Sin datos personales & Púb. & Anónimo \\ \hline
+\end{longtable}
+}
+\end{landscape}
+
+El cliente no puede fijar precios, totales ni estados: S15 recibe solo la selección y recalcula con inventario; S27 toma el monto del pedido; S29 solo cambia un estado si la firma, el token y el monto coinciden. Esto se prueba en el caso 7.6.
+
+
+\subsection{Ejemplos de contratos}
+
+Todos los errores tienen la misma forma: \texttt{\{"codigo":\allowbreak{} "NO\_\allowbreak{}ENCONTRADO",\allowbreak{} "mensaje":\allowbreak{} "No encontramos ese pedido.\allowbreak{}",\allowbreak{} "idPeticion":\allowbreak{} ".\allowbreak{}.\allowbreak{}.\allowbreak{}"\}}.
+
+
+\textbf{Crear pedido.} El navegador manda solo la selección; el precio lo calcula inventario.
+
+
+\begin{codigo}
+POST /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}pedidos\par
+Cookie:\allowbreak{} pf\_\allowbreak{}sesion=\allowbreak{}<token opaco,\allowbreak{} HttpOnly>\par
+Idempotency-\allowbreak{}Key:\allowbreak{} 2f1c0b7e-\allowbreak{}.\allowbreak{}.\allowbreak{}.\allowbreak{}\par
+\par
+\{"modoEntrega":\allowbreak{} "DELIVERY",\allowbreak{} "nota":\allowbreak{} "Sin sésamo",\allowbreak{}\par
+\hspace*{1\ttw}"lineas":\allowbreak{} [\allowbreak{}\{"tipo":\allowbreak{} "BOWL",\allowbreak{} "cantidad":\allowbreak{} 1,\allowbreak{}\par
+\hspace*{13\ttw}"entrada":\allowbreak{} \{"tamanoId":\allowbreak{} "regular",\allowbreak{} "baseIds":\allowbreak{} [\allowbreak{}"base\_\allowbreak{}gohan"],\allowbreak{} "proteinaIds":\allowbreak{} [\allowbreak{}"pro\_\allowbreak{}salmon"],\allowbreak{}\par
+\hspace*{25\ttw}"salsaIds":\allowbreak{} [\allowbreak{}"sal\_\allowbreak{}ponzu"],\allowbreak{} "toppingIds":\allowbreak{} [\allowbreak{}"top\_\allowbreak{}palta"]\}\}]\}\par
+\end{codigo}
+
+\begin{codigo}
+201 Created\par
+\{"id":\allowbreak{} "PF-\allowbreak{}00084",\allowbreak{} "clienteId":\allowbreak{} "cli\_\allowbreak{}demo\_\allowbreak{}1",\allowbreak{} "estado":\allowbreak{} "PENDIENTE\_\allowbreak{}PAGO",\allowbreak{} "modoEntrega":\allowbreak{} "DELIVERY",\allowbreak{}\par
+\hspace*{1\ttw}"direccion":\allowbreak{} "Av.\allowbreak{} Providencia 2133,\allowbreak{} depto 504,\allowbreak{} Providencia",\allowbreak{}\par
+\hspace*{1\ttw}"lineas":\allowbreak{} [\allowbreak{}\{"tipo":\allowbreak{} "BOWL",\allowbreak{} "descripcion":\allowbreak{} "Bowl Regular:\allowbreak{} Arroz gohan,\allowbreak{} Salmón fresco,\allowbreak{} Ponzu,\allowbreak{} Palta",\allowbreak{}\par
+\hspace*{13\ttw}"cantidad":\allowbreak{} 1,\allowbreak{} "precioUnitario":\allowbreak{} 7890,\allowbreak{} "subtotal":\allowbreak{} 7890,\allowbreak{}\par
+\hspace*{13\ttw}"itemIds":\allowbreak{} [\allowbreak{}"base\_\allowbreak{}gohan",\allowbreak{} "pro\_\allowbreak{}salmon",\allowbreak{} "sal\_\allowbreak{}ponzu",\allowbreak{} "top\_\allowbreak{}palta"]\}],\allowbreak{}\par
+\hspace*{1\ttw}"total":\allowbreak{} 7890,\allowbreak{} "pago":\allowbreak{} \{"medio":\allowbreak{} "SERVIPAG",\allowbreak{} "estado":\allowbreak{} "PENDIENTE"\},\allowbreak{} "venta":\allowbreak{} null,\allowbreak{} "boleta":\allowbreak{} null,\allowbreak{}\par
+\hspace*{1\ttw}"historial":\allowbreak{} [\allowbreak{}\{"estado":\allowbreak{} "PENDIENTE\_\allowbreak{}PAGO",\allowbreak{} "fecha":\allowbreak{} "2026-\allowbreak{}11-\allowbreak{}08T03:\allowbreak{}15:\allowbreak{}01.\allowbreak{}120Z"\}]\}\par
+\end{codigo}
+
+Errores: \texttt{400 FUERA\_\allowbreak{}DE\_\allowbreak{}RADIO}, \texttt{400 SELECCION\_\allowbreak{}INVALIDA}, \texttt{409 SIN\_\allowbreak{}STOCK}, \texttt{401 SIN\_\allowbreak{}SESION}, \texttt{403 PROHIBIDO} (no es cliente), \texttt{502/\allowbreak{}504} si inventario o clientes no responden.
+
+
+\textbf{Iniciar pago.}
+
+
+\begin{codigo}
+POST /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}pagos\par
+Idempotency-\allowbreak{}Key:\allowbreak{} 9d3e.\allowbreak{}.\allowbreak{}.\allowbreak{}            (\allowbreak{}obligatoria)\par
+\{"pedidoId":\allowbreak{} "PF-\allowbreak{}00084"\}\par
+\end{codigo}
+
+\begin{codigo}
+201 \{"id":\allowbreak{} "PAG-\allowbreak{}07A5E9CF2BEF",\allowbreak{} "pedidoId":\allowbreak{} "PF-\allowbreak{}00084",\allowbreak{} "monto":\allowbreak{} 7890,\allowbreak{} "medio":\allowbreak{} "SERVIPAG",\allowbreak{}\par
+\hspace*{5\ttw}"estado":\allowbreak{} "PENDIENTE",\allowbreak{} "urlPago":\allowbreak{} "https:\allowbreak{}/\allowbreak{}/\allowbreak{}localhost:\allowbreak{}9000/\allowbreak{}pagar/\allowbreak{}<token>"\}\par
+\end{codigo}
+
+\textbf{Notificación de la pasarela} (sin sesión; la autentica su firma).
+
+
+\begin{codigo}
+POST /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}pagos/\allowbreak{}notificacion\par
+X-\allowbreak{}Firma:\allowbreak{} <hex de HMAC-\allowbreak{}SHA256(\allowbreak{}cuerpo,\allowbreak{} secreto\_\allowbreak{}firma)>\par
+\{"token":\allowbreak{} ".\allowbreak{}.\allowbreak{}.\allowbreak{}",\allowbreak{} "orden":\allowbreak{} "PAG-\allowbreak{}07A5E9CF2BEF",\allowbreak{} "monto":\allowbreak{} 7890,\allowbreak{} "estado":\allowbreak{} "APROBADO",\allowbreak{} "referencia":\allowbreak{} "SVP-\allowbreak{}99801681"\}\par
+\end{codigo}
+
+\texttt{200 \{"ok":\allowbreak{} true,\allowbreak{} "repetido":\allowbreak{} false\}}; repetida: \texttt{\{"repetido":\allowbreak{} true\}}; sin firma o firma falsa: \texttt{401 FIRMA\_\allowbreak{}INVALIDA}; monto distinto: \texttt{409 MONTO\_\allowbreak{}DISTINTO}.
+
+
+\textbf{Cambiar estado (cocina).} \texttt{POST /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}pedidos/\allowbreak{}PF-\allowbreak{}00084/\allowbreak{}aceptar} $\rightarrow$ \texttt{200} con el pedido en \texttt{EN\_\allowbreak{}PREPARACION}; si otro puesto ya lo aceptó: \texttt{409 ESTADO}.
+
+
+\textbf{Login.}
+
+
+\begin{codigo}
+POST /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}auth/\allowbreak{}login\par
+\{"email":\allowbreak{} "cliente@correo.\allowbreak{}cl",\allowbreak{} "clave":\allowbreak{} "Cliente2026"\}\par
+\end{codigo}
+
+\begin{codigo}
+200  Set-\allowbreak{}Cookie:\allowbreak{} pf\_\allowbreak{}sesion=\allowbreak{}<token>; Path=\allowbreak{}/\allowbreak{}api; HttpOnly; SameSite=\allowbreak{}Lax; Max-\allowbreak{}Age=\allowbreak{}28800\par
+\{"tipo":\allowbreak{} "CLIENTE",\allowbreak{} "id":\allowbreak{} "cli\_\allowbreak{}demo\_\allowbreak{}1",\allowbreak{} "perfil":\allowbreak{} "CLIENTE",\allowbreak{} "nombre":\allowbreak{} "Javiera Morales Díaz",\allowbreak{}\par
+\hspace*{1\ttw}"email":\allowbreak{} "cliente@correo.\allowbreak{}cl",\allowbreak{} "expira":\allowbreak{} "2026-\allowbreak{}11-\allowbreak{}08T03:\allowbreak{}45:\allowbreak{}01.\allowbreak{}000Z"\}\par
+\end{codigo}
+
+Errores: \texttt{401 CREDENCIALES} (mismo mensaje si el correo no existe), \texttt{403 SIN\_\allowbreak{}VERIFICAR}, \texttt{403 INACTIVA}, \texttt{429 BLOQUEADO}.
+
+
+\textbf{Consultar catálogo (S01), anónimo.} Solo campos públicos; el stock no sale.
+
+
+\begin{codigo}
+GET /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}catalogo/\allowbreak{}items?\allowbreak{}categoria=\allowbreak{}PROTEINA\par
+\end{codigo}
+
+\begin{codigo}
+200 [\allowbreak{}\{"id":\allowbreak{} "pro\_\allowbreak{}salmon",\allowbreak{} "categoria":\allowbreak{} "PROTEINA",\allowbreak{} "nombre":\allowbreak{} "Salmón fresco",\allowbreak{} "descripcion":\allowbreak{} "Cortado en cubos,\allowbreak{} marinado suave",\allowbreak{} "precio":\allowbreak{} 0,\allowbreak{} "disponible":\allowbreak{} true\},\allowbreak{}\par
+\hspace*{5\ttw}\{"id":\allowbreak{} "pro\_\allowbreak{}atun",\allowbreak{} "categoria":\allowbreak{} "PROTEINA",\allowbreak{} "nombre":\allowbreak{} "Atún",\allowbreak{} "descripcion":\allowbreak{} "Grado sashimi,\allowbreak{} corte del día",\allowbreak{} "precio":\allowbreak{} 1500,\allowbreak{} "disponible":\allowbreak{} true\}]\par
+\end{codigo}
+
+\texttt{400} si la categoría no existe; \texttt{[\allowbreak{}]} si no hay productos. (\texttt{precio} es el precio o recargo del producto según su categoría.)
+
+
+\textbf{Registrar cliente (S07).} Datos ficticios; la respuesta nunca incluye la clave.
+
+
+\begin{codigo}
+POST /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}clientes/\allowbreak{}registro\par
+\{"run":\allowbreak{} "12.\allowbreak{}345.\allowbreak{}678-\allowbreak{}5",\allowbreak{} "nombre":\allowbreak{} "Ana Prueba Soto",\allowbreak{} "direccion":\allowbreak{} "Av.\allowbreak{} Italia 1500",\allowbreak{} "region":\allowbreak{} "Región Metropolitana de Santiago",\allowbreak{}\par
+\hspace*{1\ttw}"provincia":\allowbreak{} "Santiago",\allowbreak{} "comuna":\allowbreak{} "Ñuñoa",\allowbreak{} "fechaNacimiento":\allowbreak{} "1995-\allowbreak{}03-\allowbreak{}10",\allowbreak{} "sexo":\allowbreak{} "F",\allowbreak{}\par
+\hspace*{1\ttw}"email":\allowbreak{} "ana.\allowbreak{}prueba@correo.\allowbreak{}cl",\allowbreak{} "telefono":\allowbreak{} "+56 9 1111 2222",\allowbreak{} "clave":\allowbreak{} "<clave de 8 o más caracteres,\allowbreak{} con letras y números>"\}\par
+\end{codigo}
+
+\begin{codigo}
+201 \{"cliente":\allowbreak{} \{"id":\allowbreak{} "cli\_\allowbreak{}3fa9c01b22de",\allowbreak{} "run":\allowbreak{} "12345678-\allowbreak{}5",\allowbreak{} "nombre":\allowbreak{} "Ana Prueba Soto",\allowbreak{} "comuna":\allowbreak{} "Ñuñoa",\allowbreak{} "email":\allowbreak{} "ana.\allowbreak{}prueba@correo.\allowbreak{}cl",\allowbreak{}\par
+\hspace*{17\ttw}"activo":\allowbreak{} true,\allowbreak{} "origen":\allowbreak{} "WEB",\allowbreak{} "tieneDespacho":\allowbreak{} true,\allowbreak{} "emailVerificado":\allowbreak{} false\},\allowbreak{}\par
+\hspace*{5\ttw}"codigoDemo":\allowbreak{} "482915"\}\par
+\end{codigo}
+
+Errores: \texttt{400} (ficha inválida o clave débil), \texttt{409 DUPLICADO} (RUN o correo ya registrados), \texttt{429} (más de 20 intentos por minuto desde la misma IP). \texttt{codigoDemo} solo viene con \texttt{MODO\_\allowbreak{}DEMO=\allowbreak{}true}; abreviamos la ficha en este ejemplo.
+
+
+\textbf{Asignar chofer (S22), despacho.}
+
+
+\begin{codigo}
+POST /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}pedidos/\allowbreak{}PF-\allowbreak{}00084/\allowbreak{}despachar\par
+\{"chofer":\allowbreak{} "Andrea Muñoz"\}\par
+\end{codigo}
+
+\texttt{200} con el pedido en \texttt{EN\_\allowbreak{}DESPACHO}; \texttt{400} si el chofer no está en la lista; \texttt{409 ESTADO} si el pedido no estaba listo para despacho; \texttt{403} para cualquier rol distinto de despacho y admin.
+
+
+\textbf{Anular pedido (S25), cliente.}
+
+
+\begin{codigo}
+POST /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}pedidos/\allowbreak{}PF-\allowbreak{}00084/\allowbreak{}anular\par
+\{"motivo":\allowbreak{} "Me equivoqué de dirección"\}\par
+\end{codigo}
+
+\begin{codigo}
+200 \{"id":\allowbreak{} "PF-\allowbreak{}00084",\allowbreak{} "estado":\allowbreak{} "ANULADO",\allowbreak{}\par
+\hspace*{5\ttw}"anulacion":\allowbreak{} \{"motivo":\allowbreak{} "Me equivoqué de dirección",\allowbreak{} "fecha":\allowbreak{} "2026-\allowbreak{}11-\allowbreak{}08T03:\allowbreak{}20:\allowbreak{}14.\allowbreak{}002Z",\allowbreak{} "por":\allowbreak{} "Javiera Morales Díaz",\allowbreak{} "devolucion":\allowbreak{} true\}\}\par
+\end{codigo}
+
+El pedido y su historial se conservan; abreviamos el resto del pedido. \texttt{409 ESTADO} si cocina ya lo aceptó; \texttt{404} si el pedido no es suyo.
+
+
+El contrato completo de cada servicio Python se puede ver en su OpenAPI (\texttt{/\allowbreak{}docs} dentro de la red privada) y el del GraphQL Gateway en la sección 8.
+
