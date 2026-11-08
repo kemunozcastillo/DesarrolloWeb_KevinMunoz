@@ -2,6 +2,8 @@
 
 \begin{landscape}
 \section{7. Datos sensibles y secretos del cliente}
+No todos los datos valen lo mismo: el nombre de un bowl es público, pero el RUN, la dirección o el historial de pedidos de Javiera no lo son. Esta sección clasifica cada dato, decide quién puede verlo y cómo se protege, aclara que el sistema no guarda secretos de los clientes (ni datos de tarjeta) y termina con las pruebas que se ejecutaron contra el sistema funcionando.
+
 \subsection{Clasificación de datos}
 \vspace{0.6em}
 {\scriptsize
@@ -87,5 +89,5 @@ Ejecutados contra el backend implementado con \texttt{pruebas/\allowbreak{}e2e/\
 \end{longtable}
 }
 
-\textbf{Control antes de entregar.} No hay secretos en JavaScript, HTML ni capturas (las cuentas de prueba las informa el gateway solo en modo demo y están documentadas como datos de demostración). Los datos devueltos son los mínimos por rol. Aunque la pantalla esté en Internet, el navegador no recibe nada que su rol no pueda ver, porque el filtro está en el servidor.
+\textbf{Qué comprobamos.} Revisamos tres cosas. Primero, que no haya secretos en el JavaScript, el HTML ni las capturas: lo único que se muestra son cuentas de prueba, que el gateway informa solo con \texttt{MODO\_\allowbreak{}DEMO=\allowbreak{}true}. Segundo, que cada rol reciba solo los datos que necesita: un cliente no ve pedidos de otro (caso 7.5) y cocina no ve el RUN ni el correo de quien compra (caso 10.4). Tercero, que aunque la tienda esté abierta a Internet, lo que llega al navegador lo decide el servidor según el rol y no la pantalla (casos 7.2 a 7.4).
 

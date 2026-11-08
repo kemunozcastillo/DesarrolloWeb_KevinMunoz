@@ -2,6 +2,8 @@
 
 \begin{landscape}
 \section{8. Separación privada y agregaciones GraphQL}
+La pantalla del pedido de Javiera muestra el pedido, sus pagos y los productos que compró, y esos datos viven en tres servicios distintos. Para que el navegador no tenga que llamarlos uno por uno (ni pueda hacerlo), existe un GraphQL Gateway privado que los junta en una sola consulta. Esta sección muestra cómo está construido, qué puede ver cada rol, qué límites evitan abusos y la evidencia de que funciona desde la pantalla real.
+
 \subsection{Mapa de clasificación}
 \vspace{0.6em}
 {\scriptsize
@@ -188,5 +190,5 @@ Cuerpo máximo & 20 KB & — \\ \hline
 \texttt{recorrido.\allowbreak{}json} lista las rutas de la API que usó el navegador: todas bajo \texttt{/\allowbreak{}api/\allowbreak{}v1}; ninguna a un servicio interno.
 
 
-\textbf{Control.} La consulta combina realmente subsistemas (3 o 4 servicios por consulta). Cada servicio conserva su autoridad (la propiedad la decide pedidos). La selección de campos no filtra datos restringidos (autorización por campo). La red privada y los permisos se verificaron en ejecución (casos 7.5, 7.9 y 8.1 a 8.3).
+\textbf{Qué comprobamos.} Que la consulta junta de verdad datos de tres o cuatro servicios; que cada servicio mantiene su autoridad (la propiedad del pedido la decide pedidos); que pedir campos de más no filtra datos restringidos (si un cliente pide \texttt{cliente \{ email \}}, recibe PROHIBIDO); y que la red privada y los permisos funcionan con el sistema en marcha (casos 7.5, 7.9 y 8.1 a 8.3).
 

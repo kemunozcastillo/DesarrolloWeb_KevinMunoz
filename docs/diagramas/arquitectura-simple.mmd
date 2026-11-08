@@ -1,0 +1,17 @@
+%%{init: {"themeVariables": {"fontSize": "20px"}, "flowchart": {"nodeSpacing": 30, "rankSpacing": 50}}}%%
+flowchart LR
+  nav["Navegador<br/>(cliente, cocina, despacho, admin)"]
+  pas["Pasarela de pago<br/>(Servipag simulada)"]
+  subgraph privada["Red privada: sin puertos hacia afuera"]
+    direction TB
+    srv["Servicios<br/>inventario · clientes<br/>pedidos · pagos<br/>Auth · GraphQL"]
+    db[("MongoDB<br/>una base por servicio")]
+    vault[("Vault<br/>secretos")]
+  end
+  gw["API Gateway<br/>única puerta"]
+  nav -- "HTTPS" --> gw
+  nav -- "paga" --> pas
+  pas -- "avisa el pago" --> gw
+  gw --> srv
+  srv --> db
+  srv -.-> vault

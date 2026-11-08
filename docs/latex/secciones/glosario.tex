@@ -1,0 +1,30 @@
+% Generado desde docs/INFORME.md. Editar libremente.
+
+\section{Glosario}
+
+{\small
+\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 0.3248\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.6752\linewidth-2\tabcolsep\relax}|}
+\hline
+\textbf{Término} & \textbf{Qué significa aquí} \\ \hline
+\endfirsthead
+\hline
+\textbf{Término} & \textbf{Qué significa aquí} \\ \hline
+\endhead
+API Gateway & La única puerta de entrada al sistema: revisa sesión, permisos y límites antes de pasar la petición \\ \hline
+Cookie HttpOnly & Cookie que el navegador envía sola pero que el JavaScript de la página no puede leer, así un script malicioso no la roba \\ \hline
+CSRF & Ataque en que otro sitio hace que el navegador de una persona envíe una petición a la tienda con la sesión de esa persona; se evita comprobando de qué sitio viene la petición \\ \hline
+DataLoader & Técnica del GraphQL Gateway que junta muchas lecturas parecidas en una sola llamada (por ejemplo, los productos de todas las líneas de un pedido) \\ \hline
+DTO & La versión de un dato que se envía a quien lo pide, con solo los campos que esa persona puede ver (cocina recibe nombre y teléfono del cliente, no su RUN) \\ \hline
+GraphQL & Forma de consultar en la que quien pregunta indica los campos que necesita; aquí sirve para juntar datos de varios servicios en una consulta \\ \hline
+HMAC & Firma calculada sobre un mensaje con una clave secreta compartida; demuestra que el aviso viene de la pasarela y que nadie lo cambió \\ \hline
+Idempotencia & Repetir la misma petición produce el mismo resultado: un doble clic en “Pagar” no cobra dos veces (se usa la cabecera \texttt{Idempotency-\allowbreak{}Key}) \\ \hline
+Introspección & El gateway le pregunta al Auth Service, en cada petición, si el token de la cookie es válido y a quién pertenece \\ \hline
+Pepper & Secreto extra, guardado en Vault, que se mezcla con la contraseña antes de guardarla con scrypt (una función lenta, con una sal distinta por cuenta); si alguien roba la base, esos hashes no sirven por sí solos \\ \hline
+TLS y HSTS & El cifrado de la conexión (el candado de HTTPS) y la cabecera que obliga al navegador a usar siempre HTTPS \\ \hline
+Token opaco & Texto aleatorio sin datos dentro; solo el Auth Service sabe a quién pertenece \\ \hline
+Vault y \texttt{vault-\allowbreak{}init} & Vault es el gestor de secretos donde viven las credenciales; \texttt{vault-\allowbreak{}init} es el contenedor que corre una sola vez al arrancar y crea los secretos, los tokens y los usuarios de base de datos \\ \hline
+Webhook (notificación) & Aviso que la pasarela envía por su cuenta al sistema cuando termina un pago \\ \hline
+STOMP y ActiveMQ & Cola de mensajes que lleva avisos (la boleta al correo, el pedido a cocina) sin bloquear el pago \\ \hline
+\end{longtable}
+}

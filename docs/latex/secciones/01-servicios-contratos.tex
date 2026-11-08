@@ -2,6 +2,9 @@
 
 \section{1. Servicios y contratos}
 
+Cada cosa que Javiera hace en la tienda (mirar el menú, ingresar, armar su bowl, pagar) necesita algo del backend. Esta sección convierte cada una de esas acciones en un servicio con un número, de S01 a S44, y un contrato: qué recibe, qué responde y qué errores puede dar. Primero se muestra qué pantalla usa cada servicio, después viene la matriz completa, con una fila por operación, y al final hay ejemplos con datos ficticios. Si buscas una operación concreta, parte por la matriz y usa su número.
+
+
 \subsection{Trazabilidad de pantallas}
 
 {\footnotesize
@@ -127,6 +130,15 @@ S44 & — & (operación de TI) & Estado del sistema & \texttt{GET /\allowbreak{}
 
 El cliente no puede fijar precios, totales ni estados: S15 recibe solo la selección y recalcula con inventario; S27 toma el monto del pedido; S29 solo cambia un estado si la firma, el token y el monto coinciden. Esto se prueba en el caso 7.6.
 
+
+\subsection{Por qué estas operaciones y no otras}
+
+\begin{itemize}[nosep,leftmargin=*]
+\item \textbf{Una operación por cada acción de una pantalla, no por cada tabla.} Si dos pantallas hacen lo mismo, comparten servicio: la lista de pedidos (S16) la usan cinco pantallas, entre ellas “Mis pedidos” de Javiera y la cola de cocina. Una variación visual, como la versión móvil, no genera un servicio nuevo.
+\item \textbf{Casi nada se borra.} Solo S06 elimina, y es la eliminación de un producto que pide el mantenedor. Los pedidos no se borran, se anulan (S25) y conservan su historial; los clientes y los usuarios se desactivan (S14, S43) para no perder lo que hicieron.
+\item \textbf{El navegador manda lo mínimo.} Una selección, un motivo, un identificador. Quién eres no viaja en el cuerpo de la petición: sale de la cookie de sesión, de modo que nadie puede decir “soy otra persona”. El precio, el total y el estado de un pago los calcula el servidor.
+\item \textbf{Los errores no dan pistas de más.} Todos tienen la misma forma. Pedir el pedido de otra persona responde “no encontrado”, igual que si no existiera, y un login con un correo que no está registrado responde lo mismo que uno con la clave equivocada.
+\end{itemize}
 
 \subsection{Ejemplos de contratos}
 

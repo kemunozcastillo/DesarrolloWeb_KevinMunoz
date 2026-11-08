@@ -11,6 +11,8 @@
 
 ## Índice
 
+- [Contexto del proyecto](#contexto-del-proyecto)
+- [Glosario](#glosario)
 0. [Requisitos y brechas declaradas](#0-requisitos-y-brechas-declaradas)
 1. [Servicios y contratos](#1-servicios-y-contratos)
 2. [Dominio y límites de los microservicios](#2-dominio-y-límites-de-los-microservicios)
@@ -26,7 +28,71 @@
 
 ---
 
+## Contexto del proyecto
+
+**Qué es Poke Fresh.** Es un local de poke bowls (cuencos de arroz con pescado o pollo, salsas y toppings) que vende por la web. La persona arma su bowl o elige una promoción, paga en línea y lo retira en el local o, si vive a menos de 3 km, se lo llevan gratis. Dentro del local, cocina ve los pedidos pagados en el orden en que llegan y quien despacha asigna un chofer y registra la entrega. El dueño y el administrador mantienen productos, clientes y usuarios, y revisan las ventas.
+
+**Qué pide el caso y qué pide esta evaluación.** El caso (requisitos R1 a R14, sección 0) ya tenía su frontend, que guardaba todo en el navegador. Esta evaluación pide lo que faltaba para que funcione de verdad: un backend con datos que se guardan, reglas de negocio, usuarios con permisos distintos, pagos con un proveedor externo y protección de los datos personales, todo conectado a las mismas pantallas.
+
+**Qué tan grande es.** Es un solo local. Se estiman unos 150 pedidos al día (hasta 250 un viernes), unos 40 por hora en el almuerzo, es decir, unas 5 peticiones por segundo en el momento de más movimiento (es una proyección; la cuenta está en el ADR 0001). El sistema es pequeño en carga y delicado en datos, porque maneja RUN, direcciones y pagos. Por eso el diseño pone el esfuerzo en la seguridad y la claridad, no en escalar: la prueba de carga midió entre 209 y 316 peticiones por segundo, muy por encima de lo que el local necesita.
+
+**La arquitectura, en un párrafo.** El navegador solo habla con una puerta, el API Gateway, que revisa quién es la persona y qué puede hacer, y recién entonces pasa la petición a un servicio privado (inventario, clientes, pedidos, pagos, autenticación o GraphQL). Los servicios no tienen puertos hacia afuera, cada uno guarda sus datos en su propia base de MongoDB y lee sus secretos de Vault. El pago ocurre en la página de una pasarela externa (aquí simulada), que después avisa al sistema con una notificación firmada.
+
+![Arquitectura en una figura: el navegador entra por el API Gateway; los servicios, MongoDB y Vault están en una red privada](diagramas/arquitectura-simple.png)
+
+**Las decisiones que definen el diseño.**
+
+1. **Una sola puerta y servicios privados.** Lo que no se publica no se puede atacar. El gateway tiene una lista explícita de rutas permitidas; lo que no está en la lista no existe hacia afuera.
+2. **Decide el servidor, no el navegador.** El navegador manda lo que la persona eligió; el precio, el total y si un pedido está pagado los calcula y decide el servidor. Un precio o un pago alterado desde la pantalla no tiene ningún efecto.
+3. **Cada dato tiene un dueño y cada servicio tiene su propia llave.** Inventario decide los precios, pedidos decide el estado de un pedido, pagos decide el estado de un pago. Cada servicio usa su propia credencial, guardada en Vault, y todos los saltos van cifrados con TLS. Si se filtra una llave, solo abre una puerta.
+4. **Lo simple primero.** Los servicios hablan REST; GraphQL se usa solo para juntar lecturas de varios servicios en una pantalla; no hay gRPC ni servicio de analítica aparte porque la carga medida no lo justifica (sección 9).
+
+**Una compra, de punta a punta.** Javiera Morales Díaz es la clienta de prueba que aparece en las capturas. Su compra recorre casi todo el sistema, y entre paréntesis va el número de cada operación (sección 1):
+
+1. Entra a la tienda y mira el menú: el navegador pide el catálogo y las reglas de armado (S01 y S03). No necesita sesión.
+2. Ingresa con su correo y su clave (S33). El Auth Service valida la contraseña y el gateway le entrega una cookie que el JavaScript de la página no puede leer.
+3. Arma un bowl regular de quinoa, salmón, salsa de goma, mango y edamame, y confirma el pedido (S15). El navegador manda solo qué eligió; inventario calcula el precio ($6.990) y reserva los ingredientes.
+4. Paga (S27). El sistema crea el cobro en la pasarela y la lleva a su página; Javiera paga allí y ningún dato de tarjeta pasa por Poke Fresh.
+5. La pasarela avisa con una notificación firmada (S29). Si la firma, el monto y el cobro coinciden, pedidos marca el pedido como pagado, registra la venta y emite la boleta (la N° 79 en las capturas). El aviso a cocina y el correo con la boleta salen por una cola de mensajes, sin demorar el pago.
+6. Cocina ve el pedido en su cola (S16), lo acepta (S20) y lo marca listo (S21). Javiera retira en el local, así que queda "listo para retiro"; si hubiera pedido despacho, el encargado asignaría un chofer (S22). Al final se registra la entrega (S23).
+7. Javiera sigue su pedido en una pantalla que junta el pedido, sus pagos y los productos en una sola consulta (S30) y puede ver su boleta (S18). Si se hubiera arrepentido antes de que cocina aceptara el pedido, lo habría anulado (S25) y el sistema le habría devuelto el pago.
+
+Las capturas de este recorrido están en las secciones 8 y 10, y el detalle técnico de cada llamada, en la secuencia de la sección 3.
+
+**Cómo leer los números y códigos.**
+
+- **R1 a R14:** requisitos del caso (sección 0).
+- **S01 a S44:** operaciones del backend, numeradas (sección 1). Cada tabla del informe las nombra con ese número.
+- **Sí\*:** en las tablas de permisos significa "permitido, pero solo si se cumple una condición" (por ejemplo, un cliente ve pedidos, pero solo los suyos). Se explica en la sección 4.
+- **Caso 7.5, 8.1, 10.4 y similares:** pruebas de punta a punta que se ejecutan contra el sistema funcionando (`pruebas/e2e/casos.py`). El primer número es el módulo de la pauta donde se pide esa prueba. Los resultados están en la sección 7 y en `evidencias/e2e-resultados.md`.
+
+---
+
+## Glosario
+
+| Término | Qué significa aquí |
+|---|---|
+| API Gateway | La única puerta de entrada al sistema: revisa sesión, permisos y límites antes de pasar la petición |
+| Cookie HttpOnly | Cookie que el navegador envía sola pero que el JavaScript de la página no puede leer, así un script malicioso no la roba |
+| CSRF | Ataque en que otro sitio hace que el navegador de una persona envíe una petición a la tienda con la sesión de esa persona; se evita comprobando de qué sitio viene la petición |
+| DataLoader | Técnica del GraphQL Gateway que junta muchas lecturas parecidas en una sola llamada (por ejemplo, los productos de todas las líneas de un pedido) |
+| DTO | La versión de un dato que se envía a quien lo pide, con solo los campos que esa persona puede ver (cocina recibe nombre y teléfono del cliente, no su RUN) |
+| GraphQL | Forma de consultar en la que quien pregunta indica los campos que necesita; aquí sirve para juntar datos de varios servicios en una consulta |
+| HMAC | Firma calculada sobre un mensaje con una clave secreta compartida; demuestra que el aviso viene de la pasarela y que nadie lo cambió |
+| Idempotencia | Repetir la misma petición produce el mismo resultado: un doble clic en "Pagar" no cobra dos veces (se usa la cabecera `Idempotency-Key`) |
+| Introspección | El gateway le pregunta al Auth Service, en cada petición, si el token de la cookie es válido y a quién pertenece |
+| Pepper | Secreto extra, guardado en Vault, que se mezcla con la contraseña antes de guardarla con scrypt (una función lenta, con una sal distinta por cuenta); si alguien roba la base, esos hashes no sirven por sí solos |
+| TLS y HSTS | El cifrado de la conexión (el candado de HTTPS) y la cabecera que obliga al navegador a usar siempre HTTPS |
+| Token opaco | Texto aleatorio sin datos dentro; solo el Auth Service sabe a quién pertenece |
+| Vault y `vault-init` | Vault es el gestor de secretos donde viven las credenciales; `vault-init` es el contenedor que corre una sola vez al arrancar y crea los secretos, los tokens y los usuarios de base de datos |
+| Webhook (notificación) | Aviso que la pasarela envía por su cuenta al sistema cuando termina un pago |
+| STOMP y ActiveMQ | Cola de mensajes que lleva avisos (la boleta al correo, el pedido a cocina) sin bloquear el pago |
+
+---
+
 ## 0. Requisitos y brechas declaradas
+
+Esta sección fija el punto de partida: lo que el caso le pide a la tienda (R1 a R14) y, más abajo, lo que no se pudo hacer como en una empresa real y con qué se reemplazó. Conviene leerla antes que las demás, porque explica por qué hay una pasarela de pago simulada, un correo que se muestra en pantalla o certificados de prueba. Cada brecha tiene tres columnas: qué falta, por qué falta y cómo se cubre.
 
 ### Requisitos del caso
 
@@ -76,6 +142,8 @@ Lo que no se implementa como en producción, por qué, y qué lo reemplaza:
 ---
 
 ## 1. Servicios y contratos
+
+Cada cosa que Javiera hace en la tienda (mirar el menú, ingresar, armar su bowl, pagar) necesita algo del backend. Esta sección convierte cada una de esas acciones en un servicio con un número, de S01 a S44, y un contrato: qué recibe, qué responde y qué errores puede dar. Primero se muestra qué pantalla usa cada servicio, después viene la matriz completa, con una fila por operación, y al final hay ejemplos con datos ficticios. Si buscas una operación concreta, parte por la matriz y usa su número.
 
 ### Trazabilidad de pantallas
 
@@ -170,6 +238,13 @@ Datos: **Púb.** público, **Rest.** restringido (personal), **Cred.** credencia
 | S44 | — | (operación de TI) | Estado del sistema | `GET /api/salud` | — | `200 {gateway, vault, auth, ...}` o `503` si algo no responde | Sin datos personales | Púb. | Anónimo |
 
 El cliente no puede fijar precios, totales ni estados: S15 recibe solo la selección y recalcula con inventario; S27 toma el monto del pedido; S29 solo cambia un estado si la firma, el token y el monto coinciden. Esto se prueba en el caso 7.6.
+
+### Por qué estas operaciones y no otras
+
+- **Una operación por cada acción de una pantalla, no por cada tabla.** Si dos pantallas hacen lo mismo, comparten servicio: la lista de pedidos (S16) la usan cinco pantallas, entre ellas "Mis pedidos" de Javiera y la cola de cocina. Una variación visual, como la versión móvil, no genera un servicio nuevo.
+- **Casi nada se borra.** Solo S06 elimina, y es la eliminación de un producto que pide el mantenedor. Los pedidos no se borran, se anulan (S25) y conservan su historial; los clientes y los usuarios se desactivan (S14, S43) para no perder lo que hicieron.
+- **El navegador manda lo mínimo.** Una selección, un motivo, un identificador. Quién eres no viaja en el cuerpo de la petición: sale de la cookie de sesión, de modo que nadie puede decir "soy otra persona". El precio, el total y el estado de un pago los calcula el servidor.
+- **Los errores no dan pistas de más.** Todos tienen la misma forma. Pedir el pedido de otra persona responde "no encontrado", igual que si no existiera, y un login con un correo que no está registrado responde lo mismo que uno con la clave equivocada.
 
 ### Ejemplos de contratos
 
@@ -289,6 +364,8 @@ El contrato completo de cada servicio Python se puede ver en su OpenAPI (`/docs`
 
 ## 2. Dominio y límites de los microservicios
 
+Antes de repartir el trabajo entre servicios hay que saber qué cosas existen en la tienda: clientes, pedidos, productos, pagos, boletas. Esta sección las dibuja como clases UML y explica cómo se relacionan (por ejemplo, un cliente tiene cero o más pedidos y un pedido tiene entre una y treinta líneas). Después muestra qué servicio expone cada operación y por qué los límites entre servicios están donde están. Las multiplicidades se leen así: "1 a 0..*" significa que un elemento se relaciona con ninguno o con muchos del otro lado.
+
 ![UML del dominio: clases, atributos y multiplicidades](diagramas/dominio.png)
 
 ![UML de los servicios públicos: operaciones con su ID y dependencias de las clases del dominio](diagramas/servicios.png)
@@ -357,6 +434,8 @@ Cada servicio modifica solo su base. Las colaboraciones usan contratos explícit
 
 ## 3. Sistemas, componentes e integración
 
+Cuatro sistemas se reparten el negocio: inventario (qué se vende y cuánto queda), pedidos (qué pasó con cada compra), clientes (quién compra) y pagos (el dinero). La regla de esta sección es que cada dato tenga un solo dueño, que es quien decide su estado oficial. La matriz dice qué hace cada sistema, de quién depende, con qué llave se lo llama y qué ocurre si falla; la secuencia de más abajo cuenta la compra de Javiera paso a paso.
+
 ### Matriz de sistemas
 
 Los cuatro sistemas mínimos del caso son microservicios privados, cada uno con su base y su usuario de Mongo. Cada uno decide el estado oficial de sus datos; los demás lo consultan por contrato.
@@ -411,7 +490,7 @@ Leyenda: las flechas continuas son llamadas entre componentes (todas por TLS 1.2
 
 Modelo C4 (`docs/diagramas/poke-fresh.dsl`): 25 vistas, validadas con el comando `validate` de Structurizr (imagen `structurizr/structurizr`) y exportables a Mermaid. Incluye C1 (contexto con la pasarela externa), C2 (contenedores, con recortes de catálogo, pedidos y pagos, y secretos), C3 de API Gateway, GraphQL Gateway, Auth Service y pedidos, vistas dinámicas de los flujos de los casos de validación (catálogo y su recuperación, pedido y su reintento, pedido propio y ajeno, sesión expirada, GraphQL con éxito, con error parcial y sobre el límite, pago, confirmación firmada y notificación falsa) y dos despliegues: `Docker_Compose` (el entregado) y `Local_Sin_Docker` (pruebas, con Mongo, Vault y ActiveMQ en memoria). Para verlo: pegar el archivo en https://structurizr.com/dsl o usar el CLI. No hay imágenes renderizadas de estas vistas en el repositorio; los `.png` de arriba siguen siendo los diagramas de referencia del informe.
 
-Despliegue (`docker-compose.yml`): 15 contenedores en dos redes (`tls-init`, `vault-init` y `semilla` son de un solo uso). `privada` es `internal: true` (sin puertos al equipo ni salida a Internet). Solo el gateway (8080) y la pasarela simulada (9000) publican puertos.
+Despliegue (`docker-compose.yml`): 15 contenedores en dos redes (`tls-init`, `vault-init` y `semilla` son de un solo uso: crean los certificados, los secretos y los datos de ejemplo, respectivamente). `privada` es `internal: true` (sin puertos al equipo ni salida a Internet). Solo el gateway (8080) y la pasarela simulada (9000) publican puertos.
 
 ### Secuencia de integración: compra completa
 
@@ -430,6 +509,8 @@ Probado en `servicios/tests/test_pedidos_y_pagos.py` y en los casos 10.2 y 10.3 
 ---
 
 ## 4. Stakeholders y matriz de permisos
+
+Un sistema seguro no solo pregunta quién eres, también qué puedes hacer. Aquí se describe quiénes usan Poke Fresh (clientes, personal del local, la pasarela de pago, el equipo de TI) y qué puede hacer cada uno con cada servicio. Para cada operación hay una decisión por rol y, cuando corresponde, una condición: por ejemplo, un cliente puede ver pedidos, pero solo los suyos.
 
 ### Stakeholders
 
@@ -456,6 +537,14 @@ Probado en `servicios/tests/test_pedidos_y_pagos.py` y en los casos 10.2 y 10.3 
 | Visitante | Quien aún no ingresa | Sin identidad: solo operaciones públicas (S01 a S03, S07, S33, S35, S36, S38, S39) |
 
 La autenticación (quién eres) la hace el Auth Service por introspección del token; la autorización (qué puedes hacer) la decide el gateway por rol y el servicio dueño por propiedad y estado.
+
+### Por qué los permisos son así
+
+- **Cada rol recibe lo mínimo que necesita para hacer su trabajo.** Cocina necesita saber qué preparar y a quién avisar: ve el nombre y el teléfono del cliente, pero no su RUN ni su correo. Despacho ve su cola y la dirección de entrega. El dueño mira ventas y productos, pero no administra usuarios.
+- **Hay dos candados, no uno.** El gateway comprueba el rol (un cliente no puede entrar al panel de cocina) y el servicio dueño del dato vuelve a comprobar la regla fina, como que un pedido sea de quien lo pide. Si alguien llegara a un servicio por otro camino, el segundo candado igual diría que no.
+- **Un pedido ajeno se responde como inexistente.** Cuando un cliente pide el pedido de otra persona, el servicio contesta 404 y no 403: un "prohibido" confirmaría que ese pedido existe.
+- **Siempre queda alguien a cargo.** El sistema no deja desactivar al último administrador ni que alguien cambie su propio perfil, para que nadie se quede sin acceso por un error.
+- **Ocultar un botón no es un permiso.** Lo que importa es lo que el backend responde, y por eso las pruebas de la sección 7 se hacen contra el backend, no contra la pantalla.
 
 ### Permisos por rol y servicio
 
@@ -560,6 +649,8 @@ La tabla de arriba ("Permisos por rol y servicio") es la decisión por rol; esta
 
 ## 5. API Gateway, políticas y fronteras de confianza
 
+Esta sección responde cómo se impide que alguien llegue a los servicios sin pasar por los controles. El API Gateway es la única puerta; el UML muestra sus piezas, las fronteras de confianza explican qué se revisa cada vez que una petición cruza de una zona a otra (del navegador al gateway, del gateway a un servicio, de un servicio a Vault) y al final se siguen dos solicitudes concretas, una autorizada y una denegada.
+
 ### UML del gateway y sus políticas
 
 ![UML del gateway](diagramas/gateway.png)
@@ -617,6 +708,14 @@ Hay **un API Gateway externo** (puerto 8080) y, detrás de él, el **GraphQL Gat
 ---
 
 ## 6. Rutas, secretos, identidades y operaciones GraphQL
+
+Cada petición que llega de afuera debe terminar en el servicio correcto, y cada servicio necesita una forma de demostrar quién es. Aquí está el mapa completo: qué ruta pública va a qué servicio, con qué control y con qué credencial; qué secretos existen, quién los usa y cómo se cambian; y qué operaciones ofrece GraphQL. Las credenciales se nombran por su ubicación en Vault, nunca por su valor.
+
+### Cómo se piensan las llaves
+
+La imagen que sirve aquí es la de un edificio con muchas puertas. Cada servicio tiene su propia llave y esa llave no abre las demás: si alguien consigue la de pagos, solo entra a pagos. El gateway es el único que lleva varias llaves, porque su trabajo es llamar a todos, y por eso es la pieza más vigilada. Los tres tipos de identidad que aparecen en esta sección son distintos entre sí: la **persona** se identifica con su cookie de sesión, un **servicio** con su credencial interna, y la **pasarela** con la firma de sus avisos.
+
+Las llaves no están escritas en el código ni en el repositorio: viven en Vault, y `vault-init`, el contenedor que corre una sola vez al arrancar, las crea al azar. Cada servicio recibe un token que solo le permite leer sus propias rutas, y cada uno tiene su propio usuario de base de datos. Si Vault deja de responder, el sistema se cierra en vez de abrirse: después de unos minutos de gracia, los servicios responden 503 y no dejan pasar a nadie.
 
 ### Matriz de rutas
 
@@ -726,6 +825,8 @@ No aplica: no se implementó gRPC. La justificación, con los argumentos a favor
 
 ## 7. Datos sensibles y secretos del cliente
 
+No todos los datos valen lo mismo: el nombre de un bowl es público, pero el RUN, la dirección o el historial de pedidos de Javiera no lo son. Esta sección clasifica cada dato, decide quién puede verlo y cómo se protege, aclara que el sistema no guarda secretos de los clientes (ni datos de tarjeta) y termina con las pruebas que se ejecutaron contra el sistema funcionando.
+
 ### Clasificación de datos
 
 | Dato o credencial | Finalidad | Clasificación | Sistema custodio | Roles autorizados | En el frontend | Protección | Retención |
@@ -785,11 +886,13 @@ Ejecutados contra el backend implementado con `pruebas/e2e/casos.py`. Resultados
 | 7.11 Fuerza bruta | 25 logins fallidos | anónimo | bloqueo | 429 desde el intento 6 | Auth + gateway |
 | 7.12 Transporte cifrado | GET en claro y por HTTPS | anónimo | sin HTTP en claro; HTTPS con HSTS; certificado verificado con la CA | Cumple | Gateway (TLS) |
 
-**Control antes de entregar.** No hay secretos en JavaScript, HTML ni capturas (las cuentas de prueba las informa el gateway solo en modo demo y están documentadas como datos de demostración). Los datos devueltos son los mínimos por rol. Aunque la pantalla esté en Internet, el navegador no recibe nada que su rol no pueda ver, porque el filtro está en el servidor.
+**Qué comprobamos.** Revisamos tres cosas. Primero, que no haya secretos en el JavaScript, el HTML ni las capturas: lo único que se muestra son cuentas de prueba, que el gateway informa solo con `MODO_DEMO=true`. Segundo, que cada rol reciba solo los datos que necesita: un cliente no ve pedidos de otro (caso 7.5) y cocina no ve el RUN ni el correo de quien compra (caso 10.4). Tercero, que aunque la tienda esté abierta a Internet, lo que llega al navegador lo decide el servidor según el rol y no la pantalla (casos 7.2 a 7.4).
 
 ---
 
 ## 8. Separación privada y agregaciones GraphQL
+
+La pantalla del pedido de Javiera muestra el pedido, sus pagos y los productos que compró, y esos datos viven en tres servicios distintos. Para que el navegador no tenga que llamarlos uno por uno (ni pueda hacerlo), existe un GraphQL Gateway privado que los junta en una sola consulta. Esta sección muestra cómo está construido, qué puede ver cada rol, qué límites evitan abusos y la evidencia de que funciona desde la pantalla real.
 
 ### Mapa de clasificación
 
@@ -919,11 +1022,13 @@ El cliente pidió `cliente { email }` y no lo obtuvo: la selección de campos no
 
 `recorrido.json` lista las rutas de la API que usó el navegador: todas bajo `/api/v1`; ninguna a un servicio interno.
 
-**Control.** La consulta combina realmente subsistemas (3 o 4 servicios por consulta). Cada servicio conserva su autoridad (la propiedad la decide pedidos). La selección de campos no filtra datos restringidos (autorización por campo). La red privada y los permisos se verificaron en ejecución (casos 7.5, 7.9 y 8.1 a 8.3).
+**Qué comprobamos.** Que la consulta junta de verdad datos de tres o cuatro servicios; que cada servicio mantiene su autoridad (la propiedad del pedido la decide pedidos); que pedir campos de más no filtra datos restringidos (si un cliente pide `cliente { email }`, recibe PROHIBIDO); y que la red privada y los permisos funcionan con el sistema en marcha (casos 7.5, 7.9 y 8.1 a 8.3).
 
 ---
 
 ## 9. Analítica y gRPC
+
+No toda necesidad de reporte exige un sistema de analítica aparte, ni todo mensaje entre servicios exige gRPC. Esta sección decide con números si hacían falta: primero qué carga tiene el negocio y qué se midió, luego por qué no se implementó cada componente y, por último, las razones a favor y en contra de gRPC.
 
 La decisión, con contexto, alternativas y consecuencias, está en [ADR 0001](adr/0001-analitica-y-grpc.md).
 
@@ -975,6 +1080,8 @@ El análisis completo, con una evaluación flujo por flujo, está en el [ADR 000
 ---
 
 ## 10. Backend completo e integración verificable
+
+Aquí se junta todo: qué se entrega, cómo se prueba y qué evidencia hay de que funciona. Las tablas de pruebas dicen qué cubre cada conjunto y cuántas pasaron; las capturas muestran el sistema en uso (escritorio, teléfono y un navegador real); la matriz final relaciona cada requisito del caso con su pantalla, su servicio, su prueba y su evidencia.
 
 ### Qué se entrega
 

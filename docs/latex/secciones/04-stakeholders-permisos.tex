@@ -2,6 +2,9 @@
 
 \section{4. Stakeholders y matriz de permisos}
 
+Un sistema seguro no solo pregunta quién eres, también qué puedes hacer. Aquí se describe quiénes usan Poke Fresh (clientes, personal del local, la pasarela de pago, el equipo de TI) y qué puede hacer cada uno con cada servicio. Para cada operación hay una decisión por rol y, cuando corresponde, una condición: por ejemplo, un cliente puede ver pedidos, pero solo los suyos.
+
+
 \subsection{Stakeholders}
 
 {\small
@@ -42,9 +45,20 @@ Visitante & Quien aún no ingresa & Sin identidad: solo operaciones públicas (S
 \end{longtable}
 }
 
-\begin{landscape}
 La autenticación (quién eres) la hace el Auth Service por introspección del token; la autorización (qué puedes hacer) la decide el gateway por rol y el servicio dueño por propiedad y estado.
 
+
+\subsection{Por qué los permisos son así}
+
+\begin{itemize}[nosep,leftmargin=*]
+\item \textbf{Cada rol recibe lo mínimo que necesita para hacer su trabajo.} Cocina necesita saber qué preparar y a quién avisar: ve el nombre y el teléfono del cliente, pero no su RUN ni su correo. Despacho ve su cola y la dirección de entrega. El dueño mira ventas y productos, pero no administra usuarios.
+\item \textbf{Hay dos candados, no uno.} El gateway comprueba el rol (un cliente no puede entrar al panel de cocina) y el servicio dueño del dato vuelve a comprobar la regla fina, como que un pedido sea de quien lo pide. Si alguien llegara a un servicio por otro camino, el segundo candado igual diría que no.
+\item \textbf{Un pedido ajeno se responde como inexistente.} Cuando un cliente pide el pedido de otra persona, el servicio contesta 404 y no 403: un “prohibido” confirmaría que ese pedido existe.
+\item \textbf{Siempre queda alguien a cargo.} El sistema no deja desactivar al último administrador ni que alguien cambie su propio perfil, para que nadie se quede sin acceso por un error.
+\item \textbf{Ocultar un botón no es un permiso.} Lo que importa es lo que el backend responde, y por eso las pruebas de la sección 7 se hacen contra el backend, no contra la pantalla.
+\end{itemize}
+
+\begin{landscape}
 \subsection{Permisos por rol y servicio}
 Decisión por rol y por ID de servicio (la ruta y el verbo son los del módulo 1). \textbf{Sí}: permitido. \textbf{Sí*}: permitido solo si se cumple la condición de la última columna. \textbf{No}: denegado (el gateway responde 403, o 401 si no hay sesión). El control grueso (rol) lo aplica el gateway con la matriz de rutas; la condición la aplica el servicio dueño del dato y se vuelve a comprobar ahí. Esta tabla se generó leyendo \texttt{gateway/\allowbreak{}src/\allowbreak{}rutas.\allowbreak{}js}, así que no puede contradecir al código.
 

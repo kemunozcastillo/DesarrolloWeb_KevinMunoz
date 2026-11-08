@@ -2,6 +2,9 @@
 
 \section{5. API Gateway, políticas y fronteras de confianza}
 
+Esta sección responde cómo se impide que alguien llegue a los servicios sin pasar por los controles. El API Gateway es la única puerta; el UML muestra sus piezas, las fronteras de confianza explican qué se revisa cada vez que una petición cruza de una zona a otra (del navegador al gateway, del gateway a un servicio, de un servicio a Vault) y al final se siguen dos solicitudes concretas, una autorizada y una denegada.
+
+
 \subsection{UML del gateway y sus políticas}
 
 \begin{figure}[H]

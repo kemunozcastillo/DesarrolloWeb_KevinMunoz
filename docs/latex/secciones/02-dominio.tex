@@ -2,6 +2,9 @@
 
 \section{2. Dominio y límites de los microservicios}
 
+Antes de repartir el trabajo entre servicios hay que saber qué cosas existen en la tienda: clientes, pedidos, productos, pagos, boletas. Esta sección las dibuja como clases UML y explica cómo se relacionan (por ejemplo, un cliente tiene cero o más pedidos y un pedido tiene entre una y treinta líneas). Después muestra qué servicio expone cada operación y por qué los límites entre servicios están donde están. Las multiplicidades se leen así: “1 a 0..*” significa que un elemento se relaciona con ninguno o con muchos del otro lado.
+
+
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth,height=0.85\textheight,keepaspectratio]{../diagramas/dominio.png}

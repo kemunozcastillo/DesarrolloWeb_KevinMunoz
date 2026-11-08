@@ -1,7 +1,10 @@
 % Generado desde docs/INFORME.md. Editar libremente.
 
-\begin{landscape}
 \section{3. Sistemas, componentes e integración}
+
+\begin{landscape}
+Cuatro sistemas se reparten el negocio: inventario (qué se vende y cuánto queda), pedidos (qué pasó con cada compra), clientes (quién compra) y pagos (el dinero). La regla de esta sección es que cada dato tenga un solo dueño, que es quien decide su estado oficial. La matriz dice qué hace cada sistema, de quién depende, con qué llave se lo llama y qué ocurre si falla; la secuencia de más abajo cuenta la compra de Javiera paso a paso.
+
 \subsection{Matriz de sistemas}
 Los cuatro sistemas mínimos del caso son microservicios privados, cada uno con su base y su usuario de Mongo. Cada uno decide el estado oficial de sus datos; los demás lo consultan por contrato.
 
@@ -102,7 +105,7 @@ Leyenda: las flechas continuas son llamadas entre componentes (todas por TLS 1.2
 Modelo C4 (\texttt{docs/\allowbreak{}diagramas/\allowbreak{}poke-\allowbreak{}fresh.\allowbreak{}dsl}): 25 vistas, validadas con el comando \texttt{validate} de Structurizr (imagen \texttt{structurizr/\allowbreak{}structurizr}) y exportables a Mermaid. Incluye C1 (contexto con la pasarela externa), C2 (contenedores, con recortes de catálogo, pedidos y pagos, y secretos), C3 de API Gateway, GraphQL Gateway, Auth Service y pedidos, vistas dinámicas de los flujos de los casos de validación (catálogo y su recuperación, pedido y su reintento, pedido propio y ajeno, sesión expirada, GraphQL con éxito, con error parcial y sobre el límite, pago, confirmación firmada y notificación falsa) y dos despliegues: \texttt{Docker\_\allowbreak{}Compose} (el entregado) y \texttt{Local\_\allowbreak{}Sin\_\allowbreak{}Docker} (pruebas, con Mongo, Vault y ActiveMQ en memoria). Para verlo: pegar el archivo en https://structurizr.com/dsl o usar el CLI. No hay imágenes renderizadas de estas vistas en el repositorio; los \texttt{.\allowbreak{}png} de arriba siguen siendo los diagramas de referencia del informe.
 
 
-Despliegue (\texttt{docker-\allowbreak{}compose.\allowbreak{}yml}): 15 contenedores en dos redes (\texttt{tls-\allowbreak{}init}, \texttt{vault-\allowbreak{}init} y \texttt{semilla} son de un solo uso). \texttt{privada} es \texttt{internal:\allowbreak{} true} (sin puertos al equipo ni salida a Internet). Solo el gateway (8080) y la pasarela simulada (9000) publican puertos.
+Despliegue (\texttt{docker-\allowbreak{}compose.\allowbreak{}yml}): 15 contenedores en dos redes (\texttt{tls-\allowbreak{}init}, \texttt{vault-\allowbreak{}init} y \texttt{semilla} son de un solo uso: crean los certificados, los secretos y los datos de ejemplo, respectivamente). \texttt{privada} es \texttt{internal:\allowbreak{} true} (sin puertos al equipo ni salida a Internet). Solo el gateway (8080) y la pasarela simulada (9000) publican puertos.
 
 
 \begin{landscape}
