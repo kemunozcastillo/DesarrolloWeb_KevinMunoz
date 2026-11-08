@@ -6,9 +6,16 @@
 #   docker compose down               detener (los datos quedan en los volúmenes)
 #   docker compose down -v            detener y borrar todos los datos
 #
-# Desde el equipo solo se alcanzan dos puertos:
-#   http://localhost:8080   la tienda y la API (API Gateway)
-#   http://localhost:9000   la pasarela de pago simulada (proveedor externo)
+# Desde el equipo solo se alcanzan dos puertos, ambos por HTTPS:
+#   https://localhost:8080   la tienda y la API (API Gateway)
+#   https://localhost:9000   la pasarela de pago simulada (proveedor externo)
+#
+# TLS: el contenedor tls-init crea una CA de prueba y un certificado por
+# componente (volumen "tls", solo lectura para los demás; la clave de la CA
+# queda en otro volumen que solo monta tls-init). Con TLS hablan entre sí el
+# gateway, el Auth Service, el GraphQL Gateway, los microservicios, la
+# pasarela, Vault, Mongo y ActiveMQ (STOMP). El navegador avisará que la CA
+# de prueba no es de confianza: es lo esperado en un entorno local.
 #
 # Redes:
 #   privada   internal: sin salida a Internet ni puertos publicados. Aquí viven
@@ -25,6 +32,7 @@ x-python: &python
   networks: [privada]
   volumes:
     - tokens:/run/vault:ro
+    - tls:/run/tls:ro
   depends_on:
     vault-init:
       condition: service_completed_successfully
@@ -32,18 +40,29 @@ x-python: &python
       condition: service_healthy
 
 x-python-env: &python-env
-  VAULT_ADDR: http://vault:8200
-  MONGO_URI: mongodb://mongo:27017
+  VAULT_ADDR: https://vault:8200
+  MONGO_URI: mongodb://mongo:27017/?tls=true&tlsCAFile=/run/tls/ca.pem
+  # Los clientes HTTPS de Python (httpx, urllib) confían en la CA de prueba.
+  SSL_CERT_FILE: /run/tls/ca.pem
   MODO_DEMO: ${MODO_DEMO:-true}
-  URL_INVENTARIO: http://inventario:8001
-  URL_CLIENTES: http://clientes:8002
-  URL_PEDIDOS: http://pedidos:8003
-  URL_PAGOS: http://pagos:8004
-  URL_AUTH: http://auth:4100
-  URL_PASARELA: http://pasarela:9000
+  URL_INVENTARIO: https://inventario:8001
+  URL_CLIENTES: https://clientes:8002
+  URL_PEDIDOS: https://pedidos:8003
+  URL_PAGOS: https://pagos:8004
+  URL_AUTH: https://auth:4100
+  URL_PASARELA: https://pasarela:9000
 
 services:
   # --- Infraestructura -----------------------------------------------------------
+
+  tls-init:
+    build: ./tls
+    image: poke-fresh-tls-init
+    # Sin red: solo escribe archivos en los volúmenes.
+    network_mode: none
+    volumes:
+      - tls:/tls
+      - tls-ca:/ca
 
   vault:
     image: hashicorp/vault:1.18
@@ -53,9 +72,22 @@ services:
     volumes:
       - ./vault/config.hcl:/vault/poke-fresh/config.hcl:ro
       - vault-datos:/vault/file
+      - tls:/run/tls:ro
+    depends_on:
+      tls-init:
+        condition: service_completed_successfully
 
   mongo:
     image: mongo:7.0
+    command:
+      - mongod
+      - --bind_ip_all
+      - --tlsMode=requireTLS
+      - --tlsCertificateKeyFile=/run/tls/mongo.pem
+      - --tlsCAFile=/run/tls/ca.pem
+      # TLS del lado servidor: los clientes verifican a Mongo con la CA y se
+      # autentican con su usuario y clave de Vault (no con certificado propio).
+      - --tlsAllowConnectionsWithoutCertificates
     restart: unless-stopped
     networks: [privada]
     environment:
@@ -64,30 +96,54 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_CLAVE:?Define MONGO_ROOT_CLAVE en el archivo .env}
     volumes:
       - mongo-datos:/data/db
+      - tls:/run/tls:ro
+    depends_on:
+      tls-init:
+        condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      test: ["CMD", "mongosh", "--tls", "--tlsCAFile", "/run/tls/ca.pem", "--quiet", "--eval", "db.adminCommand('ping').ok"]
       interval: 5s
       timeout: 5s
       retries: 20
 
   activemq:
     image: apache/activemq-classic:6.1.4
+    # Solo STOMP sobre TLS (activemq/activemq.xml). La clave del almacén PKCS12 la
+    # crea tls-init y se lee del volumen al arrancar: no está en este archivo.
+    command:
+      - sh
+      - -c
+      - >-
+        ACTIVEMQ_SSL_OPTS="-Djavax.net.ssl.keyStore=/run/tls/activemq.p12
+        -Djavax.net.ssl.keyStoreType=PKCS12
+        -Djavax.net.ssl.keyStorePassword=$$(cat /run/tls/activemq.clave)"
+        exec /opt/apache-activemq/bin/activemq console
     restart: unless-stopped
     networks: [privada]
+    volumes:
+      - ./activemq/activemq.xml:/opt/apache-activemq/conf/activemq.xml:ro
+      - tls:/run/tls:ro
+    depends_on:
+      tls-init:
+        condition: service_completed_successfully
 
   vault-init:
     build: ./vault
     image: poke-fresh-vault-init
     networks: [privada]
     environment:
-      VAULT_ADDR: http://vault:8200
-      MONGO_URI: mongodb://mongo:27017
+      VAULT_ADDR: https://vault:8200
+      MONGO_URI: mongodb://mongo:27017/?tls=true&tlsCAFile=/run/tls/ca.pem
+      NODE_EXTRA_CA_CERTS: /run/tls/ca.pem
       MONGO_ROOT_USUARIO: ${MONGO_ROOT_USUARIO:-raiz}
       MONGO_ROOT_CLAVE: ${MONGO_ROOT_CLAVE}
     volumes:
       - vault-claves:/claves
       - tokens:/tokens
+      - tls:/run/tls:ro
     depends_on:
+      tls-init:
+        condition: service_completed_successfully
       vault:
         condition: service_started
       mongo:
@@ -103,21 +159,25 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: 4100
-      VAULT_ADDR: http://vault:8200
+      TLS_CERT: /run/tls/auth.crt
+      TLS_KEY: /run/tls/auth.key
+      NODE_EXTRA_CA_CERTS: /run/tls/ca.pem
+      VAULT_ADDR: https://vault:8200
       VAULT_TOKEN_ARCHIVO: /run/vault/auth.token
-      MONGO_URI: mongodb://mongo:27017
+      MONGO_URI: mongodb://mongo:27017/?tls=true&tlsCAFile=/run/tls/ca.pem
       MONGO_DB: pf_auth
       MONGO_RUTA_VAULT: poke-fresh/mongo/auth
       MODO_DEMO: ${MODO_DEMO:-true}
     volumes:
       - tokens:/run/vault:ro
+      - tls:/run/tls:ro
     depends_on:
       vault-init:
         condition: service_completed_successfully
       mongo:
         condition: service_healthy
     healthcheck: &salud-node
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:'+process.env.PORT+'/salud').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('https://127.0.0.1:'+process.env.PORT+'/salud').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -128,10 +188,12 @@ services:
       <<: *python-env
       SERVICIO: inventario
       PORT: 8001
+      TLS_CERT: /run/tls/inventario.crt
+      TLS_KEY: /run/tls/inventario.key
       VAULT_TOKEN_ARCHIVO: /run/vault/inventario.token
       MONGO_RUTA_VAULT: poke-fresh/mongo/inventario
     healthcheck: &salud-python
-      test: ["CMD", "python", "-c", "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:'+os.environ['PORT']+'/salud')"]
+      test: ["CMD", "python", "-c", "import os,urllib.request; urllib.request.urlopen('https://127.0.0.1:'+os.environ['PORT']+'/salud')"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -142,6 +204,8 @@ services:
       <<: *python-env
       SERVICIO: clientes
       PORT: 8002
+      TLS_CERT: /run/tls/clientes.crt
+      TLS_KEY: /run/tls/clientes.key
       VAULT_TOKEN_ARCHIVO: /run/vault/clientes.token
       MONGO_RUTA_VAULT: poke-fresh/mongo/clientes
     healthcheck: *salud-python
@@ -152,9 +216,13 @@ services:
       <<: *python-env
       SERVICIO: pedidos
       PORT: 8003
+      TLS_CERT: /run/tls/pedidos.crt
+      TLS_KEY: /run/tls/pedidos.key
       VAULT_TOKEN_ARCHIVO: /run/vault/pedidos.token
       MONGO_RUTA_VAULT: poke-fresh/mongo/pedidos
       ACTIVEMQ_HOST: activemq
+      ACTIVEMQ_PUERTO: 61612
+      ACTIVEMQ_CA: /run/tls/ca.pem
     healthcheck: *salud-python
 
   pagos:
@@ -164,11 +232,13 @@ services:
       <<: *python-env
       SERVICIO: pagos
       PORT: 8004
+      TLS_CERT: /run/tls/pagos.crt
+      TLS_KEY: /run/tls/pagos.key
       VAULT_TOKEN_ARCHIVO: /run/vault/pagos.token
       MONGO_RUTA_VAULT: poke-fresh/mongo/pagos
       # El navegador vuelve aquí después de pagar; la pasarela notifica al gateway por la red externa.
-      URL_PUBLICA: http://localhost:8080
-      URL_NOTIFICACION_PAGOS: http://gateway:8080/api/v1/pagos/notificacion
+      URL_PUBLICA: https://localhost:8080
+      URL_NOTIFICACION_PAGOS: https://gateway:8080/api/v1/pagos/notificacion
     healthcheck: *salud-python
 
   pasarela:
@@ -181,9 +251,12 @@ services:
     environment:
       SERVICIO: pasarela
       PORT: 9000
-      VAULT_ADDR: http://vault:8200
+      TLS_CERT: /run/tls/pasarela.crt
+      TLS_KEY: /run/tls/pasarela.key
+      SSL_CERT_FILE: /run/tls/ca.pem
+      VAULT_ADDR: https://vault:8200
       VAULT_TOKEN_ARCHIVO: /run/vault/pasarela.token
-      PASARELA_URL_PUBLICA: http://localhost:9000
+      PASARELA_URL_PUBLICA: https://localhost:9000
     depends_on:
       vault-init:
         condition: service_completed_successfully
@@ -194,6 +267,8 @@ services:
     command: ["python", "-m", "notificador.main"]
     environment:
       ACTIVEMQ_HOST: activemq
+      ACTIVEMQ_PUERTO: 61612
+      ACTIVEMQ_CA: /run/tls/ca.pem
     depends_on:
       activemq:
         condition: service_started
@@ -206,14 +281,18 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: 4000
-      VAULT_ADDR: http://vault:8200
+      TLS_CERT: /run/tls/graphql.crt
+      TLS_KEY: /run/tls/graphql.key
+      NODE_EXTRA_CA_CERTS: /run/tls/ca.pem
+      VAULT_ADDR: https://vault:8200
       VAULT_TOKEN_ARCHIVO: /run/vault/graphql.token
-      URL_INVENTARIO: http://inventario:8001
-      URL_CLIENTES: http://clientes:8002
-      URL_PEDIDOS: http://pedidos:8003
-      URL_PAGOS: http://pagos:8004
+      URL_INVENTARIO: https://inventario:8001
+      URL_CLIENTES: https://clientes:8002
+      URL_PEDIDOS: https://pedidos:8003
+      URL_PAGOS: https://pagos:8004
     volumes:
       - tokens:/run/vault:ro
+      - tls:/run/tls:ro
     depends_on:
       vault-init:
         condition: service_completed_successfully
@@ -224,9 +303,10 @@ services:
     restart: "no"
     command: ["python", "-m", "scripts.semilla"]
     environment:
-      VAULT_ADDR: http://vault:8200
+      VAULT_ADDR: https://vault:8200
+      SSL_CERT_FILE: /run/tls/ca.pem
       VAULT_TOKEN_ARCHIVO: /run/vault/semilla.token
-      MONGO_URI: mongodb://mongo:27017
+      MONGO_URI: mongodb://mongo:27017/?tls=true&tlsCAFile=/run/tls/ca.pem
       MONGO_RUTA_VAULT: poke-fresh/mongo/semilla
     depends_on:
       inventario: { condition: service_healthy }
@@ -246,23 +326,27 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: 8080
-      VAULT_ADDR: http://vault:8200
+      TLS_CERT: /run/tls/gateway.crt
+      TLS_KEY: /run/tls/gateway.key
+      NODE_EXTRA_CA_CERTS: /run/tls/ca.pem
+      VAULT_ADDR: https://vault:8200
       VAULT_TOKEN_ARCHIVO: /run/vault/gateway.token
-      URL_AUTH: http://auth:4100
-      URL_INVENTARIO: http://inventario:8001
-      URL_CLIENTES: http://clientes:8002
-      URL_PEDIDOS: http://pedidos:8003
-      URL_PAGOS: http://pagos:8004
-      URL_GRAPHQL: http://graphql:4000
+      URL_AUTH: https://auth:4100
+      URL_INVENTARIO: https://inventario:8001
+      URL_CLIENTES: https://clientes:8002
+      URL_PEDIDOS: https://pedidos:8003
+      URL_PAGOS: https://pagos:8004
+      URL_GRAPHQL: https://graphql:4000
       DIR_FRONTEND: /app/frontend
-      ORIGENES_PERMITIDOS: http://localhost:8080,http://127.0.0.1:8080
-      # Localhost sin HTTPS: la cookie no puede ser Secure. En producción, true.
-      COOKIE_SECURE: "false"
+      ORIGENES_PERMITIDOS: https://localhost:8080,https://127.0.0.1:8080
+      # Con HTTPS la cookie de sesión viaja solo cifrada (Secure).
+      COOKIE_SECURE: "true"
       MODO_DEMO: ${MODO_DEMO:-true}
       # Peticiones por minuto y por IP. Se sube solo para la prueba de carga.
       LIMITE_POR_MINUTO: ${LIMITE_POR_MINUTO:-300}
     volumes:
       - tokens:/run/vault:ro
+      - tls:/run/tls:ro
       - ./frontend:/app/frontend:ro
     depends_on:
       auth: { condition: service_healthy }
@@ -283,3 +367,7 @@ volumes:
   vault-claves:
   tokens:
   mongo-datos:
+  # Certificados y claves de los componentes (solo lectura para ellos).
+  tls:
+  # Clave privada de la CA: solo la monta tls-init.
+  tls-ca:
