@@ -668,6 +668,12 @@ La decisión, con contexto, alternativas y consecuencias, está en [ADR 0001](ad
 
 El recorrido repite seis pantallas en un teléfono emulado (375×812, táctil), contra el mismo sistema en Docker y las mismas APIs: inicio, menú, checkout, seguimiento del pedido, mis pedidos y despacho (`pantallas/m01-inicio-movil.png` a `m06-despacho-movil.png`). Para cada una el script comprueba que no hay scroll horizontal (`desbordeHorizontalMovil` en `pantallas/recorrido.json`: las seis en `false`). Los flujos de cocina y administración se verificaron solo en escritorio; el resto de los flujos se comparten entre ambos tamaños, porque es la misma SPA con diseño responsivo.
 
+Además, `pruebas/e2e/movil.py` recorre en móvil (390×812, táctil, escala 2) una compra completa por HTTPS: inicio, menú, ingreso, checkout, pago, pasarela, pedido pagado con boleta e historial (`evidencias/movil/01-inicio.png` a `08-mis-pedidos.png`). Comprueba que todas las pantallas se sirven por HTTPS y que ninguna tiene scroll horizontal (`evidencias/movil/recorrido.json`), con 0 errores de consola. Es emulación de teléfono en Chromium, no un dispositivo real.
+
+### Evidencia en navegador real
+
+`evidencias/navegador-real/` tiene 8 capturas de una compra completa hecha en Microsoft Edge por HTTPS (pedido PF-00086, pago aprobado en la pasarela de `https://localhost:9000`, boleta N° 83) y `datos-navegador.json` con el navegador, el protocolo, las URLs visitadas y la cabecera HSTS. Las capturas muestran la página y no la barra de direcciones; el protocolo consta en ese archivo. Antes de capturar se aceptó a mano la advertencia que el antivirus muestra por el certificado de prueba.
+
 ### Matriz requisito, pantalla, servicio, prueba y evidencia
 
 | Req. | Pantalla | Servicio | Prueba | Resultado | Evidencia |

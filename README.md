@@ -88,6 +88,7 @@ cd graphql-gateway && npm install && npm test                        # 11 prueba
 pip install httpx playwright && playwright install chromium
 python pruebas/e2e/casos.py --ca ca.pem     # 20 casos de seguridad y negocio (contra Docker, por HTTPS)
 python pruebas/e2e/pantallas.py             # recorrido de 16 pantallas de escritorio y 6 móviles, con capturas
+python pruebas/e2e/movil.py                 # compra completa en móvil (390x812), 8 capturas; se puede repetir
 NODE_EXTRA_CA_CERTS=./ca.pem node pruebas/carga/carga.mjs   # prueba de carga (ver docs/evidencias/carga.md)
 ```
 
