@@ -1,0 +1,9 @@
+{
+  "name": "poke-fresh-vault-init",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Inicializa Vault y Mongo para Poke Fresh: secretos, políticas por servicio, tokens y usuarios de base de datos",
+  "main": "iniciar.js",
+  "scripts": { "start": "node iniciar.js" },
+  "dependencies": { "mongodb": "6.12.0" }
+}

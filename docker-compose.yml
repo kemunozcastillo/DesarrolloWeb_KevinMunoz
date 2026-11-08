@@ -1,0 +1,285 @@
+# Poke Fresh: sistema completo.
+#
+#   docker compose up -d --build      levantar
+#   docker compose ps                 ver el estado
+#   docker compose logs -f gateway    ver los registros de un servicio
+#   docker compose down               detener (los datos quedan en los volúmenes)
+#   docker compose down -v            detener y borrar todos los datos
+#
+# Desde el equipo solo se alcanzan dos puertos:
+#   http://localhost:8080   la tienda y la API (API Gateway)
+#   http://localhost:9000   la pasarela de pago simulada (proveedor externo)
+#
+# Redes:
+#   privada   internal: sin salida a Internet ni puertos publicados. Aquí viven
+#             Vault, Mongo, ActiveMQ, el Auth Service, el GraphQL Gateway y los
+#             microservicios. Desde el navegador no se pueden alcanzar.
+#   externa   el gateway, la pasarela y pagos (que habla con la pasarela).
+
+name: poke-fresh
+
+x-python: &python
+  build: ./servicios
+  image: poke-fresh-servicios
+  restart: unless-stopped
+  networks: [privada]
+  volumes:
+    - tokens:/run/vault:ro
+  depends_on:
+    vault-init:
+      condition: service_completed_successfully
+    mongo:
+      condition: service_healthy
+
+x-python-env: &python-env
+  VAULT_ADDR: http://vault:8200
+  MONGO_URI: mongodb://mongo:27017
+  MODO_DEMO: ${MODO_DEMO:-true}
+  URL_INVENTARIO: http://inventario:8001
+  URL_CLIENTES: http://clientes:8002
+  URL_PEDIDOS: http://pedidos:8003
+  URL_PAGOS: http://pagos:8004
+  URL_AUTH: http://auth:4100
+  URL_PASARELA: http://pasarela:9000
+
+services:
+  # --- Infraestructura -----------------------------------------------------------
+
+  vault:
+    image: hashicorp/vault:1.18
+    command: ["vault", "server", "-config=/vault/poke-fresh/config.hcl"]
+    restart: unless-stopped
+    networks: [privada]
+    volumes:
+      - ./vault/config.hcl:/vault/poke-fresh/config.hcl:ro
+      - vault-datos:/vault/file
+
+  mongo:
+    image: mongo:7.0
+    restart: unless-stopped
+    networks: [privada]
+    environment:
+      # Solo los usa vault-init para crear un usuario por servicio.
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USUARIO:-raiz}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_CLAVE:?Define MONGO_ROOT_CLAVE en el archivo .env}
+    volumes:
+      - mongo-datos:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  activemq:
+    image: apache/activemq-classic:6.1.4
+    restart: unless-stopped
+    networks: [privada]
+
+  vault-init:
+    build: ./vault
+    image: poke-fresh-vault-init
+    networks: [privada]
+    environment:
+      VAULT_ADDR: http://vault:8200
+      MONGO_URI: mongodb://mongo:27017
+      MONGO_ROOT_USUARIO: ${MONGO_ROOT_USUARIO:-raiz}
+      MONGO_ROOT_CLAVE: ${MONGO_ROOT_CLAVE}
+    volumes:
+      - vault-claves:/claves
+      - tokens:/tokens
+    depends_on:
+      vault:
+        condition: service_started
+      mongo:
+        condition: service_healthy
+
+  # --- Servicios ---------------------------------------------------------------------
+
+  auth:
+    build: ./auth-service
+    image: poke-fresh-auth
+    restart: unless-stopped
+    networks: [privada]
+    environment:
+      HOST: 0.0.0.0
+      PORT: 4100
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN_ARCHIVO: /run/vault/auth.token
+      MONGO_URI: mongodb://mongo:27017
+      MONGO_DB: pf_auth
+      MONGO_RUTA_VAULT: poke-fresh/mongo/auth
+      MODO_DEMO: ${MODO_DEMO:-true}
+    volumes:
+      - tokens:/run/vault:ro
+    depends_on:
+      vault-init:
+        condition: service_completed_successfully
+      mongo:
+        condition: service_healthy
+    healthcheck: &salud-node
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:'+process.env.PORT+'/salud').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  inventario:
+    <<: *python
+    environment:
+      <<: *python-env
+      SERVICIO: inventario
+      PORT: 8001
+      VAULT_TOKEN_ARCHIVO: /run/vault/inventario.token
+      MONGO_RUTA_VAULT: poke-fresh/mongo/inventario
+    healthcheck: &salud-python
+      test: ["CMD", "python", "-c", "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:'+os.environ['PORT']+'/salud')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  clientes:
+    <<: *python
+    environment:
+      <<: *python-env
+      SERVICIO: clientes
+      PORT: 8002
+      VAULT_TOKEN_ARCHIVO: /run/vault/clientes.token
+      MONGO_RUTA_VAULT: poke-fresh/mongo/clientes
+    healthcheck: *salud-python
+
+  pedidos:
+    <<: *python
+    environment:
+      <<: *python-env
+      SERVICIO: pedidos
+      PORT: 8003
+      VAULT_TOKEN_ARCHIVO: /run/vault/pedidos.token
+      MONGO_RUTA_VAULT: poke-fresh/mongo/pedidos
+      ACTIVEMQ_HOST: activemq
+    healthcheck: *salud-python
+
+  pagos:
+    <<: *python
+    networks: [privada, externa]
+    environment:
+      <<: *python-env
+      SERVICIO: pagos
+      PORT: 8004
+      VAULT_TOKEN_ARCHIVO: /run/vault/pagos.token
+      MONGO_RUTA_VAULT: poke-fresh/mongo/pagos
+      # El navegador vuelve aquí después de pagar; la pasarela notifica al gateway por la red externa.
+      URL_PUBLICA: http://localhost:8080
+      URL_NOTIFICACION_PAGOS: http://gateway:8080/api/v1/pagos/notificacion
+    healthcheck: *salud-python
+
+  pasarela:
+    <<: *python
+    # Simula al proveedor externo. Está en la red privada solo para leer de
+    # Vault el secreto de firma que comparte con pagos.
+    networks: [privada, externa]
+    ports:
+      - "9000:9000"
+    environment:
+      SERVICIO: pasarela
+      PORT: 9000
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN_ARCHIVO: /run/vault/pasarela.token
+      PASARELA_URL_PUBLICA: http://localhost:9000
+    depends_on:
+      vault-init:
+        condition: service_completed_successfully
+    healthcheck: *salud-python
+
+  notificador:
+    <<: *python
+    command: ["python", "-m", "notificador.main"]
+    environment:
+      ACTIVEMQ_HOST: activemq
+    depends_on:
+      activemq:
+        condition: service_started
+
+  graphql:
+    build: ./graphql-gateway
+    image: poke-fresh-graphql
+    restart: unless-stopped
+    networks: [privada]
+    environment:
+      HOST: 0.0.0.0
+      PORT: 4000
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN_ARCHIVO: /run/vault/graphql.token
+      URL_INVENTARIO: http://inventario:8001
+      URL_CLIENTES: http://clientes:8002
+      URL_PEDIDOS: http://pedidos:8003
+      URL_PAGOS: http://pagos:8004
+    volumes:
+      - tokens:/run/vault:ro
+    depends_on:
+      vault-init:
+        condition: service_completed_successfully
+    healthcheck: *salud-node
+
+  semilla:
+    <<: *python
+    restart: "no"
+    command: ["python", "-m", "scripts.semilla"]
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN_ARCHIVO: /run/vault/semilla.token
+      MONGO_URI: mongodb://mongo:27017
+      MONGO_RUTA_VAULT: poke-fresh/mongo/semilla
+    depends_on:
+      inventario: { condition: service_healthy }
+      clientes: { condition: service_healthy }
+      pedidos: { condition: service_healthy }
+      pagos: { condition: service_healthy }
+
+  # --- Puerta pública ------------------------------------------------------------------
+
+  gateway:
+    build: ./gateway
+    image: poke-fresh-gateway
+    restart: unless-stopped
+    networks: [privada, externa]
+    ports:
+      - "8080:8080"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8080
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN_ARCHIVO: /run/vault/gateway.token
+      URL_AUTH: http://auth:4100
+      URL_INVENTARIO: http://inventario:8001
+      URL_CLIENTES: http://clientes:8002
+      URL_PEDIDOS: http://pedidos:8003
+      URL_PAGOS: http://pagos:8004
+      URL_GRAPHQL: http://graphql:4000
+      DIR_FRONTEND: /app/frontend
+      ORIGENES_PERMITIDOS: http://localhost:8080,http://127.0.0.1:8080
+      # Localhost sin HTTPS: la cookie no puede ser Secure. En producción, true.
+      COOKIE_SECURE: "false"
+      MODO_DEMO: ${MODO_DEMO:-true}
+      # Peticiones por minuto y por IP. Se sube solo para la prueba de carga.
+      LIMITE_POR_MINUTO: ${LIMITE_POR_MINUTO:-300}
+    volumes:
+      - tokens:/run/vault:ro
+      - ./frontend:/app/frontend:ro
+    depends_on:
+      auth: { condition: service_healthy }
+      graphql: { condition: service_healthy }
+      inventario: { condition: service_healthy }
+      clientes: { condition: service_healthy }
+      pedidos: { condition: service_healthy }
+      pagos: { condition: service_healthy }
+    healthcheck: *salud-node
+
+networks:
+  privada:
+    internal: true
+  externa:
+
+volumes:
+  vault-datos:
+  vault-claves:
+  tokens:
+  mongo-datos:

@@ -1,13 +1,51 @@
 # Poke Fresh
-Sitio web de Poke Fresh, una tienda de poke bowls. Corresponde al caso 24 del ramo de Desarrollo Web, basado en el caso 19 (Fukusuke Sushi): venta online con registro de clientes, pago externo, boleta digital y despacho. Está hecho solo con HTML, CSS y JavaScript, sin frameworks ni servidor.
 
-## Cómo abrirlo
-Basta con abrir `index.html` en el navegador. También está publicado en GitHub Pages: `https://tu-usuario.github.io/nombre-del-repo/`
+Tienda web de poke bowls (caso 24) con su backend completo: frontend, API Gateway, Auth Service, GraphQL Gateway, cuatro microservicios (inventario, clientes, pedidos y pagos), Vault, MongoDB y ActiveMQ.
 
-Si se descarga, hay que mantener las carpetas `css`, `js` e `img` junto al `index.html`.
+Ramo: Desarrollo Web, UNAB. Evaluación de la Unidad 2.
 
-## Cuentas de prueba
-El sitio viene con datos de ejemplo (clientes, usuarios y un mes de ventas). En la pantalla de ingreso aparecen estas cuentas y se pueden completar con un clic:
+El informe con las matrices, los diagramas y las pruebas está en [docs/INFORME.md](docs/INFORME.md).
+
+## Qué hay en cada carpeta
+
+| Carpeta | Qué es |
+|---|---|
+| `frontend/` | La tienda y el panel del restaurante (HTML, CSS y JavaScript, sin frameworks) |
+| `gateway/` | API Gateway (Node + Express). Sirve el frontend y es la única entrada a la API |
+| `auth-service/` | Cuentas, contraseñas, sesiones y verificación de correo (Node) |
+| `graphql-gateway/` | Agregaciones GraphQL sobre los microservicios (Apollo Server) |
+| `servicios/` | Microservicios en FastAPI: `inventario`, `clientes`, `pedidos`, `pagos`, la pasarela de pago simulada y el notificador de ActiveMQ |
+| `vault/` | Políticas de Vault por servicio y el script que prepara Vault y Mongo |
+| `pruebas/` | Pruebas de punta a punta, recorrido de pantallas, prueba de carga y un entorno local sin Docker |
+| `docs/` | Informe, diagramas (Mermaid y un modelo C4 en Structurizr DSL, editables), ADR y evidencias |
+
+## Cómo levantarlo
+
+Se necesita Docker Desktop (o Docker Engine con Compose).
+
+1. Crear el archivo `.env` a partir del ejemplo y cambiar `MONGO_ROOT_CLAVE` por una clave larga:
+
+   ```bash
+   cp .env.example .env        # en Windows: copy .env.example .env
+   ```
+
+2. Levantar todo:
+
+   ```bash
+   docker compose up -d --build
+   ```
+
+   La primera vez demora unos minutos (descarga imágenes e instala dependencias). El contenedor `vault-init` inicializa Vault, crea los secretos y un usuario de Mongo por servicio, y termina; `semilla` carga los datos de ejemplo y también termina. Los demás quedan corriendo.
+
+3. Abrir **http://localhost:8080**. La pasarela de pago de prueba queda en http://localhost:9000.
+
+Para ver el estado: `docker compose ps` (todos `healthy`, salvo `vault-init` y `semilla`, que terminan con `Exited (0)`). Estado de cada componente: http://localhost:8080/api/salud.
+
+Para detener: `docker compose down`. Para borrar también los datos: `docker compose down -v`.
+
+### Cuentas de prueba
+
+Solo existen con `MODO_DEMO=true` (el valor por defecto) y también aparecen en la pantalla de ingreso.
 
 | Perfil | Correo | Contraseña |
 |---|---|---|
@@ -15,48 +53,44 @@ El sitio viene con datos de ejemplo (clientes, usuarios y un mes de ventas). En 
 | Administrador | admin@pokefresh.cl | Admin2026 |
 | Dueño | dueno@pokefresh.cl | Dueno2026 |
 | Cocina | cocina@pokefresh.cl | Cocina2026 |
-| Despacho | despacho@pokefresh.cl | Despacho2026 |
+| Encargado de despacho | despacho@pokefresh.cl | Despacho2026 |
 
-Para ver el flujo completo se pueden usar varias pestañas, porque cada una tiene su propia sesión: en una se entra como cocina y en otra como cliente. Cuando el cliente paga, el pedido aparece en cocina con un aviso.
+En modo demo el correo de verificación y la boleta no se envían de verdad: el código aparece en pantalla y el notificador deja la boleta en su log (`docker compose logs notificador`).
 
-## Qué se puede hacer
-- Ver el menú, buscar productos y filtrar por categoría.
-- Armar un bowl eligiendo tamaño, bases, proteínas, salsas y toppings, con el precio calculado al momento.
-- Armar las promociones (combo con bebida o dúo de bowls).
-- Registrarse, verificar el correo e iniciar sesión.
-- Pagar, revisar los pedidos, ver la boleta y anular un pedido indicando el motivo.
-- Cocina acepta los pedidos pagados y los marca listos; despacho asigna chofer y registra la entrega.
-- El dueño ve lo recaudado y un reporte de ventas por período, que se puede descargar en CSV.
-- El administrador maneja productos, clientes, usuarios y pedidos.
+### Si algo falla
 
-## Cómo está armado
-Es una aplicación de una sola página. Hay un solo `index.html` y cada sección es una vista en `js/views/`. El router usa el hash de la URL (`#/menu`, `#/arma-tu-bowl`, `#/orden/PF-00012`), así funciona tanto abriendo el archivo directo como en GitHub Pages.
+- `docker compose logs -f <servicio>` muestra los registros; cada línea trae el `X-Request-Id` de la petición.
+- Si Vault se reinicia solo, queda sellado y los servicios responden 503. Se arregla con `docker compose up -d` (vuelve a correr `vault-init`, que lo desbloquea).
+- Para partir de cero: `docker compose down -v` y de nuevo `docker compose up -d --build`.
 
-Varias pantallas guardan su estado en la URL. Por ejemplo, `#/menu?categoria=salsas` abre solo las salsas y `#/arma-tu-bowl?base=base_gohan&proteina=pro_salmon` abre el armador con esos ingredientes elegidos.
+## Pruebas
 
-Los datos se guardan en el `localStorage` del navegador. Para volver a los datos iniciales, entrar como administrador y usar "Restaurar datos de ejemplo" en Productos.
+```bash
+# Unitarias e integración de cada componente
+cd servicios && pip install -r requirements-dev.txt && pytest      # 35 pruebas
+cd auth-service && npm install && npm test                           # 20 pruebas
+cd gateway && npm install && npm test                                # 17 pruebas
+cd graphql-gateway && npm install && npm test                        # 11 pruebas
 
-```
-index.html
-css/styles.css
-img/
-js/
-  main.js          rutas del sitio
-  router.js        router por hash
-  datos.js         catálogo y reglas de precio
-  tienda.js        precio del bowl, promociones y carrito
-  cuentas.js       clientes, usuarios y sesión
-  pedidos.js       pedidos, pagos, boletas, cocina y despacho
-  views/           una vista por pantalla
+# De punta a punta, con el sistema arriba (deja evidencia en docs/evidencias/)
+pip install httpx playwright && playwright install chromium
+python pruebas/e2e/casos.py                 # 19 casos de seguridad y negocio (contra Docker)
+python pruebas/e2e/pantallas.py             # recorrido de 16 pantallas de escritorio y 6 móviles, con capturas
+node pruebas/carga/carga.mjs                # prueba de carga (ver docs/evidencias/carga.md)
 ```
 
-## Qué está simulado
-Como no hay backend, algunas partes del caso se simulan:
+En total son 83 pruebas unitarias y de integración (35 + 20 + 17 + 11) y 19 casos de punta a punta. El caso 7.11 bloquea a propósito la cuenta del dueño unos 5 minutos y agota el límite de logins por IP del gateway: espera un minuto entre `casos.py` y `pantallas.py`, y para repetir `casos.py` espera 5 minutos o reinicia con `docker compose down -v`. Para la prueba de carga hay que subir `LIMITE_POR_MINUTO` en `.env` (por ejemplo 100000), recrear el gateway con `docker compose up -d gateway` y volver al valor por defecto (300) después.
 
-- El pago con Servipag es una pantalla de prueba.
-- El correo de verificación y el envío de la boleta se muestran en pantalla en vez de enviarse.
-- El radio de despacho de 3 km se aproxima con las comunas cercanas al local.
-- El aviso a cocina solo llega a otras pestañas del mismo navegador.
+Sin Docker también se puede levantar todo con Mongo, Vault y ActiveMQ simulados en memoria (útil para las pruebas): `bash pruebas/local/levantar.sh`, y `python pruebas/e2e/casos.py --gateway http://127.0.0.1:8080 --pasarela http://127.0.0.1:9000 --directo` agrega 3 casos (7.9 acceso directo a los servicios, 7.10 secreto ajeno en Vault y 10.7 Vault sellado), 22 en total. Esos tres necesitan alcanzar la red privada desde el equipo, algo que en Docker está bloqueado a propósito, por eso solo corren en este entorno local.
 
-## Fotos
-Las fotos van en `img/menu/` con el nombre del producto en minúsculas, sin tildes y con guiones. Por ejemplo, "Salmón fresco" se busca como `salmon-fresco.jpg`. Si una foto no está, se muestra un fondo verde.
+## Variables de entorno
+
+Ningún archivo del repositorio trae contraseñas. Las únicas variables con algo sensible van en `.env` (que no se sube):
+
+| Variable | Para qué |
+|---|---|
+| `MONGO_ROOT_USUARIO`, `MONGO_ROOT_CLAVE` | Usuario raíz de Mongo. Solo lo usa `vault-init` para crear un usuario por servicio |
+| `MODO_DEMO` | `true`: cuentas de prueba, códigos en pantalla y datos de ejemplo |
+| `LIMITE_POR_MINUTO` | Peticiones por minuto y por IP en el gateway (300 por defecto) |
+
+Todo lo demás (credenciales internas, pepper de contraseñas, clave de la pasarela, usuarios de Mongo de cada servicio) lo genera `vault-init` y vive en Vault.

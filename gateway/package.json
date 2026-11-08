@@ -1,0 +1,17 @@
+{
+  "name": "poke-fresh-gateway",
+  "version": "3.0.0",
+  "type": "module",
+  "description": "API Gateway de Poke Fresh: sirve el frontend, valida sesiones con el Auth Service, autoriza por rol y enruta a los microservicios privados con credenciales de Vault",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20.12"
+  },
+  "dependencies": {
+    "express": "4.21.2"
+  }
+}

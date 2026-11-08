@@ -1,0 +1,21 @@
+sequenceDiagram
+  autonumber
+  actor B as Otro cliente (cli_2)
+  participant G as API Gateway
+  participant A as Auth Service
+  participant Q as GraphQL Gateway
+  participant P as pedidos
+  actor X as Atacante en la red
+  B->>G: GET /api/v1/pedidos/PF-00084
+  G->>A: introspect
+  A-->>G: rol cliente, sujeto cli_2
+  G->>P: GET /pedidos/PF-00084 + X-Usuario-Sujeto: cli_2
+  P-->>G: 404 (el pedido es de cli_1, no se confirma que existe)
+  G-->>B: 404 sin datos
+  B->>G: POST /api/v1/graphql resumenPedido(PF-00084)
+  G->>Q: credencial graphql + identidad cli_2
+  Q->>P: GET /pedidos/PF-00084 (misma identidad)
+  P-->>Q: 404
+  Q-->>B: data.resumenPedido = null
+  X->>P: GET /pedidos con X-Usuario-Rol: admin (sin gateway)
+  P-->>X: 403 ACCESO_DIRECTO (falta la credencial interna)

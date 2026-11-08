@@ -1,0 +1,22 @@
+flowchart TB
+  subgraph Z0["Zona 0: Internet / navegador (no confiable)"]
+    nav[Navegador: todo dato que envía se valida en el servidor]
+  end
+  subgraph Z1["Zona 1: borde"]
+    gw["API Gateway<br/>sesión, rol, límite, CSRF,<br/>borra cabeceras de identidad"]
+  end
+  subgraph Z2["Zona 2: servicios privados"]
+    svc["auth, GraphQL, inventario, clientes,<br/>pedidos, pagos<br/>exigen credencial interna; reglas finas y propiedad"]
+  end
+  subgraph Z3["Zona 3: datos y secretos"]
+    vault[(Vault: un token y una política por servicio)]
+    mongo[(Mongo: un usuario por servicio, solo su base)]
+  end
+  subgraph ZE["Proveedor externo"]
+    pas[Pasarela: notificación firmada HMAC]
+  end
+  nav -->|cookie HttpOnly| gw
+  pas -->|firma| gw
+  gw -->|credencial del destino + identidad verificada| svc
+  svc --> vault
+  svc --> mongo

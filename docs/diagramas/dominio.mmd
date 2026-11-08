@@ -1,0 +1,79 @@
+classDiagram
+  direction LR
+  class Cliente {
+    id
+    run
+    nombre
+    direccion, comuna
+    email, telefono
+    activo
+    tieneDespacho()
+  }
+  class Cuenta {
+    id
+    email
+    rol
+    hash scrypt+sal+pepper
+    emailVerificado
+    activo
+  }
+  class Producto {
+    id
+    categoria
+    nombre
+    precio
+    disponible
+    stock
+  }
+  class Pedido {
+    id PF-00000
+    estado
+    modoEntrega
+    total
+    creadoEn
+  }
+  class LineaPedido {
+    descripcion
+    cantidad
+    precioUnitario
+    subtotal
+    itemIds
+  }
+  class Venta {
+    numero
+    caja
+    fecha
+    anulada
+  }
+  class Boleta {
+    numero
+    neto
+    iva
+    total
+  }
+  class Pago {
+    id
+    monto
+    estado
+    referencia
+    idempotencia
+  }
+  class Reserva {
+    pedidoId
+    estado ACTIVA|LIBERADA
+  }
+  class Paso {
+    estado
+    fecha
+    actor
+  }
+  Cuenta "1" -- "0..1" Cliente : representa (rol cliente)
+  Cliente "1" -- "0..*" Pedido : realiza
+  Pedido "1" *-- "1..30" LineaPedido : contiene
+  LineaPedido "0..*" -- "1..*" Producto : compone
+  Pedido "1" *-- "1..*" Paso : historial
+  Pedido "1" -- "0..1" Venta : al pagarse
+  Venta "1" -- "1" Boleta : emite
+  Pedido "1" -- "0..*" Pago : intentos
+  Pedido "1" -- "0..1" Reserva : descuenta stock
+  Reserva "1" -- "1..*" Producto : afecta
