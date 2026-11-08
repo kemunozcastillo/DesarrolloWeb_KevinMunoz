@@ -1,6 +1,6 @@
 # Pruebas de punta a punta
 
-Ejecutadas el 08-11-2026 14:08 contra `https://localhost:8080`. 20 de 20 correctas.
+Ejecutadas el 08-11-2026 18:15 contra `https://localhost:8080`. 23 de 23 correctas.
 El detalle de cada petición (con su X-Request-Id para buscarla en los logs) está en `e2e-resultados.json`.
 
 | Caso | Prueba | Entrada | Identidad | Esperado | Obtenido | Componente que lo verifica | Resultado |
@@ -12,8 +12,8 @@ El detalle de cada petición (con su X-Request-Id para buscarla en los logs) est
 | 10.1 | Compra completa: pedido con precio calculado en el servidor | POST /pedidos con precioUnitario: 1 en la línea | cliente | 201, total = precio del catálogo | 201 PF-00081, total 7890 (el 1 enviado se ignoró) | Pedidos + inventario + clientes | ✅ |
 | 7.5 | Consulta de un pedido ajeno (REST y GraphQL) | GET /pedidos/{id}; resumenPedido(id) | otro cliente | 404 sin datos; GraphQL null | REST 404 sin datos; GraphQL resumenPedido = null; la dueña sí lo ve (200) | Pedidos (propiedad del recurso) + GraphQL Gateway | ✅ |
 | 7.6 | Pago con datos alterados desde el frontend | POST /pagos {monto: 1}; POST /pagos/notificacion sin firma y con firma falsa | cliente | monto = total del pedido; notificaciones 401 | monto cobrado 7890 (no 1); notificación sin firma 401, firma falsa 401; pedido sigue PENDIENTE_PAGO | Pagos (firma HMAC, monto del pedido) | ✅ |
-| 10.2 | Pago duplicado (doble clic) | POST /pagos dos veces con la misma Idempotency-Key | cliente | el mismo pago | mismo pago PAG-4AA418E4D1F3 | Pagos (idempotencia) | ✅ |
-| 10.3 | Pago aprobado en la pasarela y notificación firmada | POST pasarela /pagar/{token} APROBADO (dos veces) | cliente (navegador en Servipag) | pedido PAGADO con boleta; el segundo envío no hace nada | PAGADO, venta N° 79, boleta N° 79, ref. SVP-65059696; un solo paso PAGADO | Pasarela -> gateway -> pagos -> pedidos -> ActiveMQ | ✅ |
+| 10.2 | Pago duplicado (doble clic) | POST /pagos dos veces con la misma Idempotency-Key | cliente | el mismo pago | mismo pago PAG-AA9286173A7B | Pagos (idempotencia) | ✅ |
+| 10.3 | Pago aprobado en la pasarela y notificación firmada | POST pasarela /pagar/{token} APROBADO (dos veces) | cliente (navegador en Servipag) | pedido PAGADO con boleta; el segundo envío no hace nada | PAGADO, venta N° 79, boleta N° 79, ref. SVP-14297363; un solo paso PAGADO | Pasarela -> gateway -> pagos -> pedidos -> ActiveMQ | ✅ |
 | 10.4 | Flujo de cocina y despacho con permisos | aceptar/terminar (cocina), despachar/entregar (despacho), y cruzados | cocina, despacho | estados en orden; cruzados 403 | despacho→aceptar 403, cocina→despachar 403; pasos [200, 409, 200, 200, 200]; cocina ve solo nombre y teléfono; final ENTREGADO | Gateway + pedidos | ✅ |
 | 8.1 | Agregación GraphQL desde la pantalla del pedido | resumenPedido(id) con pedido, pagos y productos | cliente | datos de pedidos + pagos + inventario en una respuesta | pedido + pago APROBADO + 4 categorías de productos; campo cliente negado al cliente (PROHIBIDO) | GraphQL Gateway | ✅ |
 | 8.2 | Límites GraphQL | consulta de costo alto; misPedidos(primeros: 500) | cliente | rechazadas antes de ejecutar | costo: «La consulta cuesta 11102 y el máximo permitido es 1000.»; página >50: BAD_USER_INPUT | GraphQL Gateway | ✅ |
@@ -24,4 +24,7 @@ El detalle de cada petición (con su X-Request-Id para buscarla en los logs) est
 | 7.7 | CSRF: petición desde otro sitio | POST /pedidos con Origin ajeno y la cookie | cliente | 403 ORIGEN_NO_PERMITIDO | 403 ORIGEN_NO_PERMITIDO | Gateway | ✅ |
 | 7.8 | Cookie de sesión protegida | POST /auth/login | cliente | HttpOnly, SameSite, Path=/api; token fuera del cuerpo | HttpOnly; Secure; SameSite=Lax; Path=/api; el token no viaja en el cuerpo; tras logout el mismo token responde 401 | Gateway | ✅ |
 | 7.12 | Transporte cifrado en el borde | GET en claro y por HTTPS al gateway; cabeceras de la respuesta | anónimo | el puerto no atiende HTTP en claro; HTTPS con HSTS; la CA de prueba verifica el certificado | HTTP en claro: sin respuesta en claro; HTTPS 200 con Strict-Transport-Security; certificado verificado con la CA de prueba | Gateway (TLS) | ✅ |
+| 7.9 | Acceso directo a los servicios privados | Desde un contenedor de la red privada (clientes, sin la credencial de esos servicios): GET a pedidos e inventario, POST a GraphQL y a Auth, con X-Usuario-Rol: admin | atacante dentro de la red | 403 en los servicios, 401 en Auth | pedidos 403, inventario 403, GraphQL 403, Auth Service 401 | Cada servicio (credencial interna de Vault) | ✅ |
+| 7.10 | Un servicio no puede leer secretos ajenos en Vault | Dentro del contenedor de inventario, con su propio token: lee su credencial, la de pagos y el pepper | inventario | propia 200; ajenas 403 de Vault | propia 200; credencial de pagos 403; pepper 403 | Vault (políticas por servicio) | ✅ |
+| 10.7 | Indisponibilidad de Vault | Se desconecta Vault de la red privada; GET /catalogo/items y login | anónimo | 503 SECRETOS_NO_DISPONIBLES (no deja pasar); al reconectar, vuelve a responder | catálogo 503 SECRETOS_NO_DISPONIBLES; login 503; al reconectar, catálogo 200 | Gateway / Vault | ✅ |
 | 7.11 | Límite de intentos de login | 25 logins seguidos con clave incorrecta | anónimo | bloqueo (429) antes del intento 25 | 401 en los primeros 5; 429 desde el intento 6 | Auth Service (5 intentos) + gateway (20/min por IP) | ✅ |
