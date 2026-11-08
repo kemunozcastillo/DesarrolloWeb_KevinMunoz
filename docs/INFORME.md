@@ -56,7 +56,7 @@ Lo que no se implementa como en producción, por qué, y qué lo reemplaza:
 | Servipag no tiene un entorno de pruebas abierto | Proveedor externo sin sandbox público | `servicios/pasarela`: simulador con el mismo contrato que una pasarela real (API key del comercio, página de pago, notificación firmada con HMAC, reintentos, devoluciones). El servicio de pagos se integra igual que con una real |
 | Correo (código de verificación, boleta) | Sin proveedor de correo | En modo demo el código vuelve en la respuesta y se muestra como "correo simulado"; la boleta se publica en ActiveMQ y el notificador registra el envío. Con `MODO_DEMO=false` no se devuelve |
 | Radio de 3 km | Sin servicio de mapas | Se aproxima por comuna (Providencia, Ñuñoa, Santiago, Recoleta y Las Condes), validado en el servidor |
-| TLS dentro de la red privada | Entorno local en Docker | La red privada es `internal` (sin puertos publicados ni salida a Internet). En producción: TLS en el borde y entre servicios |
+| Certificados de prueba y sin TLS mutuo | Entorno local: no hay una CA pública que emita certificados para `localhost` | Hay TLS en todos los saltos (navegador → gateway, gateway → servicios, servicio → servicio, Vault, Mongo y ActiveMQ) con una CA propia que crea `tls-init` en el arranque. El navegador avisa que esa CA no es de confianza. Los clientes verifican al servidor con la CA, pero no presentan certificado propio (se autentican con credencial: TLS mutuo queda para producción) y las claves privadas están en un volumen compartido de solo lectura, igual que los tokens de Vault. La red privada además sigue siendo `internal`. En producción: certificados de una CA real con renovación automática |
 | Desbloqueo de Vault | Entorno de desarrollo | La clave de desbloqueo y el token raíz quedan en un volumen local para que el sistema arranque solo. En producción: auto-unseal con KMS y token raíz revocado |
 | Distribución de tokens de Vault | Docker Compose no entrega un archivo distinto a cada contenedor sin un orquestador | Cada servicio tiene su propio token con su propia política, pero todos se escriben en un mismo volumen de solo lectura. En producción, el orquestador (Docker secrets o Kubernetes) monta cada token solo en su contenedor |
 | Sesiones del Auth Service | Se guardan en memoria | Un reinicio del Auth Service cierra todas las sesiones (falla segura: hay que volver a ingresar) |
@@ -144,7 +144,7 @@ Idempotency-Key: 9d3e...            (obligatoria)
 ```
 ```json
 201 {"id": "PAG-07A5E9CF2BEF", "pedidoId": "PF-00084", "monto": 7890, "medio": "SERVIPAG",
-     "estado": "PENDIENTE", "urlPago": "http://localhost:9000/pagar/<token>"}
+     "estado": "PENDIENTE", "urlPago": "https://localhost:9000/pagar/<token>"}
 ```
 
 **Notificación de la pasarela** (sin sesión; la autentica su firma).
@@ -223,10 +223,10 @@ Cada servicio modifica solo su base. Las colaboraciones usan contratos explícit
 
 | Sistema | Tipo | Protocolo | Lo usa | Datos que intercambia | Si falla |
 |---|---|---|---|---|---|
-| MongoDB 7 | Persistencia | Mongo wire, usuario por servicio | Auth, inventario, clientes, pedidos, pagos | Documentos de cada servicio | El servicio responde 500; `/salud` lo informa |
-| HashiCorp Vault 1.18 | Secretos | HTTP (KV v2) con token por servicio | Todos los servicios | Credenciales, pepper, claves | Se usa lo leído hasta 5 min; después 503 (no se deja pasar a nadie) |
-| ActiveMQ Classic 6 | Mensajería | STOMP 1.2 | pedidos (publica), notificador (consume) | Boleta para correo, aviso a cocina | El pago se registra igual; queda en el log |
-| Pasarela (Servipag) | Externo | HTTP + API key; notificación con HMAC | pagos | Transacción, resultado, devolución | Pagar responde 502; la pasarela reintenta la notificación 3 veces |
+| MongoDB 7 | Persistencia | Mongo wire sobre TLS, usuario por servicio | Auth, inventario, clientes, pedidos, pagos | Documentos de cada servicio | El servicio responde 500; `/salud` lo informa |
+| HashiCorp Vault 1.18 | Secretos | HTTPS (KV v2) con token por servicio | Todos los servicios | Credenciales, pepper, claves | Se usa lo leído hasta 5 min; después 503 (no se deja pasar a nadie) |
+| ActiveMQ Classic 6 | Mensajería | STOMP 1.2 sobre TLS | pedidos (publica), notificador (consume) | Boleta para correo, aviso a cocina | El pago se registra igual; queda en el log |
+| Pasarela (Servipag) | Externo | HTTPS + API key; notificación con HMAC | pagos | Transacción, resultado, devolución | Pagar responde 502; la pasarela reintenta la notificación 3 veces |
 
 ### Mapa de componentes y despliegue
 
@@ -234,7 +234,7 @@ Cada servicio modifica solo su base. Las colaboraciones usan contratos explícit
 
 Modelo C4 (`docs/diagramas/poke-fresh.dsl`): 25 vistas, validadas con el comando `validate` de Structurizr (imagen `structurizr/structurizr`) y exportables a Mermaid. Incluye C1 (contexto con la pasarela externa), C2 (contenedores, con recortes de catálogo, pedidos y pagos, y secretos), C3 de API Gateway, GraphQL Gateway, Auth Service y pedidos, vistas dinámicas de los flujos de los casos de validación (catálogo y su recuperación, pedido y su reintento, pedido propio y ajeno, sesión expirada, GraphQL con éxito, con error parcial y sobre el límite, pago, confirmación firmada y notificación falsa) y dos despliegues: `Docker_Compose` (el entregado) y `Local_Sin_Docker` (pruebas, con Mongo, Vault y ActiveMQ en memoria). Para verlo: pegar el archivo en https://structurizr.com/dsl o usar el CLI. No hay imágenes renderizadas de estas vistas en el repositorio; los `.png` de arriba siguen siendo los diagramas de referencia del informe.
 
-Despliegue (`docker-compose.yml`): 14 contenedores en dos redes. `privada` es `internal: true` (sin puertos al equipo ni salida a Internet). Solo el gateway (8080) y la pasarela simulada (9000) publican puertos.
+Despliegue (`docker-compose.yml`): 15 contenedores en dos redes (`tls-init`, `vault-init` y `semilla` son de un solo uso). `privada` es `internal: true` (sin puertos al equipo ni salida a Internet). Solo el gateway (8080) y la pasarela simulada (9000) publican puertos.
 
 ### Secuencia de integración: compra completa
 
@@ -320,12 +320,13 @@ Ocultar un botón en el frontend no da ni quita permisos: todas estas reglas se 
 
 | Frontera | Qué se verifica al cruzarla |
 |---|---|
-| Navegador → gateway | Sesión (cookie + introspección), rol, origen (CSRF), límite por IP, tamaño del cuerpo (100 KB). Se descartan `X-Usuario-*`, `X-Credencial-Interna`, `Authorization` y la cookie antes de reenviar |
+| Navegador → gateway | TLS (HTTPS con HSTS), sesión (cookie + introspección), rol, origen (CSRF), límite por IP, tamaño del cuerpo (100 KB). Se descartan `X-Usuario-*`, `X-Credencial-Interna`, `Authorization` y la cookie antes de reenviar |
 | Pasarela → gateway → pagos | Firma HMAC del cuerpo exacto, token y monto |
 | Gateway → servicio | Credencial interna del servicio de destino (cada servicio tiene la suya) |
 | Servicio → servicio | Credencial del destino + identidad del usuario original (el destino aplica sus reglas) |
 | Servicio → Vault | Token propio con política de solo lectura en sus rutas |
-| Servicio → Mongo | Usuario propio con `readWrite` solo en su base |
+| Servicio → Mongo | Usuario propio con `readWrite` solo en su base, sobre TLS |
+| Todos los saltos | TLS 1.2 o superior: el cliente verifica el certificado del servidor con la CA de prueba (en Node, `NODE_EXTRA_CA_CERTS`; en Python, `SSL_CERT_FILE`; en Mongo, `tlsCAFile`). Un intento en claro contra un servicio interno se rechaza (caso 7.12 y comprobación manual) |
 
 ### Decisiones de separación
 
@@ -399,7 +400,7 @@ Referencias, nunca valores. Todos los genera `vault-init` al azar (256 bits) y v
 |---|---|---|
 | Usuario (cliente o personal) | Cookie con token opaco | Auth Service (introspección), por el gateway |
 | Gateway ante servicios | `X-Credencial-Interna` del destino | Cada servicio, contra Vault |
-| Gateway / clientes ante Auth | HTTP Basic con su secreto | Auth Service, contra Vault, y solo sus rutas |
+| Gateway / clientes ante Auth | HTTP Basic (sobre HTTPS) con su secreto | Auth Service, contra Vault, y solo sus rutas |
 | Servicio ante otro servicio | Credencial del destino + identidad del usuario original | El destino |
 | Pasarela ante pagos | Firma HMAC del cuerpo | pagos |
 | Pagos ante la pasarela | `X-Api-Key` | pasarela |
@@ -450,7 +451,7 @@ No aplica: ver ADR 0001 (sección 9).
 ### Recorrido de un dato restringido: el RUN
 
 1. **Captura:** el cliente lo escribe en `#/registro`. El frontend valida el dígito verificador por comodidad.
-2. **Transporte:** viaja en el cuerpo de `POST /api/v1/clientes/registro` (en producción por HTTPS). El gateway no lo registra en logs (solo método, ruta, estado y rol).
+2. **Transporte:** viaja en el cuerpo de `POST /api/v1/clientes/registro` (por HTTPS; el navegador solo habla con el gateway, y con TLS). El gateway no lo registra en logs (solo método, ruta, estado y rol).
 3. **Validación y almacenamiento:** el servicio de clientes vuelve a validar formato, dígito verificador y unicidad (índice único) y lo guarda en `pf_clientes`, normalizado (`16459723-7`).
 4. **Uso:** al crear un pedido, pedidos copia nombre, RUN, correo y teléfono en el pedido (la boleta debe mostrar los datos del momento de la venta).
 5. **Exposición mínima:** cocina y despacho reciben del pedido solo nombre y teléfono; el RUN lo ven el propio cliente, el administrador y el dueño (boleta y CSV del reporte).
@@ -459,7 +460,7 @@ No aplica: ver ADR 0001 (sección 9).
 ### Sesiones y tokens
 
 - El token es opaco (no es un JWT): no contiene datos y el Auth Service guarda solo su hash.
-- Va en una cookie `HttpOnly; SameSite=Lax; Path=/api` (y `Secure` en HTTPS). El JavaScript de la página no puede leerlo, así que un script inyectado no lo roba.
+- Va en una cookie `HttpOnly; Secure; SameSite=Lax; Path=/api` (solo viaja por HTTPS). El JavaScript de la página no puede leerlo, así que un script inyectado no lo roba.
 - Expira a los 30 minutos sin uso (cada petición lo renueva) o a las 8 horas.
 - **Revocación inmediata:** logout, desactivar la cuenta, cambiar el correo, el rol o la clave borran las sesiones; la siguiente petición responde 401.
 - **Ninguna clave compartida vive en el navegador:** el frontend no tiene API keys ni secretos; todo lo que necesita autenticarse lo hace el gateway.
@@ -477,10 +478,11 @@ Ejecutados contra el backend implementado con `pruebas/e2e/casos.py`. Resultados
 | 7.5 Pedido ajeno | REST y GraphQL | otro cliente | 404 / null | 404 sin datos; `resumenPedido: null` | pedidos |
 | 7.6 Pago alterado desde el frontend | `monto: 1`; notificación sin firma / firma falsa | cliente | monto real; 401 | monto 7.890; 401 y 401; pedido sigue pendiente | pagos |
 | 7.7 CSRF | `Origin` ajeno | cliente | 403 | 403 ORIGEN_NO_PERMITIDO | Gateway |
-| 7.8 Cookie y logout | login, logout | cliente | HttpOnly; 401 tras logout | Cumple | Gateway + Auth |
+| 7.8 Cookie y logout | login, logout | cliente | HttpOnly y Secure; 401 tras logout | Cumple | Gateway + Auth |
 | 7.9 Acceso directo al backend | servicios sin gateway | atacante en la red | 403/401 | pedidos 403, inventario 403, GraphQL 403, Auth 401 | Cada servicio |
 | 7.10 Secreto ajeno en Vault | token de inventario | inventario | 403 | propio 200; pagos 403; pepper 403 | Vault |
 | 7.11 Fuerza bruta | 25 logins fallidos | anónimo | bloqueo | 429 desde el intento 6 | Auth + gateway |
+| 7.12 Transporte cifrado | GET en claro y por HTTPS | anónimo | sin HTTP en claro; HTTPS con HSTS; certificado verificado con la CA | Cumple | Gateway (TLS) |
 
 **Control antes de entregar.** No hay secretos en JavaScript, HTML ni capturas (las cuentas de prueba las informa el gateway solo en modo demo y están documentadas como datos de demostración). Los datos devueltos son los mínimos por rol. Aunque la pantalla esté en Internet, el navegador no recibe nada que su rol no pueda ver, porque el filtro está en el servidor.
 
@@ -624,13 +626,13 @@ La decisión, con contexto, alternativas y consecuencias, está en [ADR 0001](ad
 |---|---|---|---|
 | Volumen de datos | ~55.000 pedidos/año, < 100 MB | Proyección | No |
 | Concurrencia en el pico | ~5 peticiones/s | Proyección | No |
-| Capacidad medida | 118 a 157 peticiones/s, p95 174 a 237 ms, 0 % de error (en Docker) | **Medición** (`evidencias/carga.md`) | No |
+| Capacidad medida | 209 a 316 peticiones/s, p95 92 a 147 ms, 0 % de error (en Docker, con TLS) | **Medición** (`evidencias/carga.md`) | No |
 | Tamaño de mensaje | < 10 KB | Medición | No |
 | Frecuencia del reporte | Pocas veces al día | Proyección | No: consulta indexada en pedidos |
 | Latencia aceptada del reporte | ≤ 2 s | Objetivo | Cumple |
 | Streaming | No se necesita (aviso a cocina en segundos) | Requisito | No; los avisos asíncronos van por ActiveMQ |
 
-**Conclusión:** no se implementa un servicio de analítica separado ni gRPC, porque la carga proyectada es entre 24 y 31 veces menor que la medida y no hay flujos de streaming. La alternativa implementada (reporte en pedidos + agregación GraphQL + eventos por ActiveMQ) cumple los objetivos con la prueba de carga como evidencia. El ADR indica cuándo revisar la decisión.
+**Conclusión:** no se implementa un servicio de analítica separado ni gRPC, porque la carga proyectada es entre 42 y 63 veces menor que la medida y no hay flujos de streaming. La alternativa implementada (reporte en pedidos + agregación GraphQL + eventos por ActiveMQ) cumple los objetivos con la prueba de carga como evidencia. El ADR indica cuándo revisar la decisión.
 
 ---
 
@@ -647,18 +649,18 @@ La decisión, con contexto, alternativas y consecuencias, está en [ADR 0001](ad
 | Contratos REST | Sección 1 y OpenAPI de cada servicio |
 | Contrato GraphQL | Sección 8 y `graphql-gateway/src/graphql/esquema.js` |
 | Contratos gRPC | No aplica (ADR 0001) |
-| Pruebas automatizadas | 83 unitarias y de integración + 19 de punta a punta (contra Docker) + recorrido de pantallas + carga |
+| Pruebas automatizadas | 86 unitarias y de integración + 20 de punta a punta (contra Docker, con TLS) + recorrido de pantallas + carga |
 | Instrucciones | `README.md` |
 
 ### Pruebas y resultados
 
 | Conjunto | Cantidad | Qué cubre | Resultado |
 |---|---:|---|---|
-| `servicios/tests` (pytest) | 35 | Reglas de cada servicio, propiedad, cotización, stock, idempotencia, firma, Vault caído (503), servicio caído (502), datos de ejemplo | 35/35 |
+| `servicios/tests` (pytest) | 37 | Reglas de cada servicio, propiedad, cotización, stock, idempotencia, firma, Vault caído (503), servicio caído (502), datos de ejemplo, URI de Mongo con TLS | 37/37 |
 | `auth-service/test` | 20 | Login, bloqueo, expiración, revocación, verificación, permisos por cliente, hash y pepper, Vault sellado | 20/20 |
-| `gateway/test` | 17 | Matriz de rutas, roles, cabeceras falsificadas, cookie, CSRF, webhook, Vault y servicio caídos, límite, healthcheck | 17/17 |
+| `gateway/test` | 18 | Matriz de rutas, roles, cabeceras falsificadas, cookie, CSRF, webhook, Vault y servicio caídos, límite, healthcheck, HSTS | 18/18 |
 | `graphql-gateway/test` | 11 | Agregación, batching, identidad, autorización por campo, error parcial, límites, paginación | 11/11 |
-| `pruebas/e2e/casos.py` | 19 | Casos del módulo 7 y del 10 contra el sistema levantado en Docker | 19/19 |
+| `pruebas/e2e/casos.py` | 20 | Casos del módulo 7 y del 10 contra el sistema levantado en Docker, por HTTPS | 20/20 |
 | `pruebas/e2e/pantallas.py` | 16 pantallas de escritorio + 6 móviles | Flujos principales en el navegador, en escritorio (1280×900) y en móvil (375×812, táctil) | Completo, sin errores de consola |
 | `pruebas/carga/carga.mjs` | 3 escenarios | Rendimiento contra el sistema en Docker | 0 % de error |
 

@@ -4,6 +4,7 @@ workspace "Poke Fresh" "Backend seguro de Poke Fresh (caso 24), modelado en C4 c
     // entregada (docker-compose.yml). Todo lo que aparece aqui existe en el repositorio:
     // los nombres de los componentes citan el archivo donde viven. Se abre en https://structurizr.com/dsl
     // o con el CLI de Structurizr (structurizr-cli validate -workspace poke-fresh.dsl).
+    // Las comunicaciones usan TLS en todos los saltos (CA de prueba creada por tls-init).
     // Las relaciones de respuesta son explicitas porque las vistas dinamicas las siguen paso a paso.
 
     !identifiers hierarchical
@@ -180,8 +181,8 @@ workspace "Poke Fresh" "Backend seguro de Poke Fresh (caso 24), modelado en C4 c
         visitante -> sistema "Mira el menu y arma un bowl"
         cliente -> sistema "Compra, paga y sigue sus pedidos"
         personal -> sistema "Prepara, despacha y administra segun su rol"
-        sistema -> servipag "Crea ordenes de pago y recibe la notificacion firmada" "HTTP + API key"
-        servipag -> sistema "Notifica el resultado del pago" "HTTP + firma HMAC"
+        sistema -> servipag "Crea ordenes de pago y recibe la notificacion firmada" "HTTPS + API key"
+        servipag -> sistema "Notifica el resultado del pago" "HTTPS + firma HMAC"
         cliente -> servipag "Paga en la pagina del proveedor" "Navegador web"
 
         // ---------------------------------------------------------------------------
@@ -190,90 +191,90 @@ workspace "Poke Fresh" "Backend seguro de Poke Fresh (caso 24), modelado en C4 c
         visitante -> sistema.frontend "Mira el menu" "Navegador web"
         cliente -> sistema.frontend "Compra y sigue sus pedidos" "Navegador web"
         personal -> sistema.frontend "Opera segun su rol" "Navegador web"
-        sistema.frontend -> sistema.apiGateway "Envia las solicitudes de la interfaz" "HTTP + cookie HttpOnly (HTTPS en produccion)"
+        sistema.frontend -> sistema.apiGateway "Envia las solicitudes de la interfaz" "HTTPS + cookie HttpOnly y Secure"
 
-        sistema.apiGateway -> sistema.authService "Login e introspeccion de la sesion" "HTTP/JSON, Basic"
-        sistema.apiGateway -> sistema.inventory "Enruta catalogo y stock" "HTTP/JSON, credencial interna"
-        sistema.apiGateway -> sistema.clients "Enruta fichas de clientes" "HTTP/JSON, credencial interna"
-        sistema.apiGateway -> sistema.orders "Enruta pedidos" "HTTP/JSON, credencial interna"
-        sistema.apiGateway -> sistema.payments "Enruta pagos y la notificacion firmada" "HTTP/JSON, credencial interna"
-        sistema.apiGateway -> sistema.graphqlGateway "Enruta consultas GraphQL" "HTTP/GraphQL, credencial interna"
-        sistema.apiGateway -> sistema.secretManager "Lee las credenciales de cada destino" "HTTP KV v2, token propio"
-        sistema.apiGateway -> servipag "Responde la notificacion de pago" "HTTP"
-        servipag -> sistema.apiGateway "Notifica el resultado del pago (ruta sin sesion)" "HTTP + firma HMAC"
+        sistema.apiGateway -> sistema.authService "Login e introspeccion de la sesion" "HTTPS/JSON, Basic"
+        sistema.apiGateway -> sistema.inventory "Enruta catalogo y stock" "HTTPS/JSON, credencial interna"
+        sistema.apiGateway -> sistema.clients "Enruta fichas de clientes" "HTTPS/JSON, credencial interna"
+        sistema.apiGateway -> sistema.orders "Enruta pedidos" "HTTPS/JSON, credencial interna"
+        sistema.apiGateway -> sistema.payments "Enruta pagos y la notificacion firmada" "HTTPS/JSON, credencial interna"
+        sistema.apiGateway -> sistema.graphqlGateway "Enruta consultas GraphQL" "HTTPS/GraphQL, credencial interna"
+        sistema.apiGateway -> sistema.secretManager "Lee las credenciales de cada destino" "HTTPS KV v2, token propio"
+        sistema.apiGateway -> servipag "Responde la notificacion de pago" "HTTPS"
+        servipag -> sistema.apiGateway "Notifica el resultado del pago (ruta sin sesion)" "HTTPS + firma HMAC"
 
-        sistema.authService -> sistema.secretManager "Lee pepper y credenciales de sus clientes" "HTTP KV v2, token propio"
-        sistema.graphqlGateway -> sistema.secretManager "Lee las credenciales de los servicios" "HTTP KV v2, token propio"
-        sistema.inventory -> sistema.secretManager "Lee su usuario de Mongo y credenciales" "HTTP KV v2, token propio"
-        sistema.clients -> sistema.secretManager "Lee su usuario de Mongo y credenciales" "HTTP KV v2, token propio"
-        sistema.orders -> sistema.secretManager "Lee su usuario de Mongo y credenciales" "HTTP KV v2, token propio"
-        sistema.payments -> sistema.secretManager "Lee su usuario de Mongo, la API key y la clave de firma" "HTTP KV v2, token propio"
+        sistema.authService -> sistema.secretManager "Lee pepper y credenciales de sus clientes" "HTTPS KV v2, token propio"
+        sistema.graphqlGateway -> sistema.secretManager "Lee las credenciales de los servicios" "HTTPS KV v2, token propio"
+        sistema.inventory -> sistema.secretManager "Lee su usuario de Mongo y credenciales" "HTTPS KV v2, token propio"
+        sistema.clients -> sistema.secretManager "Lee su usuario de Mongo y credenciales" "HTTPS KV v2, token propio"
+        sistema.orders -> sistema.secretManager "Lee su usuario de Mongo y credenciales" "HTTPS KV v2, token propio"
+        sistema.payments -> sistema.secretManager "Lee su usuario de Mongo, la API key y la clave de firma" "HTTPS KV v2, token propio"
 
-        sistema.clients -> sistema.authService "Crea la cuenta al registrar un cliente" "HTTP/JSON, Basic"
+        sistema.clients -> sistema.authService "Crea la cuenta al registrar un cliente" "HTTPS/JSON, Basic"
 
-        sistema.orders -> sistema.inventory "Cotiza y reserva o libera stock" "HTTP/JSON, credencial interna"
-        sistema.orders -> sistema.clients "Consulta la ficha para validar el despacho" "HTTP/JSON, credencial interna"
-        sistema.orders -> sistema.payments "Consulta el pago y pide la devolucion al anular" "HTTP/JSON, credencial interna"
-        sistema.payments -> sistema.orders "Lee el pedido y confirma el pago" "HTTP/JSON, credencial interna"
-        sistema.orders -> sistema.broker "Publica la boleta y el aviso a cocina" "STOMP"
-        sistema.notifier -> sistema.broker "Consume las colas de correos y de cocina" "STOMP"
-        sistema.payments -> servipag "Crea la orden de pago y pide devoluciones" "HTTP + API key"
+        sistema.orders -> sistema.inventory "Cotiza y reserva o libera stock" "HTTPS/JSON, credencial interna"
+        sistema.orders -> sistema.clients "Consulta la ficha para validar el despacho" "HTTPS/JSON, credencial interna"
+        sistema.orders -> sistema.payments "Consulta el pago y pide la devolucion al anular" "HTTPS/JSON, credencial interna"
+        sistema.payments -> sistema.orders "Lee el pedido y confirma el pago" "HTTPS/JSON, credencial interna"
+        sistema.orders -> sistema.broker "Publica la boleta y el aviso a cocina" "STOMP sobre TLS"
+        sistema.notifier -> sistema.broker "Consume las colas de correos y de cocina" "STOMP sobre TLS"
+        sistema.payments -> servipag "Crea la orden de pago y pide devoluciones" "HTTPS + API key"
 
-        sistema.graphqlGateway -> sistema.orders "Consulta pedidos (el servicio decide la propiedad)" "HTTP/JSON, credencial interna"
-        sistema.graphqlGateway -> sistema.payments "Consulta los pagos del pedido" "HTTP/JSON, credencial interna"
-        sistema.graphqlGateway -> sistema.inventory "Consulta productos y categorias" "HTTP/JSON, credencial interna"
-        sistema.graphqlGateway -> sistema.clients "Consulta la ficha (solo roles autorizados)" "HTTP/JSON, credencial interna"
+        sistema.graphqlGateway -> sistema.orders "Consulta pedidos (el servicio decide la propiedad)" "HTTPS/JSON, credencial interna"
+        sistema.graphqlGateway -> sistema.payments "Consulta los pagos del pedido" "HTTPS/JSON, credencial interna"
+        sistema.graphqlGateway -> sistema.inventory "Consulta productos y categorias" "HTTPS/JSON, credencial interna"
+        sistema.graphqlGateway -> sistema.clients "Consulta la ficha (solo roles autorizados)" "HTTPS/JSON, credencial interna"
 
-        sistema.authService -> sistema.dbAuth "Lee y escribe cuentas" "Mongo, usuario propio"
-        sistema.inventory -> sistema.dbInventory "Lee y escribe items y reservas" "Mongo, usuario propio"
-        sistema.clients -> sistema.dbClients "Lee y escribe fichas" "Mongo, usuario propio"
-        sistema.orders -> sistema.dbOrders "Lee y escribe pedidos" "Mongo, usuario propio"
-        sistema.payments -> sistema.dbPayments "Lee y escribe pagos" "Mongo, usuario propio"
+        sistema.authService -> sistema.dbAuth "Lee y escribe cuentas" "Mongo con TLS, usuario propio"
+        sistema.inventory -> sistema.dbInventory "Lee y escribe items y reservas" "Mongo con TLS, usuario propio"
+        sistema.clients -> sistema.dbClients "Lee y escribe fichas" "Mongo con TLS, usuario propio"
+        sistema.orders -> sistema.dbOrders "Lee y escribe pedidos" "Mongo con TLS, usuario propio"
+        sistema.payments -> sistema.dbPayments "Lee y escribe pagos" "Mongo con TLS, usuario propio"
 
         // Paso C3-1: API Gateway.
-        sistema.frontend -> sistema.apiGateway.httpEntry "Invoca la API" "HTTP"
-        servipag -> sistema.apiGateway.httpEntry "Notifica el resultado del pago" "HTTP + firma HMAC"
+        sistema.frontend -> sistema.apiGateway.httpEntry "Invoca la API" "HTTPS"
+        servipag -> sistema.apiGateway.httpEntry "Notifica el resultado del pago" "HTTPS + firma HMAC"
         sistema.apiGateway.httpEntry -> sistema.apiGateway.limitsAndOrigin "Pasa la peticion"
         sistema.apiGateway.limitsAndOrigin -> sistema.apiGateway.sessionPolicy "Pasa la peticion dentro del limite y con origen valido"
-        sistema.apiGateway.sessionPolicy -> sistema.authService "Introspecciona la sesion" "HTTP/JSON, Basic"
+        sistema.apiGateway.sessionPolicy -> sistema.authService "Introspecciona la sesion" "HTTPS/JSON, Basic"
         sistema.apiGateway.sessionPolicy -> sistema.apiGateway.routeMatrix "Entrega la identidad verificada"
         sistema.apiGateway.routeMatrix -> sistema.apiGateway.forwarder "Entrega la ruta permitida"
         sistema.apiGateway.routeMatrix -> sistema.apiGateway.errorMapper "Informa ruta inexistente o rol sin permiso"
         sistema.apiGateway.forwarder -> sistema.apiGateway.secretProvider "Pide la credencial del destino"
-        sistema.apiGateway.secretProvider -> sistema.secretManager "Lee el secreto" "HTTP KV v2, token propio"
-        sistema.apiGateway.forwarder -> sistema.inventory "Reenvia a inventario" "HTTP/JSON"
-        sistema.apiGateway.forwarder -> sistema.clients "Reenvia a clientes" "HTTP/JSON"
-        sistema.apiGateway.forwarder -> sistema.orders "Reenvia a pedidos" "HTTP/JSON"
-        sistema.apiGateway.forwarder -> sistema.payments "Reenvia a pagos" "HTTP/JSON"
-        sistema.apiGateway.forwarder -> sistema.graphqlGateway "Reenvia a GraphQL" "HTTP/GraphQL"
+        sistema.apiGateway.secretProvider -> sistema.secretManager "Lee el secreto" "HTTPS KV v2, token propio"
+        sistema.apiGateway.forwarder -> sistema.inventory "Reenvia a inventario" "HTTPS/JSON"
+        sistema.apiGateway.forwarder -> sistema.clients "Reenvia a clientes" "HTTPS/JSON"
+        sistema.apiGateway.forwarder -> sistema.orders "Reenvia a pedidos" "HTTPS/JSON"
+        sistema.apiGateway.forwarder -> sistema.payments "Reenvia a pagos" "HTTPS/JSON"
+        sistema.apiGateway.forwarder -> sistema.graphqlGateway "Reenvia a GraphQL" "HTTPS/GraphQL"
         sistema.apiGateway.forwarder -> sistema.apiGateway.errorMapper "Informa fallo o demora del destino"
 
         // Paso C3-2: GraphQL Gateway.
-        sistema.apiGateway -> sistema.graphqlGateway.graphqlEndpoint "Remite la operacion con la identidad verificada" "HTTP/GraphQL"
+        sistema.apiGateway -> sistema.graphqlGateway.graphqlEndpoint "Remite la operacion con la identidad verificada" "HTTPS/GraphQL"
         sistema.graphqlGateway.graphqlEndpoint -> sistema.graphqlGateway.queryLimits "Verifica esquema, profundidad y costo"
         sistema.graphqlGateway.queryLimits -> sistema.graphqlGateway.fieldAccess "Entrega la consulta valida"
         sistema.graphqlGateway.fieldAccess -> sistema.graphqlGateway.resolvers "Autoriza campos y recursos"
         sistema.graphqlGateway.resolvers -> sistema.graphqlGateway.serviceConnectors "Pide datos a los servicios"
-        sistema.graphqlGateway.serviceConnectors -> sistema.orders "Consulta pedidos" "HTTP/JSON"
-        sistema.graphqlGateway.serviceConnectors -> sistema.payments "Consulta pagos" "HTTP/JSON"
-        sistema.graphqlGateway.serviceConnectors -> sistema.inventory "Consulta productos" "HTTP/JSON"
-        sistema.graphqlGateway.serviceConnectors -> sistema.clients "Consulta la ficha" "HTTP/JSON"
+        sistema.graphqlGateway.serviceConnectors -> sistema.orders "Consulta pedidos" "HTTPS/JSON"
+        sistema.graphqlGateway.serviceConnectors -> sistema.payments "Consulta pagos" "HTTPS/JSON"
+        sistema.graphqlGateway.serviceConnectors -> sistema.inventory "Consulta productos" "HTTPS/JSON"
+        sistema.graphqlGateway.serviceConnectors -> sistema.clients "Consulta la ficha" "HTTPS/JSON"
         sistema.graphqlGateway.resolvers -> sistema.graphqlGateway.responseComposer "Entrega datos y errores"
 
         // Paso C3-3: Auth Service.
-        sistema.apiGateway -> sistema.authService.identityApi "Login e introspeccion" "HTTP/JSON, Basic"
-        sistema.clients -> sistema.authService.identityApi "Crea la cuenta del cliente" "HTTP/JSON, Basic"
+        sistema.apiGateway -> sistema.authService.identityApi "Login e introspeccion" "HTTPS/JSON, Basic"
+        sistema.clients -> sistema.authService.identityApi "Crea la cuenta del cliente" "HTTPS/JSON, Basic"
         sistema.authService.identityApi -> sistema.authService.sessionStore "Crea, consulta y revoca sesiones"
         sistema.authService.identityApi -> sistema.authService.credentialsVerifier "Verifica la clave en el login"
         sistema.authService.credentialsVerifier -> sistema.authService.accountsRepo "Lee la cuenta y su hash"
         sistema.authService.credentialsVerifier -> sistema.authService.secretsClient "Pide el pepper"
-        sistema.authService.secretsClient -> sistema.secretManager "Lee el secreto" "HTTP KV v2, token propio"
-        sistema.authService.accountsRepo -> sistema.dbAuth "Lee y escribe cuentas" "Mongo, usuario propio"
+        sistema.authService.secretsClient -> sistema.secretManager "Lee el secreto" "HTTPS KV v2, token propio"
+        sistema.authService.accountsRepo -> sistema.dbAuth "Lee y escribe cuentas" "Mongo con TLS, usuario propio"
 
         // Paso C3-4: pedidos.
-        sistema.apiGateway -> sistema.orders.ordersApi "Enruta operaciones de pedidos" "HTTP/JSON"
-        sistema.graphqlGateway -> sistema.orders.ordersApi "Consulta pedidos permitidos" "HTTP/JSON"
-        sistema.payments -> sistema.orders.ordersApi "Confirma el pago del pedido" "HTTP/JSON"
+        sistema.apiGateway -> sistema.orders.ordersApi "Enruta operaciones de pedidos" "HTTPS/JSON"
+        sistema.graphqlGateway -> sistema.orders.ordersApi "Consulta pedidos permitidos" "HTTPS/JSON"
+        sistema.payments -> sistema.orders.ordersApi "Confirma el pago del pedido" "HTTPS/JSON"
         sistema.orders.ordersApi -> sistema.orders.accessPolicy "Comprueba rol y propiedad del pedido"
         sistema.orders.accessPolicy -> sistema.orders.orderWorkflow "Encamina las lecturas autorizadas"
         sistema.orders.accessPolicy -> sistema.orders.idempotency "Autoriza la escritura"
@@ -284,11 +285,11 @@ workspace "Poke Fresh" "Backend seguro de Poke Fresh (caso 24), modelado en C4 c
         sistema.orders.orderWorkflow -> sistema.orders.paymentAdapter "Consulta o devuelve el pago"
         sistema.orders.orderWorkflow -> sistema.orders.eventPublisher "Publica boleta y aviso a cocina"
         sistema.orders.orderWorkflow -> sistema.orders.ordersRepo "Persiste el cambio de estado"
-        sistema.orders.inventoryAdapter -> sistema.inventory "Invoca el contrato de inventario" "HTTP/JSON"
-        sistema.orders.clientsAdapter -> sistema.clients "Invoca el contrato de clientes" "HTTP/JSON"
-        sistema.orders.paymentAdapter -> sistema.payments "Invoca el contrato de pagos" "HTTP/JSON"
-        sistema.orders.eventPublisher -> sistema.broker "Publica en las colas" "STOMP"
-        sistema.orders.ordersRepo -> sistema.dbOrders "Lee y escribe pedidos y claves" "Mongo, usuario propio"
+        sistema.orders.inventoryAdapter -> sistema.inventory "Invoca el contrato de inventario" "HTTPS/JSON"
+        sistema.orders.clientsAdapter -> sistema.clients "Invoca el contrato de clientes" "HTTPS/JSON"
+        sistema.orders.paymentAdapter -> sistema.payments "Invoca el contrato de pagos" "HTTPS/JSON"
+        sistema.orders.eventPublisher -> sistema.broker "Publica en las colas" "STOMP sobre TLS"
+        sistema.orders.ordersRepo -> sistema.dbOrders "Lee y escribe pedidos y claves" "Mongo con TLS, usuario propio"
 
         // ---------------------------------------------------------------------------
         // Respuestas explicitas: las vistas dinamicas siguen cada paso de ida y de vuelta.
@@ -296,33 +297,33 @@ workspace "Poke Fresh" "Backend seguro de Poke Fresh (caso 24), modelado en C4 c
         // ---------------------------------------------------------------------------
         sistema.frontend -> visitante "Presenta resultados y errores" "Interfaz web"
         sistema.frontend -> cliente "Presenta resultados y errores" "Interfaz web"
-        sistema.apiGateway -> sistema.frontend "Devuelve respuestas y errores controlados" "HTTP"
-        sistema.authService -> sistema.apiGateway "Responde la introspeccion" "HTTP/JSON"
-        sistema.inventory -> sistema.apiGateway "Responde consultas de inventario" "HTTP/JSON"
-        sistema.orders -> sistema.apiGateway "Responde operaciones de pedidos" "HTTP/JSON"
-        sistema.payments -> sistema.apiGateway "Responde operaciones de pagos" "HTTP/JSON"
-        sistema.graphqlGateway -> sistema.apiGateway "Devuelve el resultado compuesto o el error" "HTTP/GraphQL"
+        sistema.apiGateway -> sistema.frontend "Devuelve respuestas y errores controlados" "HTTPS"
+        sistema.authService -> sistema.apiGateway "Responde la introspeccion" "HTTPS/JSON"
+        sistema.inventory -> sistema.apiGateway "Responde consultas de inventario" "HTTPS/JSON"
+        sistema.orders -> sistema.apiGateway "Responde operaciones de pedidos" "HTTPS/JSON"
+        sistema.payments -> sistema.apiGateway "Responde operaciones de pagos" "HTTPS/JSON"
+        sistema.graphqlGateway -> sistema.apiGateway "Devuelve el resultado compuesto o el error" "HTTPS/GraphQL"
         servipag -> sistema.frontend "Redirige al cliente de vuelta al pedido" "Navegador web"
 
-        sistema.dbInventory -> sistema.inventory "Devuelve resultados" "Mongo"
-        sistema.dbClients -> sistema.clients "Devuelve resultados" "Mongo"
-        sistema.dbOrders -> sistema.orders "Devuelve resultados" "Mongo"
-        sistema.dbPayments -> sistema.payments "Devuelve resultados" "Mongo"
-        sistema.inventory -> sistema.orders "Responde cotizacion y reserva" "HTTP/JSON"
-        sistema.clients -> sistema.orders "Responde la ficha" "HTTP/JSON"
-        sistema.orders -> sistema.graphqlGateway "Devuelve datos autorizados de pedidos" "HTTP/JSON"
-        sistema.payments -> sistema.graphqlGateway "Devuelve los pagos del pedido" "HTTP/JSON"
-        sistema.inventory -> sistema.graphqlGateway "Devuelve productos" "HTTP/JSON"
-        sistema.clients -> sistema.graphqlGateway "Devuelve la ficha autorizada" "HTTP/JSON"
-        servipag -> sistema.payments "Responde con el token y la URL de pago" "HTTP/JSON"
-        sistema.broker -> sistema.notifier "Entrega los mensajes" "STOMP"
+        sistema.dbInventory -> sistema.inventory "Devuelve resultados" "Mongo con TLS"
+        sistema.dbClients -> sistema.clients "Devuelve resultados" "Mongo con TLS"
+        sistema.dbOrders -> sistema.orders "Devuelve resultados" "Mongo con TLS"
+        sistema.dbPayments -> sistema.payments "Devuelve resultados" "Mongo con TLS"
+        sistema.inventory -> sistema.orders "Responde cotizacion y reserva" "HTTPS/JSON"
+        sistema.clients -> sistema.orders "Responde la ficha" "HTTPS/JSON"
+        sistema.orders -> sistema.graphqlGateway "Devuelve datos autorizados de pedidos" "HTTPS/JSON"
+        sistema.payments -> sistema.graphqlGateway "Devuelve los pagos del pedido" "HTTPS/JSON"
+        sistema.inventory -> sistema.graphqlGateway "Devuelve productos" "HTTPS/JSON"
+        sistema.clients -> sistema.graphqlGateway "Devuelve la ficha autorizada" "HTTPS/JSON"
+        servipag -> sistema.payments "Responde con el token y la URL de pago" "HTTPS/JSON"
+        sistema.broker -> sistema.notifier "Entrega los mensajes" "STOMP sobre TLS"
 
         sistema.graphqlGateway.queryLimits -> sistema.graphqlGateway.graphqlEndpoint "Reporta el rechazo de la consulta"
-        sistema.graphqlGateway.graphqlEndpoint -> sistema.apiGateway "Responde el error de validacion" "HTTP/GraphQL"
-        sistema.dbOrders -> sistema.orders.ordersRepo "Devuelve resultados" "Mongo"
+        sistema.graphqlGateway.graphqlEndpoint -> sistema.apiGateway "Responde el error de validacion" "HTTPS/GraphQL"
+        sistema.dbOrders -> sistema.orders.ordersRepo "Devuelve resultados" "Mongo con TLS"
         sistema.orders.ordersRepo -> sistema.orders.idempotency "Devuelve la operacion ya registrada"
         sistema.orders.idempotency -> sistema.orders.ordersApi "Devuelve el resultado existente sin ejecutar de nuevo"
-        sistema.orders.ordersApi -> sistema.apiGateway "Devuelve la respuesta de pedidos" "HTTP/JSON"
+        sistema.orders.ordersApi -> sistema.apiGateway "Devuelve la respuesta de pedidos" "HTTPS/JSON"
 
         // ---------------------------------------------------------------------------
         // Despliegue 1: el que se entrega (docker-compose.yml, 14 contenedores en dos redes).
@@ -334,14 +335,14 @@ workspace "Poke Fresh" "Backend seguro de Poke Fresh (caso 24), modelado en C4 c
                     containerInstance sistema.frontend
                 }
             }
-            deploymentNode "Docker Desktop (proyecto poke-fresh)" "docker compose up -d --build. Solo se publican los puertos 8080 y 9000." "Docker Compose" {
+            deploymentNode "Docker Desktop (proyecto poke-fresh)" "docker compose up -d --build. Solo se publican los puertos 8080 y 9000, ambos por HTTPS." "Docker Compose" {
                 tags "ZonaEntorno"
                 deploymentNode "Redes externa y privada" "Contenedores conectados a las dos redes. Publican 8080 (gateway) y 9000 (pasarela)." "Redes de Docker" {
                     tags "ZonaPublica"
-                    deploymentNode "Contenedor gateway" "Puerto 8080 publicado; sirve el frontend." "poke-fresh-gateway (Node)" {
+                    deploymentNode "Contenedor gateway" "Puerto 8080 publicado por HTTPS; sirve el frontend." "poke-fresh-gateway (Node)" {
                         containerInstance sistema.apiGateway
                     }
-                    deploymentNode "Contenedor pasarela" "Puerto 9000 publicado; simula al proveedor externo." "poke-fresh-servicios (FastAPI)" {
+                    deploymentNode "Contenedor pasarela" "Puerto 9000 publicado por HTTPS; simula al proveedor externo." "poke-fresh-servicios (FastAPI)" {
                         softwareSystemInstance servipag
                     }
                     deploymentNode "Contenedor pagos" "Unico servicio privado con salida a la red externa, para hablar con la pasarela." "poke-fresh-servicios (FastAPI)" {
@@ -364,14 +365,14 @@ workspace "Poke Fresh" "Backend seguro de Poke Fresh (caso 24), modelado en C4 c
                     deploymentNode "Contenedor notificador" "Consumidor de las colas." "poke-fresh-servicios (Python)" {
                         containerInstance sistema.notifier
                     }
-                    deploymentNode "Contenedor activemq" "Broker de mensajes." "apache/activemq-classic:6.1.4" {
+                    deploymentNode "Contenedor activemq" "Broker de mensajes; solo STOMP sobre TLS y sin consola web." "apache/activemq-classic:6.1.4" {
                         containerInstance sistema.broker
                     }
-                    deploymentNode "Contenedor vault" "Secretos; se desbloquea con vault-init." "hashicorp/vault:1.18" {
+                    deploymentNode "Contenedor vault" "Secretos con listener TLS; se desbloquea con vault-init." "hashicorp/vault:1.18" {
                         tags "ZonaSecretos"
                         containerInstance sistema.secretManager
                     }
-                    deploymentNode "Contenedor mongo" "Un solo motor, una base y un usuario por servicio; datos en un volumen." "mongo:7.0" {
+                    deploymentNode "Contenedor mongo" "Un solo motor con TLS obligatorio, una base y un usuario por servicio; datos en un volumen." "mongo:7.0" {
                         tags "ZonaDatos"
                         containerInstance sistema.dbAuth
                         containerInstance sistema.dbInventory
@@ -379,6 +380,7 @@ workspace "Poke Fresh" "Backend seguro de Poke Fresh (caso 24), modelado en C4 c
                         containerInstance sistema.dbOrders
                         containerInstance sistema.dbPayments
                     }
+                    infrastructureNode "tls-init" "Contenedor de un solo uso, sin red: crea la CA de prueba y un certificado por componente en el volumen tls (la clave de la CA queda en otro volumen)." "Exited (0)"
                     infrastructureNode "vault-init" "Contenedor de un solo uso: inicializa Vault, crea secretos, politicas, un token por servicio y un usuario de Mongo por servicio." "Exited (0)"
                     infrastructureNode "semilla" "Contenedor de un solo uso: carga los datos de ejemplo con MODO_DEMO=true." "Exited (0)"
                 }
