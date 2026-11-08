@@ -657,8 +657,12 @@ La decisión, con contexto, alternativas y consecuencias, está en [ADR 0001](ad
 | `gateway/test` | 17 | Matriz de rutas, roles, cabeceras falsificadas, cookie, CSRF, webhook, Vault y servicio caídos, límite, healthcheck | 17/17 |
 | `graphql-gateway/test` | 11 | Agregación, batching, identidad, autorización por campo, error parcial, límites, paginación | 11/11 |
 | `pruebas/e2e/casos.py` | 19 | Casos del módulo 7 y del 10 contra el sistema levantado en Docker | 19/19 |
-| `pruebas/e2e/pantallas.py` | 16 pantallas | Flujos principales en el navegador | Completo |
+| `pruebas/e2e/pantallas.py` | 16 pantallas de escritorio + 6 móviles | Flujos principales en el navegador, en escritorio (1280×900) y en móvil (375×812, táctil) | Completo, sin errores de consola |
 | `pruebas/carga/carga.mjs` | 3 escenarios | Rendimiento contra el sistema en Docker | 0 % de error |
+
+### Evidencia en móvil
+
+El recorrido repite seis pantallas en un teléfono emulado (375×812, táctil), contra el mismo sistema en Docker y las mismas APIs: inicio, menú, checkout, seguimiento del pedido, mis pedidos y despacho (`pantallas/m01-inicio-movil.png` a `m06-despacho-movil.png`). Para cada una el script comprueba que no hay scroll horizontal (`desbordeHorizontalMovil` en `pantallas/recorrido.json`: las seis en `false`). Los flujos de cocina y administración se verificaron solo en escritorio; el resto de los flujos se comparten entre ambos tamaños, porque es la misma SPA con diseño responsivo.
 
 ### Matriz requisito, pantalla, servicio, prueba y evidencia
 

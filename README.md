@@ -75,7 +75,7 @@ cd graphql-gateway && npm install && npm test                        # 11 prueba
 # De punta a punta, con el sistema arriba (deja evidencia en docs/evidencias/)
 pip install httpx playwright && playwright install chromium
 python pruebas/e2e/casos.py                 # 19 casos de seguridad y negocio (contra Docker)
-python pruebas/e2e/pantallas.py             # recorrido de 16 pantallas con capturas
+python pruebas/e2e/pantallas.py             # recorrido de 16 pantallas de escritorio y 6 móviles, con capturas
 node pruebas/carga/carga.mjs                # prueba de carga (ver docs/evidencias/carga.md)
 ```
 
