@@ -1,18 +1,20 @@
 {
-  "name": "poke-fresh-api",
-  "version": "1.0.0",
+  "name": "poke-fresh-graphql-gateway",
+  "version": "2.0.0",
   "type": "module",
-  "description": "API GraphQL de Poke Fresh",
-  "main": "src/index.js",
+  "description": "GraphQL Gateway privado de Poke Fresh: agregaciones sobre pedidos, pagos, inventario y clientes",
+  "main": "src/server.js",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20.12"
   },
   "dependencies": {
-    "@apollo/server": "^4.11.0",
-    "cors": "^2.8.5",
-    "dataloader": "^2.2.2",
-    "express": "^4.19.2",
-    "graphql": "^16.9.0"
+    "@apollo/server": "4.11.3",
+    "dataloader": "2.2.3",
+    "express": "4.21.2",
+    "graphql": "16.10.0"
   }
 }
