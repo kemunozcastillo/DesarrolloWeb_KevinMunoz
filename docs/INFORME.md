@@ -4,7 +4,7 @@
 |---|---|
 | **Caso** | 24, Poke Fresh: venta web de poke bowls con retiro en local y despacho gratis a 3 km |
 | **Ramo** | Desarrollo Web, Ingeniería Civil Informática, UNAB |
-| **Integrantes** | **[COMPLETAR: integrantes]** |
+| **Integrantes** | Kevin Muñoz (trabajo individual) |
 | **Versión del frontend** | 2.0: SPA en HTML, CSS y JavaScript sin frameworks, integrada con la API (rama `Evaluacion-2`). La versión 1.0 (entrega de frontend) guardaba todo en `localStorage`. |
 | **Fecha** | 09-11-2026 |
 
