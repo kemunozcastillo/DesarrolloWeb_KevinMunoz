@@ -187,6 +187,7 @@ describe("API gateway", () => {
     const r = await pedir("/api/v1/pagos/notificacion", { metodo: "POST", sesion: "tok-admin", cuerpo, cabeceras: { "X-Firma": "abc" } });
     const eco = await r.json();
     assert.equal(eco.cuerpo, cuerpo);
+    assert.equal(eco.cabeceras["x-firma"], "abc");
     assert.equal(eco.cabeceras["x-usuario-rol"], undefined);
   });
 

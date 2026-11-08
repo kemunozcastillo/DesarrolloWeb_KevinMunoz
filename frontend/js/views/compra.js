@@ -2,6 +2,11 @@ PF.vistas = PF.vistas || {};
 
 /**
  * Pago, seguimiento del pedido y boleta digital.
+ *
+ * El detalle del pedido (#/orden/:id) usa la agregación GraphQL
+ * resumenPedido: pedido (servicio de pedidos) + intentos de pago (servicio de
+ * pagos) + productos de cada línea (inventario) + contacto del cliente
+ * (servicio de clientes, solo para el administrador).
  */
 
 (function () {
@@ -22,18 +27,16 @@ PF.vistas = PF.vistas || {};
       `,
     );
 
-  /** Un cliente solo ve sus pedidos; el personal ve todos. */
-  const puedeVer = (pedido, sesion) => sesion.tipo === "USUARIO" || pedido.clienteId === sesion.id;
-
   // -------------------------------------------------------------------------
   // Pago: #/pago/:id
   // -------------------------------------------------------------------------
 
-  PF.vistas.pago = function ({ raiz, params, sesion }) {
+  PF.vistas.pago = async function ({ raiz, params }) {
     titulo("Pago");
-    const pedido = P.obtener(params.id);
+    // Si el pedido no es de quien pregunta, el servicio de pedidos responde 404.
+    const pedido = await P.obtener(params.id);
 
-    if (!pedido || pedido.clienteId !== sesion.id) return noEncontrado(raiz, params.id);
+    if (!pedido) return noEncontrado(raiz, params.id);
     if (pedido.estado !== "PENDIENTE_PAGO") {
       PF.router.navegar(`/orden/${pedido.id}`, { reemplazar: true });
       return;
@@ -41,14 +44,15 @@ PF.vistas = PF.vistas || {};
 
     const pasarela = html`
       <section class="pasarela" aria-labelledby="pasarela-titulo">
-        <p class="pasarela__marca">Servipag <span>Simulación de plataforma de pago externa</span></p>
+        <p class="pasarela__marca">Servipag <span>Pasarela de prueba: no se cobra dinero real</span></p>
         <h2 id="pasarela-titulo">Pagar a ${P.EMPRESA.razonSocial}</h2>
         <dl class="pasarela__datos">
           <div><dt>Pedido</dt><dd>${pedido.id}</dd></div>
           <div><dt>Monto</dt><dd><strong>${precio(pedido.total)}</strong></dd></div>
         </dl>
+        <p class="campo__ayuda">Te llevaremos a la página de Servipag. Al pagar, vuelves aquí y tu pedido pasa directo a cocina.</p>
         <div class="estado__acciones estado__acciones--izquierda">
-          <button class="boton boton--primario" type="button" data-pagar>Pagar ${precio(pedido.total)}</button>
+          <button class="boton boton--primario" type="button" data-pagar>Ir a Servipag</button>
           <a class="boton" href="#/orden/${pedido.id}">Pagar más tarde</a>
         </div>
       </section>
@@ -66,15 +70,17 @@ PF.vistas = PF.vistas || {};
       `,
     );
 
-    raiz.querySelector("[data-pagar]")?.addEventListener("click", (evento) => {
-      evento.currentTarget.disabled = true;
+    raiz.querySelector("[data-pagar]")?.addEventListener("click", async (evento) => {
+      const boton = evento.currentTarget;
+      boton.disabled = true;
       try {
-        const pagado = P.pagarEnLinea(pedido.id, sesion);
-        avisar(`Pago confirmado. Enviamos la boleta N° ${pagado.boleta.numero} a ${pagado.boleta.enviadaA}.`, { tipo: "exito", duracion: 5000 });
-        PF.router.navegar(`/orden/${pedido.id}`, { reemplazar: true });
+        // El monto lo fija el backend con el total del pedido; aquí solo se indica qué pedido pagar.
+        const pago = await P.iniciarPago(pedido.id);
+        if (!pago.urlPago) throw new Error("Este pago ya fue procesado. Revisa el estado del pedido.");
+        location.assign(pago.urlPago);
       } catch (fallo) {
         avisar(fallo.message, { tipo: "error" });
-        evento.currentTarget.disabled = false;
+        boton.disabled = false;
       }
     });
   };
@@ -100,11 +106,20 @@ PF.vistas = PF.vistas || {};
     `;
   }
 
-  PF.vistas.orden = function ({ raiz, params, sesion }) {
-    const pedido = P.obtener(params.id);
-    titulo(`Pedido ${params.id}`);
+  const ESTADO_PAGO = { PENDIENTE: "Pendiente", APROBADO: "Aprobado", RECHAZADO: "Rechazado", DEVUELTO: "Devuelto" };
 
-    if (!pedido || !puedeVer(pedido, sesion)) return noEncontrado(raiz, params.id);
+  PF.vistas.orden = async function ({ raiz, params, query, sesion }) {
+    titulo(`Pedido ${params.id}`);
+    const { resumen, errores } = await P.resumen(params.id, { conContacto: sesion.perfil === "ADMIN" });
+    if (!resumen) return noEncontrado(raiz, params.id);
+
+    const pedido = resumen.pedido;
+    const pagos = resumen.pagos;
+    const contacto = resumen.cliente;
+    const rechazado = query.get("pago") === "rechazado" && pedido.estado === "PENDIENTE_PAGO";
+    if (rechazado) P.olvidarIntentoDePago(pedido.id);
+    // Si un servicio no respondió, se muestra lo que sí llegó y se avisa.
+    const parcial = errores.filter((e) => e.extensions?.code !== "PROHIBIDO").map((e) => e.extensions?.servicio).filter(Boolean);
 
     const esCliente = sesion.tipo === "CLIENTE";
     const puedeAnular = P.esAnulable(pedido) && (esCliente || sesion.perfil === "ADMIN");
@@ -121,6 +136,7 @@ PF.vistas = PF.vistas || {};
             <p class="orden__meta">Creado el ${fechaHora(pedido.creadoEn)}<br />${entrega}.</p>
             ${lineaDeTiempo(pedido)}
 
+            ${rechazado ? html`<p class="aviso-bloque aviso-bloque--anulado">Servipag rechazó el pago. Puedes intentarlo de nuevo.</p>` : ""}
             ${pedido.estado === "PENDIENTE_PAGO" && esCliente
               ? html`<p class="aviso-bloque">Falta el pago. <a href="#/pago/${pedido.id}">Ir a pagar</a></p>`
               : ""}
@@ -135,6 +151,19 @@ PF.vistas = PF.vistas || {};
             </ul>
             <div class="resumen__total"><span>Total</span><strong>${precio(pedido.total)}</strong></div>
             ${pedido.nota ? html`<p class="orden__nota">Indicaciones: ${pedido.nota}</p>` : ""}
+
+            <section class="orden__pagos" aria-label="Pagos del pedido">
+              <h2 class="subtitulo">Pagos</h2>
+              ${pagos === null
+                ? html`<p class="aviso-parcial">No pudimos consultar los pagos en este momento.</p>`
+                : pagos.length
+                  ? html`<ol>${pagos.map((pg) => html`<li><span>${fechaHora(pg.creadoEn)}, ${P.MEDIOS_PAGO[pg.medio] ?? pg.medio}${pg.referencia ? `, ref. ${pg.referencia}` : ""}</span><strong>${ESTADO_PAGO[pg.estado] ?? pg.estado}, ${precio(pg.monto)}</strong></li>`)}</ol>`
+                  : html`<p class="aviso-parcial">Todavía no hay intentos de pago.</p>`}
+            </section>
+            ${contacto
+              ? html`<section class="orden__pagos" aria-label="Contacto del cliente"><h2 class="subtitulo">Contacto del cliente</h2><p>${contacto.nombre}, ${contacto.telefono}, ${contacto.email} (${contacto.comuna})</p></section>`
+              : ""}
+            ${parcial.length ? html`<p class="aviso-parcial">Algunos datos no están disponibles ahora (${parcial.join(", ")}).</p>` : ""}
 
             <div class="estado__acciones estado__acciones--izquierda">
               ${pedido.boleta ? html`<a class="boton" href="#/boleta/${pedido.boleta.numero}">Ver boleta N° ${pedido.boleta.numero}</a>` : ""}
@@ -165,7 +194,7 @@ PF.vistas = PF.vistas || {};
       if (!motivo) return;
 
       try {
-        P.anular(pedido.id, sesion, motivo);
+        await P.anular(pedido.id, motivo);
         avisar("Anulamos el pedido.", { tipo: "exito" });
         PF.router.recargar();
       } catch (fallo) {
@@ -178,11 +207,11 @@ PF.vistas = PF.vistas || {};
   // Boleta digital: #/boleta/:numero
   // -------------------------------------------------------------------------
 
-  PF.vistas.boleta = function ({ raiz, params, sesion }) {
-    const pedido = P.porBoleta(params.numero);
+  PF.vistas.boleta = async function ({ raiz, params }) {
+    const pedido = await P.porBoleta(params.numero);
     titulo(`Boleta ${params.numero}`);
 
-    if (!pedido || !puedeVer(pedido, sesion)) {
+    if (!pedido) {
       pintar(raiz, html`<div class="pagina pagina--angosta"><section class="estado estado--vacio"><h1>No encontramos esa boleta</h1><a class="boton" href="#/">Ir al inicio</a></section></div>`);
       return;
     }

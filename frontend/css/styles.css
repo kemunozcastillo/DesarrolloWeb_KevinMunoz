@@ -2627,3 +2627,41 @@ code {
   border-radius: var(--radio-control);
   font-size: var(--t-s);
 }
+
+
+/* Contenedor de cada vista: no agrega caja propia al diseño. */
+.vista {
+  display: contents;
+}
+
+/* Mientras una vista espera datos de la API. */
+#contenido[aria-busy="true"] .vista:empty::before {
+  content: "Cargando…";
+  display: block;
+  padding: 64px 16px;
+  text-align: center;
+  color: var(--texto-2);
+}
+
+/* Pagos y contacto en el detalle del pedido. */
+.orden__pagos {
+  margin-top: 24px;
+}
+.orden__pagos ol {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: grid;
+  gap: 6px;
+}
+.orden__pagos li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 0.95rem;
+}
+.aviso-parcial {
+  font-size: 0.9rem;
+  color: var(--texto-2);
+}

@@ -22,14 +22,12 @@ PF.vistas = PF.vistas || {};
   // Clientes
   // -------------------------------------------------------------------------
 
-  PF.vistas.adminClientes = function ({ raiz, query, sesion }) {
+  PF.vistas.adminClientes = async function ({ raiz, query, sesion }) {
     titulo("Clientes");
 
-    const busqueda = (query.get("q") ?? "").trim().toLowerCase();
-    const normal = (t) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    const clientes = C.listarClientes()
-      .filter((c) => !busqueda || normal(`${c.nombre} ${c.run} ${c.email}`).includes(normal(busqueda)) || c.run.replace("-", "").includes(busqueda.replace(/[.-]/g, "")))
-      .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+    // La búsqueda la hace el servicio de clientes (nombre, correo o RUN).
+    const busqueda = (query.get("q") ?? "").trim();
+    const clientes = (await C.listarClientes(busqueda)).sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 
     pintar(
       raiz,
@@ -58,7 +56,7 @@ PF.vistas = PF.vistas || {};
                           <tr data-cliente="${c.id}">
                             <td>
                               <strong>${c.nombre}</strong>
-                              <span class="tabla__detalle">${c.email} ${c.emailVerificado ? "" : html`<span class="etiqueta etiqueta--aviso">Sin verificar</span>`}</span>
+                              <span class="tabla__detalle">${c.email} ${c.emailVerificado === false ? html`<span class="etiqueta etiqueta--aviso">Sin verificar</span>` : ""}</span>
                             </td>
                             <td>${C.formatearRun(c.run)}</td>
                             <td>${c.comuna}</td>
@@ -84,11 +82,11 @@ PF.vistas = PF.vistas || {};
       PF.router.navegar(q ? `/admin/clientes?q=${encodeURIComponent(q)}` : "/admin/clientes");
     });
 
-    raiz.querySelector(".tabla")?.addEventListener("change", (evento) => {
+    raiz.querySelector(".tabla")?.addEventListener("change", async (evento) => {
       const casilla = evento.target.closest("[data-activo]");
       if (!casilla) return;
       try {
-        const cliente = C.cambiarEstadoCliente(casilla.closest("[data-cliente]").dataset.cliente, casilla.checked);
+        const cliente = await C.cambiarEstadoCliente(casilla.closest("[data-cliente]").dataset.cliente, casilla.checked);
         casilla.nextElementSibling.textContent = cliente.activo ? "Activo" : "Inactivo";
       } catch (fallo) {
         casilla.checked = !casilla.checked;
@@ -97,9 +95,9 @@ PF.vistas = PF.vistas || {};
     });
   };
 
-  PF.vistas.adminClienteFormulario = function ({ raiz, params, sesion }) {
+  PF.vistas.adminClienteFormulario = async function ({ raiz, params, sesion }) {
     const esNuevo = !params.id;
-    const cliente = esNuevo ? {} : C.obtenerCliente(params.id);
+    const cliente = esNuevo ? {} : await C.obtenerCliente(params.id);
     titulo(esNuevo ? "Registrar cliente" : "Editar cliente");
 
     if (!cliente) {
@@ -136,7 +134,7 @@ PF.vistas = PF.vistas || {};
 
     const correoSimulado = (email, codigo, clave) => html`
       <div class="correo-simulado">
-        <p class="correo-simulado__etiqueta">Simulación del correo enviado por la API de mensajería</p>
+        <p class="correo-simulado__etiqueta">Modo demo: simulación del correo que enviaría el sistema</p>
         <p><strong>Para:</strong> ${email}</p>
         ${clave ? html`<p>Tu contraseña temporal es <strong class="correo-simulado__codigo">${clave}</strong>. Cámbiala en "Mis datos" después de ingresar.</p>` : ""}
         <p>Tu código de verificación es <strong class="correo-simulado__codigo">${codigo}</strong>. Ingrésalo en <a href="#/verificar?email=${encodeURIComponent(email)}">la página de verificación</a>.</p>
@@ -149,14 +147,14 @@ PF.vistas = PF.vistas || {};
 
       try {
         if (esNuevo) {
-          const clave = C.claveTemporal();
-          const { cliente: nuevo, codigo } = await C.registrarCliente({ ...F.leerFicha(form) , clave }, { origen: "ADMIN" });
+          // La contraseña temporal la genera el servidor y se muestra una sola vez.
+          const { cliente: nuevo, codigo, claveTemporal: clave } = await C.registrarCliente(F.leerFicha(form), { origen: "ADMIN" });
           form.hidden = true;
           pintar(
             raiz.querySelector("[data-resultado]"),
             html`
               <p class="aviso-bloque">Registramos a ${nuevo.nombre}. Le enviamos sus datos de acceso.</p>
-              ${correoSimulado(nuevo.email, codigo, clave)}
+              ${codigo ? correoSimulado(nuevo.email, codigo, clave) : html`<p>Le enviamos su contraseña temporal y el código de verificación por correo.</p>`}
               <div class="estado__acciones estado__acciones--izquierda">
                 <a class="boton" href="#/admin/clientes">Volver a clientes</a>
                 <a class="boton boton--primario" href="#/admin/clientes/nuevo" data-otro>Registrar otro</a>
@@ -170,7 +168,7 @@ PF.vistas = PF.vistas || {};
           return;
         }
 
-        const { cliente: actualizado, codigo } = C.actualizarCliente(cliente.id, F.leerFicha(form));
+        const { cliente: actualizado, codigo } = await C.actualizarCliente(cliente.id, F.leerFicha(form));
         if (codigo) {
           pintar(raiz.querySelector("[data-resultado]"), html`<p class="aviso-bloque">Cambió el correo: el cliente debe verificarlo antes de volver a comprar.</p>${correoSimulado(actualizado.email, codigo)}`);
           avisar("Guardamos los cambios.", { tipo: "exito" });
@@ -188,9 +186,10 @@ PF.vistas = PF.vistas || {};
   // Usuarios internos
   // -------------------------------------------------------------------------
 
-  PF.vistas.adminUsuarios = function ({ raiz, sesion }) {
+  PF.vistas.adminUsuarios = async function ({ raiz, sesion }) {
     titulo("Usuarios");
-    const usuarios = C.listarUsuarios().sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+    const usuarios = (await C.listarUsuarios()).sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+    const yo = sesion.id;
 
     pintar(
       raiz,
@@ -210,7 +209,7 @@ PF.vistas = PF.vistas || {};
                 ${usuarios.map(
                   (u) => html`
                     <tr data-usuario="${u.id}">
-                      <td><strong>${u.nombre}</strong>${u.id === sesion.id ? " (tú)" : ""}<span class="tabla__detalle">${u.email}</span></td>
+                      <td><strong>${u.nombre}</strong>${u.id === yo ? " (tú)" : ""}<span class="tabla__detalle">${u.email}</span></td>
                       <td>${C.PERFILES[u.perfil]}</td>
                       <td>${interruptor(u.activo)}</td>
                       <td class="tabla__acciones"><a class="enlace-boton" href="#/admin/usuarios/${u.id}">Editar</a></td>
@@ -224,11 +223,11 @@ PF.vistas = PF.vistas || {};
       }),
     );
 
-    raiz.querySelector(".tabla").addEventListener("change", (evento) => {
+    raiz.querySelector(".tabla").addEventListener("change", async (evento) => {
       const casilla = evento.target.closest("[data-activo]");
       if (!casilla) return;
       try {
-        const usuario = C.cambiarEstadoUsuario(casilla.closest("[data-usuario]").dataset.usuario, casilla.checked, { actorId: sesion.id });
+        const usuario = await C.cambiarEstadoUsuario(casilla.closest("[data-usuario]").dataset.usuario, casilla.checked);
         casilla.nextElementSibling.textContent = usuario.activo ? "Activo" : "Inactivo";
       } catch (fallo) {
         casilla.checked = !casilla.checked;
@@ -237,9 +236,9 @@ PF.vistas = PF.vistas || {};
     });
   };
 
-  PF.vistas.adminUsuarioFormulario = function ({ raiz, params, sesion }) {
+  PF.vistas.adminUsuarioFormulario = async function ({ raiz, params, sesion }) {
     const esNuevo = !params.id;
-    const usuario = esNuevo ? {} : C.obtenerUsuario(params.id);
+    const usuario = esNuevo ? {} : await C.obtenerUsuario(params.id);
     titulo(esNuevo ? "Crear usuario" : "Editar usuario");
 
     if (!usuario) {
@@ -286,7 +285,7 @@ PF.vistas = PF.vistas || {};
 
       try {
         if (esNuevo) await C.crearUsuario(datos);
-        else await C.actualizarUsuario(usuario.id, { ...datos, clave: datos.clave || null }, { actorId: sesion.id });
+        else await C.actualizarUsuario(usuario.id, { ...datos, clave: datos.clave || null });
         avisar(esNuevo ? `Creamos a ${datos.nombre.trim()}.` : "Guardamos los cambios.", { tipo: "exito" });
         PF.router.navegar("/admin/usuarios");
       } catch (fallo) {

@@ -1,23 +1,26 @@
 PF.vistas = PF.vistas || {};
 
 /**
- * Administración del menú: listar, crear, editar, activar y eliminar items.
- * Edita el mismo catálogo que lee la tienda, así que los cambios se ven de
- * inmediato en el menú y en el armador.
+ * Administración del menú: listar, crear, editar, activar y eliminar items,
+ * con su stock. Los cambios van al microservicio de inventario y se ven en el
+ * menú y en el armador. Solo el administrador puede eliminar (lo exigen el
+ * gateway y el servicio, no solo este botón).
  *
  *   #/admin?categoria=salsas   listado filtrado
  *   #/admin/nuevo              formulario vacío
  *   #/admin/items/:id          formulario de edición
  */
 
-PF.vistas.admin = function ({ raiz, query, sesion }) {
+PF.vistas.admin = async function ({ raiz, query, sesion }) {
   const { CATEGORIAS, avisar, categoriaPorEnum, categoriaPorSlug, crudo, html, pintar, precio, titulo } = PF.ui;
   const catalogo = PF.datos.catalogo;
 
   titulo("Administrar menú");
+  await PF.datos.refrescar(); // stock al día
 
   const seleccion = categoriaPorSlug(query.get("categoria"));
   const items = catalogo.listar({ categoria: seleccion?.enum });
+  const esAdmin = sesion.perfil === "ADMIN";
 
   function fila(item) {
     return html`
@@ -28,15 +31,16 @@ PF.vistas.admin = function ({ raiz, query, sesion }) {
         </td>
         <td>${categoriaPorEnum(item.categoria)?.titulo ?? item.categoria}</td>
         <td class="tabla__numero">${precio(item.precio)}</td>
+        <td class="tabla__numero">${item.stock === null || item.stock === undefined ? "Sin control" : item.stock === 0 ? html`<span class="etiqueta etiqueta--aviso">Sin stock</span>` : item.stock}</td>
         <td>
           <label class="interruptor interruptor--compacto">
-            <input type="checkbox" data-disponible ${crudo(item.disponible ? "checked" : "")} />
-            <span>${item.disponible ? "Disponible" : "Agotado"}</span>
+            <input type="checkbox" data-disponible ${crudo(item.activo ? "checked" : "")} />
+            <span>${item.activo ? "Disponible" : "Agotado"}</span>
           </label>
         </td>
         <td class="tabla__acciones">
           <a class="enlace-boton" href="#/admin/items/${encodeURIComponent(item.id)}">Editar</a>
-          <button class="enlace-boton enlace-boton--peligro" type="button" data-eliminar>Eliminar</button>
+          ${esAdmin ? html`<button class="enlace-boton enlace-boton--peligro" type="button" data-eliminar>Eliminar</button>` : ""}
         </td>
       </tr>
     `;
@@ -47,7 +51,7 @@ PF.vistas.admin = function ({ raiz, query, sesion }) {
         <div class="tabla-envoltura">
           <table class="tabla">
             <thead>
-              <tr><th>Item</th><th>Categoría</th><th class="tabla__numero">Precio</th><th>Estado</th><th><span class="visualmente-oculto">Acciones</span></th></tr>
+              <tr><th>Item</th><th>Categoría</th><th class="tabla__numero">Precio</th><th class="tabla__numero">Stock</th><th>Estado</th><th><span class="visualmente-oculto">Acciones</span></th></tr>
             </thead>
             <tbody>${items.map(fila)}</tbody>
           </table>
@@ -61,8 +65,6 @@ PF.vistas.admin = function ({ raiz, query, sesion }) {
         </section>
       `;
 
-  const esAdmin = sesion.perfil === "ADMIN";
-
   pintar(
     raiz,
     PF.ui.panel({
@@ -73,7 +75,7 @@ PF.vistas.admin = function ({ raiz, query, sesion }) {
           <h1>Productos</h1>
           <a class="boton boton--primario" href="#/admin/nuevo">Agregar item</a>
         </div>
-        <p class="nota-admin">La disponibilidad y los precios se ven al instante en el menú y en el armador.</p>
+        <p class="nota-admin">La disponibilidad, el stock y los precios se ven en el menú y en el armador. Un producto sin stock aparece agotado aunque esté marcado como disponible.</p>
         <div class="admin__herramientas">
           <label class="selector">
             <span>Categoría</span>
@@ -82,7 +84,6 @@ PF.vistas.admin = function ({ raiz, query, sesion }) {
               ${CATEGORIAS.map((c) => html`<option value="${c.slug}" ${crudo(seleccion?.slug === c.slug ? "selected" : "")}>${c.titulo}</option>`)}
             </select>
           </label>
-          ${esAdmin ? html`<button class="enlace-boton" type="button" data-restaurar>Restaurar datos de ejemplo</button>` : ""}
         </div>
         <div data-tabla>${tabla}</div>
       `,
@@ -95,29 +96,22 @@ PF.vistas.admin = function ({ raiz, query, sesion }) {
     PF.router.navegar(valor ? `/admin?categoria=${valor}` : "/admin");
   });
 
-  raiz.querySelector("[data-restaurar]")?.addEventListener("click", async () => {
-    if (!confirm("¿Volver a los datos de ejemplo? Se borran los productos, clientes, usuarios y pedidos creados, y se cierra la sesión.")) return;
-    await PF.ejemplo.restaurar();
-    avisar("Restauramos los datos de ejemplo. Ingresa de nuevo.", { tipo: "exito" });
-    PF.router.navegar("/ingresar");
-  });
-
   const contenedor = raiz.querySelector("[data-tabla]");
 
-  contenedor.addEventListener("change", (evento) => {
+  contenedor.addEventListener("change", async (evento) => {
     const casilla = evento.target.closest("[data-disponible]");
     if (!casilla) return;
 
     try {
-      const item = catalogo.actualizar(casilla.closest("[data-item]").dataset.item, { disponible: casilla.checked });
-      casilla.nextElementSibling.textContent = item.disponible ? "Disponible" : "Agotado";
+      const item = await catalogo.actualizar(casilla.closest("[data-item]").dataset.item, { disponible: casilla.checked });
+      casilla.nextElementSibling.textContent = item.activo ? "Disponible" : "Agotado";
     } catch (error) {
       casilla.checked = !casilla.checked;
       avisar(error.message, { tipo: "error" });
     }
   });
 
-  contenedor.addEventListener("click", (evento) => {
+  contenedor.addEventListener("click", async (evento) => {
     const boton = evento.target.closest("[data-eliminar]");
     if (!boton) return;
 
@@ -126,7 +120,7 @@ PF.vistas.admin = function ({ raiz, query, sesion }) {
     if (!confirm(`¿Eliminar "${nombre}" del menú? Esta acción no se puede deshacer.`)) return;
 
     try {
-      catalogo.eliminar(filaHtml.dataset.item);
+      await catalogo.eliminar(filaHtml.dataset.item);
       filaHtml.remove();
       avisar(`Eliminamos ${nombre} del menú.`, { tipo: "exito" });
     } catch (error) {
@@ -135,12 +129,12 @@ PF.vistas.admin = function ({ raiz, query, sesion }) {
   });
 };
 
-PF.vistas.adminFormulario = function ({ raiz, params, sesion }) {
+PF.vistas.adminFormulario = async function ({ raiz, params, sesion }) {
   const { CATEGORIAS, avisar, categoriaPorEnum, crudo, html, pintar, titulo } = PF.ui;
   const catalogo = PF.datos.catalogo;
 
   const esNuevo = !params.id;
-  const item = esNuevo ? null : catalogo.obtener(params.id);
+  const item = esNuevo ? null : await PF.api.get(`/catalogo/items/${encodeURIComponent(params.id)}`).catch((e) => (e.estado === 404 ? null : Promise.reject(e)));
 
   titulo(esNuevo ? "Nuevo item" : "Editar item");
 
@@ -191,8 +185,13 @@ PF.vistas.adminFormulario = function ({ raiz, params, sesion }) {
               <p class="campo__ayuda" data-ayuda-precio></p>
             </div>
           </div>
+          <div class="campo">
+            <label for="f-stock">Stock (porciones o unidades)</label>
+            <input id="f-stock" name="stock" type="number" min="0" max="100000" step="1" value="${item?.stock ?? ""}" />
+            <p class="campo__ayuda">Vacío si no se controla (por ejemplo, salsas que se reponen a granel). Cada pedido lo descuenta y una anulación lo devuelve.</p>
+          </div>
           <label class="interruptor">
-            <input type="checkbox" name="disponible" ${crudo(valor("disponible", true) ? "checked" : "")} />
+            <input type="checkbox" name="disponible" ${crudo(valor("activo", true) ? "checked" : "")} />
             <span>Disponible hoy</span>
           </label>
           <p class="checkout__error" data-error role="alert" hidden></p>
@@ -227,7 +226,7 @@ PF.vistas.adminFormulario = function ({ raiz, params, sesion }) {
   form.elements.categoria.addEventListener("change", ajustarPrecio);
   ajustarPrecio();
 
-  form.addEventListener("submit", (evento) => {
+  form.addEventListener("submit", async (evento) => {
     evento.preventDefault();
     error.hidden = true;
 
@@ -240,15 +239,19 @@ PF.vistas.adminFormulario = function ({ raiz, params, sesion }) {
       categoria: form.elements.categoria.value,
       precio: Number(form.elements.precio.value),
       disponible: form.elements.disponible.checked,
+      stock: form.elements.stock.value === "" ? null : Number(form.elements.stock.value),
     };
 
+    const boton = form.querySelector('[type="submit"]');
+    boton.disabled = true;
     try {
-      const guardado = esNuevo ? catalogo.crear(datos) : catalogo.actualizar(item.id, datos);
+      const guardado = esNuevo ? await catalogo.crear(datos) : await catalogo.actualizar(item.id, datos);
       avisar(esNuevo ? `Agregamos ${guardado.nombre} al menú.` : "Guardamos los cambios.", { tipo: "exito" });
       PF.router.navegar(`/admin?categoria=${categoriaPorEnum(guardado.categoria).slug}`);
     } catch (fallo) {
       error.textContent = fallo.message;
       error.hidden = false;
+      boton.disabled = false;
     }
   });
 };

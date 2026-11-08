@@ -20,7 +20,7 @@ PF.vistas = PF.vistas || {};
   // Ingresar: #/ingresar?volver=/checkout
   // -------------------------------------------------------------------------
 
-  PF.vistas.ingresar = function ({ raiz, query, sesion }) {
+  PF.vistas.ingresar = async function ({ raiz, query, sesion }) {
     titulo("Ingresar");
 
     if (sesion) {
@@ -30,7 +30,8 @@ PF.vistas = PF.vistas || {};
 
     const vencio = PF.cuentas.sesionVencio();
     const pideSesion = query.get("volver");
-    const { USUARIOS, CLIENTE_DEMO } = PF.ejemplo;
+    // Las cuentas de prueba las informa el gateway solo en modo demo: no están escritas en este código.
+    const { cuentasDemo = [] } = await PF.api.get("/auth/config").catch(() => ({}));
 
     pintar(
       raiz,
@@ -52,16 +53,17 @@ PF.vistas = PF.vistas || {};
 
           <p class="cuenta__alternativa">¿No tienes cuenta? <a href="#/registro${crudo(pideSesion ? `?volver=${encodeURIComponent(pideSesion)}` : "")}">Regístrate</a></p>
 
-          <details class="credenciales">
-            <summary>Cuentas de prueba</summary>
-            <p>Para revisar el sistema con cada perfil. Haz clic en una para completar el formulario.</p>
-            <ul>
-              <li><button type="button" class="enlace-boton" data-demo="${CLIENTE_DEMO.email}" data-clave="${CLIENTE_DEMO.clave}">Cliente</button> <code>${CLIENTE_DEMO.email}</code> <code>${CLIENTE_DEMO.clave}</code></li>
-              ${USUARIOS.map(
-                (u) => html`<li><button type="button" class="enlace-boton" data-demo="${u.email}" data-clave="${u.clave}">${PF.cuentas.PERFILES[u.perfil]}</button> <code>${u.email}</code> <code>${u.clave}</code></li>`,
-              )}
-            </ul>
-          </details>
+          ${cuentasDemo.length
+            ? html`
+                <details class="credenciales">
+                  <summary>Cuentas de prueba (modo demo)</summary>
+                  <p>Para revisar el sistema con cada perfil. Haz clic en una para completar el formulario.</p>
+                  <ul>
+                    ${cuentasDemo.map((u) => html`<li><button type="button" class="enlace-boton" data-demo="${u.email}" data-clave="${u.clave}">${u.perfil}</button> <code>${u.email}</code> <code>${u.clave}</code></li>`)}
+                  </ul>
+                </details>
+              `
+            : ""}
         </div>
       `,
     );
@@ -70,7 +72,7 @@ PF.vistas = PF.vistas || {};
     const error = raiz.querySelector("[data-error]");
     const boton = form.querySelector('[type="submit"]');
 
-    raiz.querySelector(".credenciales").addEventListener("click", (evento) => {
+    raiz.querySelector(".credenciales")?.addEventListener("click", (evento) => {
       const demo = evento.target.closest("[data-demo]");
       if (!demo) return;
       form.elements.email.value = demo.dataset.demo;
@@ -147,12 +149,15 @@ PF.vistas = PF.vistas || {};
         return;
       }
 
+      const boton = form.querySelector('[type="submit"]');
+      boton.disabled = true;
       try {
         const { cliente } = await PF.cuentas.registrarCliente({ ...F.leerFicha(form), clave: form.elements.clave.value });
         const volver = query.get("volver");
         PF.router.navegar(`/verificar?email=${encodeURIComponent(cliente.email)}${volver ? `&volver=${encodeURIComponent(volver)}` : ""}`);
       } catch (fallo) {
         F.mostrarError(error, fallo.message);
+        boton.disabled = false;
       }
     });
   };
@@ -172,7 +177,7 @@ PF.vistas = PF.vistas || {};
       return codigo
         ? html`
             <div class="correo-simulado" aria-label="Correo simulado">
-              <p class="correo-simulado__etiqueta">Simulación del correo enviado por la API de mensajería</p>
+              <p class="correo-simulado__etiqueta">Modo demo: simulación del correo que enviaría el sistema</p>
               <p><strong>Para:</strong> ${email}</p>
               <p><strong>Asunto:</strong> Tu código de Poke Fresh</p>
               <p>Tu código de verificación es <strong class="correo-simulado__codigo">${codigo}</strong>. Vence en 24 horas.</p>
@@ -203,12 +208,12 @@ PF.vistas = PF.vistas || {};
     const form = raiz.querySelector("form");
     const error = raiz.querySelector("[data-error]");
 
-    form.addEventListener("submit", (evento) => {
+    form.addEventListener("submit", async (evento) => {
       evento.preventDefault();
       F.mostrarError(error, "");
 
       try {
-        PF.cuentas.verificarCorreo(email, form.elements.codigo.value);
+        await PF.cuentas.verificarCorreo(email, form.elements.codigo.value);
         avisar("Correo verificado. Ya puedes ingresar.", { tipo: "exito" });
         PF.router.navegar(`/ingresar${volver ? `?volver=${encodeURIComponent(volver)}` : ""}`, { reemplazar: true });
       } catch (fallo) {
@@ -216,9 +221,9 @@ PF.vistas = PF.vistas || {};
       }
     });
 
-    raiz.querySelector("[data-reenviar]").addEventListener("click", () => {
+    raiz.querySelector("[data-reenviar]").addEventListener("click", async () => {
       try {
-        PF.cuentas.reenviarCodigo(email);
+        await PF.cuentas.reenviarCodigo(email);
         pintar(raiz.querySelector("[data-bandeja]"), bandeja());
         avisar("Te enviamos un código nuevo.", { tipo: "exito" });
       } catch (fallo) {
@@ -231,9 +236,9 @@ PF.vistas = PF.vistas || {};
   // Mi cuenta: #/mi-cuenta
   // -------------------------------------------------------------------------
 
-  PF.vistas.miCuenta = function ({ raiz, sesion }) {
+  PF.vistas.miCuenta = async function ({ raiz, sesion }) {
     titulo("Mi cuenta");
-    const cliente = PF.cuentas.obtenerCliente(sesion.id);
+    const cliente = await PF.cuentas.obtenerCliente(sesion.id);
 
     pintar(
       raiz,
@@ -266,15 +271,15 @@ PF.vistas = PF.vistas || {};
     F.conectarUbicacion(ficha);
     F.formatearRunAlSalir(ficha.elements.run);
 
-    ficha.addEventListener("submit", (evento) => {
+    ficha.addEventListener("submit", async (evento) => {
       evento.preventDefault();
       F.mostrarError(error, "");
 
       try {
-        const { cliente: actualizado, codigo } = PF.cuentas.actualizarCliente(sesion.id, F.leerFicha(ficha));
+        const { cliente: actualizado, codigo } = await PF.cuentas.actualizarCliente(sesion.id, F.leerFicha(ficha));
         if (codigo) {
-          // Cambiar el correo exige verificarlo de nuevo antes de volver a comprar.
-          PF.cuentas.salir();
+          // Cambiar el correo exige verificarlo de nuevo: el Auth Service ya cerró la sesión.
+          await PF.cuentas.salir().catch(() => {});
           avisar("Guardamos tus datos. Verifica tu correo nuevo para volver a ingresar.", { tipo: "exito", duracion: 5000 });
           PF.router.navegar(`/verificar?email=${encodeURIComponent(actualizado.email)}`);
           return;
@@ -305,9 +310,9 @@ PF.vistas = PF.vistas || {};
   // Mis pedidos: #/mis-pedidos
   // -------------------------------------------------------------------------
 
-  PF.vistas.misPedidos = function ({ raiz, sesion }) {
+  PF.vistas.misPedidos = async function ({ raiz }) {
     titulo("Mis pedidos");
-    const pedidos = PF.pedidos.delCliente(sesion.id);
+    const pedidos = await PF.pedidos.delCliente();
 
     pintar(
       raiz,

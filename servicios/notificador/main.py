@@ -64,7 +64,12 @@ def conectar():
     conexion = stomp.Connection12([(host, puerto)], reconnect_attempts_max=1)
     escuchador = Escuchador(conexion)
     conexion.set_listener("", escuchador)
-    conexion.connect(os.environ.get("ACTIVEMQ_USUARIO", "admin"), os.environ.get("ACTIVEMQ_CLAVE", "admin"), wait=True)
+    # Sin usuario si el broker no exige autenticación (ActiveMQ por defecto, solo en la red privada).
+    usuario = os.environ.get("ACTIVEMQ_USUARIO")
+    if usuario:
+        conexion.connect(usuario, os.environ.get("ACTIVEMQ_CLAVE", ""), wait=True)
+    else:
+        conexion.connect(wait=True)
     for i, cola in enumerate(COLAS):
         conexion.subscribe(destination=cola, id=str(i + 1), ack="client-individual")
     registro.info("escuchando %s en %s:%s", ", ".join(COLAS), host, puerto)

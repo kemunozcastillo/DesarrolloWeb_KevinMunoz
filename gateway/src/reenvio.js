@@ -3,7 +3,7 @@
  *
  * Antes de reenviar:
  *   - se arma un juego de cabeceras NUEVO: del navegador solo pasan
- *     Content-Type, Accept e Idempotency-Key. La cookie, Authorization y
+ *     Content-Type, Accept, Idempotency-Key y X-Firma (la firma de la pasarela). La cookie, Authorization y
  *     cualquier X-Usuario-* o X-Credencial-Interna que mande el navegador se
  *     descartan: la identidad la escribe solo el gateway;
  *   - se agrega la credencial interna del servicio de destino (de Vault);
@@ -24,7 +24,7 @@ export class ErrorDestino extends Error {
 }
 
 const NOMBRES = { inventario: "inventario", clientes: "clientes", pedidos: "pedidos", pagos: "pagos", graphql: "consultas", auth: "cuentas" };
-const DEJAR_PASAR = ["content-type", "accept", "idempotency-key"];
+const DEJAR_PASAR = ["content-type", "accept", "idempotency-key", "x-firma"];
 
 export function crearReenvio(config, vault) {
   async function cabecerasInternas(destino) {

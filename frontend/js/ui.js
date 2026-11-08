@@ -236,7 +236,7 @@ PF.ui = (function () {
           <nav class="panel__nav" aria-label="Secciones del panel">
             ${secciones.map((s) => {
               // Cocina muestra cuántos pedidos esperan ser aceptados.
-              const pendientes = s.ruta === "/admin/cocina" ? PF.pedidos.porAceptar().length : 0;
+              const pendientes = s.ruta === "/admin/cocina" ? PF.ui.pendientesCocina : 0;
               return html`<a href="#${s.ruta}" ${crudo(s.ruta === activa ? 'aria-current="page"' : "")}>${s.titulo}${pendientes ? html` <span class="panel__cuenta">${pendientes}</span>` : ""}</a>`;
             })}
           </nav>
@@ -335,6 +335,8 @@ PF.ui = (function () {
     fechaCorta,
     etiquetaEstado,
     SECCIONES_PANEL,
+    // Pedidos pagados que cocina todavía no acepta. Lo actualiza main.js al consultar la cola.
+    pendientesCocina: 0,
     accesoDe,
     inicioPanel,
     panel,

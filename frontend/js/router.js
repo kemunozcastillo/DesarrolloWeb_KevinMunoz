@@ -24,6 +24,7 @@ PF.router = (function () {
   let raiz = null;
   let limpiezaActual = null;
   let hashIgnorado = null;
+  let turnoActual = 0;
 
   /** Convierte "/orden/:id" en una expresión regular y la lista de claves. */
   function compilar(patron) {
@@ -108,7 +109,6 @@ PF.router = (function () {
 
     marcarNavegacion(ruta);
 
-    PF.cuentas.renovarSesion();
     const sesion = PF.cuentas.sesionActual();
     const acceso = coincidencia?.definicion.acceso;
 
@@ -122,11 +122,45 @@ PF.router = (function () {
     let vista = coincidencia?.definicion.vista ?? vistaNoEncontrada;
     if (acceso && !permitido(acceso, sesion)) vista = vistaSinPermiso;
 
-    try {
-      limpiezaActual = vista({ raiz, params: coincidencia?.params ?? {}, query, sesion });
-    } catch (error) {
+    // Cada vista pinta en su propio contenedor. Si la vista espera datos de la
+    // API y el usuario ya navegó a otra, sigue pintando en un contenedor que
+    // ya no está en la página, sin pisar la vista nueva.
+    const turno = ++turnoActual;
+    const contenedor = document.createElement("div");
+    contenedor.className = "vista";
+    raiz.replaceChildren(contenedor);
+    raiz.setAttribute("aria-busy", "true");
+
+    const mostrarError = (error) => {
       console.error(error);
-      raiz.innerHTML = `<section class="estado estado--error"><h1>No pudimos mostrar esta página</h1><p>Recarga para intentarlo de nuevo.</p></section>`;
+      if (turno !== turnoActual || error?.codigo === "SIN_SESION" || error?.codigo === "SESION_EXPIRADA") return;
+      const mensaje = error?.estado ? error.message : "Recarga para intentarlo de nuevo.";
+      contenedor.innerHTML = "";
+      PF.ui.pintar(contenedor, PF.ui.html`<div class="pagina pagina--angosta"><section class="estado estado--error"><h1>No pudimos mostrar esta página</h1><p>${mensaje}</p><button class="boton" type="button" data-reintentar>Reintentar</button></section></div>`);
+      contenedor.querySelector("[data-reintentar]").addEventListener("click", () => resolver({ moverFoco: false }));
+    };
+
+    const terminar = () => {
+      if (turno === turnoActual) raiz.removeAttribute("aria-busy");
+    };
+
+    try {
+      const resultado = vista({ raiz: contenedor, params: coincidencia?.params ?? {}, query, sesion });
+      if (resultado && typeof resultado.then === "function") {
+        resultado
+          .then((limpieza) => {
+            if (turno === turnoActual) limpiezaActual = limpieza;
+            else if (typeof limpieza === "function") limpieza();
+          })
+          .catch(mostrarError)
+          .finally(terminar);
+      } else {
+        limpiezaActual = resultado;
+        terminar();
+      }
+    } catch (error) {
+      mostrarError(error);
+      terminar();
     }
 
     if (moverFoco) {

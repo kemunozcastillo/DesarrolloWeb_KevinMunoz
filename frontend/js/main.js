@@ -1,6 +1,6 @@
 /**
- * Punto de entrada: carga los datos de ejemplo, define las rutas con su
- * acceso, conecta la cabecera (cuenta y carrito) y arranca el router.
+ * Punto de entrada: carga el catálogo y la sesión desde la API, define las
+ * rutas con su acceso, conecta la cabecera (cuenta y carrito) y arranca el router.
  */
 
 (async function () {
@@ -8,8 +8,16 @@
   const { html, pintar, accesoDe } = PF.ui;
   const v = PF.vistas;
 
-  // La primera vez se crean las cuentas y ventas de ejemplo (usa hash de claves, que es asíncrono).
-  await PF.ejemplo.inicializar();
+  // Catálogo y sesión vienen del backend. Si la API no responde, se avisa en vez de mostrar una tienda vacía.
+  try {
+    await Promise.all([PF.datos.cargar(), PF.cuentas.cargarSesion()]);
+  } catch (fallo) {
+    pintar(
+      document.querySelector("#contenido"),
+      html`<div class="pagina pagina--angosta"><section class="estado estado--error"><h1>La tienda no está disponible</h1><p>${fallo.message} Intenta en unos minutos.</p></section></div>`,
+    );
+    return;
+  }
 
   // --- Tienda (pública) ---------------------------------------------------------
   definir("/", v.inicio);
@@ -75,14 +83,22 @@
     pintar(cuenta, html`${enlace}<button class="enlace-cabecera enlace-cabecera--boton" type="button" data-salir>Salir</button>`);
   }
 
-  cuenta.addEventListener("click", (evento) => {
+  cuenta.addEventListener("click", async (evento) => {
     if (!evento.target.closest("[data-salir]")) return;
-    PF.cuentas.salir();
+    try {
+      await PF.cuentas.salir();
+    } catch {
+      /* la sesión local se cierra igual */
+    }
     PF.ui.avisar("Cerraste sesión.", { tipo: "exito" });
     PF.router.navegar("/");
   });
 
-  PF.cuentas.alCambiarSesion(pintarCuenta);
+  // Al cambiar de sesión, el catálogo se pide de nuevo: el administrador ve el stock, el público no.
+  PF.cuentas.alCambiarSesion((sesion) => {
+    pintarCuenta(sesion);
+    PF.datos.refrescar().catch(() => {});
+  });
 
   // --- Cabecera: carrito ---------------------------------------------------------------
   const contador = document.querySelector("[data-carrito-cuenta]");
@@ -91,11 +107,12 @@
     contador.hidden = cantidad === 0;
   });
 
-  // --- Aviso de pedidos nuevos en cocina ------------------------------------------------
-  // Sin servidor no hay notificaciones entre equipos: el aviso llega a las
-  // otras pestañas del mismo navegador, a través del evento "storage".
+  // --- Pantallas en vivo y aviso de pedidos nuevos en cocina -------------------------------
+  // Cocina, despacho y el seguimiento del pedido consultan la API cada pocos
+  // segundos. La pantalla solo se vuelve a pintar si algo cambió, para no
+  // perder lo que el usuario esté escribiendo o eligiendo.
 
-  let conocidos = new Set(PF.pedidos.porAceptar().map((p) => p.id));
+  let conocidos = null;
 
   function sonar() {
     try {
@@ -119,7 +136,7 @@
   function actualizarInsignia() {
     const enlace = document.querySelector('.panel__nav a[href="#/admin/cocina"]');
     if (!enlace) return;
-    const cantidad = PF.pedidos.porAceptar().length;
+    const cantidad = PF.ui.pendientesCocina;
     let insignia = enlace.querySelector(".panel__cuenta");
     if (!cantidad) return insignia?.remove();
     if (!insignia) {
@@ -130,36 +147,57 @@
     insignia.textContent = cantidad;
   }
 
-  function revisarPedidosNuevos() {
-    const actuales = PF.pedidos.porAceptar();
-    const nuevos = actuales.filter((p) => !conocidos.has(p.id));
-    conocidos = new Set(actuales.map((p) => p.id));
+  const firma = (lista) => lista.map((p) => `${p.id}:${p.estado}`).join("|");
+  let ultimaFirma = { ruta: null, valor: null };
 
-    const sesion = PF.cuentas.sesionActual();
-    if (!nuevos.length || !["COCINA", "ADMIN"].includes(sesion?.perfil)) return;
-
-    PF.ui.avisar(nuevos.length === 1 ? `Nuevo pedido ${nuevos[0].id} para cocina.` : `${nuevos.length} pedidos nuevos para cocina.`, { tipo: "exito", duracion: 6000 });
-    if (sesion.perfil === "COCINA") sonar();
+  /** Qué consultar según la pantalla abierta. */
+  function consultaDeRuta(ruta, sesion) {
+    if (ruta === "/admin/cocina") return () => PF.pedidos.colaCocina();
+    if (ruta === "/admin/despacho") return () => PF.pedidos.colaDespacho();
+    if (ruta === "/mis-pedidos" && sesion.tipo === "CLIENTE") return () => PF.pedidos.delCliente();
+    const orden = /^\/orden\/([^/]+)$/.exec(ruta);
+    if (orden) return async () => [await PF.pedidos.obtener(decodeURIComponent(orden[1]))].filter(Boolean);
+    return null;
   }
 
-  // Pantallas que muestran pedidos en vivo y se repintan si cambian en otra pestaña.
-  const RUTAS_EN_VIVO = ["/admin/cocina", "/admin/despacho", "/admin/caja", "/orden/", "/mis-pedidos"];
+  async function revisar() {
+    const sesion = PF.cuentas.sesionActual();
+    if (!sesion || document.hidden) return;
+    const ruta = location.hash.replace(/^#/, "").split("?")[0];
 
-  // Otra pestaña cambió el carrito o los pedidos: se refleja aquí también.
-  // La sesión no se comparte: cada pestaña tiene la suya.
+    try {
+      if (["COCINA", "ADMIN"].includes(sesion.perfil)) {
+        const actuales = await PF.pedidos.porAceptar();
+        const nuevos = conocidos ? actuales.filter((p) => !conocidos.has(p.id)) : [];
+        conocidos = new Set(actuales.map((p) => p.id));
+        PF.ui.pendientesCocina = actuales.length;
+        actualizarInsignia();
+        if (nuevos.length) {
+          PF.ui.avisar(nuevos.length === 1 ? `Nuevo pedido ${nuevos[0].id} para cocina.` : `${nuevos.length} pedidos nuevos para cocina.`, { tipo: "exito", duracion: 6000 });
+          if (sesion.perfil === "COCINA") sonar();
+        }
+      }
+
+      const consulta = consultaDeRuta(ruta, sesion);
+      if (!consulta) return;
+      const valor = firma(await consulta());
+      if (ultimaFirma.ruta === ruta && ultimaFirma.valor !== valor) PF.router.recargar();
+      ultimaFirma = { ruta, valor };
+    } catch {
+      /* sin conexión: se reintenta en la próxima vuelta */
+    }
+  }
+
+  setInterval(revisar, 8000);
+  window.addEventListener("hashchange", () => (ultimaFirma = { ruta: null, valor: null }));
+
+  // Otra pestaña cambió el carrito: se refleja aquí también.
   window.addEventListener("storage", (evento) => {
     if (evento.key === "pokefresh:carrito") PF.tienda.notificar();
-
-    if (evento.key === "pokefresh:pedidos") {
-      revisarPedidosNuevos();
-      actualizarInsignia();
-      const ruta = location.hash.replace(/^#/, "").split("?")[0];
-      if (RUTAS_EN_VIVO.some((r) => ruta === r || ruta.startsWith(r))) PF.router.recargar();
-    }
   });
 
-  // Cualquier actividad renueva la sesión; sin actividad, expira sola.
-  document.addEventListener("click", () => PF.cuentas.renovarSesion(), { passive: true });
+  // El catálogo se vuelve a pedir cada minuto: precios y disponibilidad al día.
+  setInterval(() => PF.datos.refrescar().catch(() => {}), 60_000);
 
   // "Saltar al contenido" no puede usar un ancla (#contenido) porque el hash
   // es la ruta del sitio: mueve el foco con JavaScript.
@@ -171,4 +209,5 @@
   pintarCuenta(PF.cuentas.sesionActual());
   iniciar(document.querySelector("#contenido"));
   PF.tienda.notificar();
+  revisar();
 })();

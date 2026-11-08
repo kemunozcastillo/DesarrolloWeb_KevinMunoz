@@ -167,6 +167,7 @@ async function crearPoliticasYTokens() {
 await esperarVault();
 await inicializarYDesbloquear();
 const credencialesMongo = await crearSecretos();
-await crearUsuariosMongo(credencialesMongo);
+// SIN_MONGO: solo para el entorno de pruebas local, que usa Mongo en memoria.
+if (process.env.SIN_MONGO !== "true") await crearUsuariosMongo(credencialesMongo);
 await crearPoliticasYTokens();
 console.log("Listo.");

@@ -1,0 +1,345 @@
+{
+  "fecha": "2026-11-08T00:15:03",
+  "gateway": "http://127.0.0.1:8080",
+  "resultados": [
+    {
+      "caso": "7.1",
+      "nombre": "Acceso anónimo al catálogo",
+      "entrada": "GET /catalogo/items",
+      "identidad": "anónimo",
+      "esperado": "200, sin stock ni datos internos",
+      "obtenido": "200, 29 productos, ninguno trae stock",
+      "componente": "Gateway (ruta pública) + inventario",
+      "ok": true,
+      "ms": 41,
+      "detalle": {
+        "requestId": "e2e-7e755a97f44d"
+      }
+    },
+    {
+      "caso": "7.2",
+      "nombre": "Operación protegida sin sesión",
+      "entrada": "GET /pedidos",
+      "identidad": "anónimo",
+      "esperado": "401 SIN_SESION",
+      "obtenido": "401 SIN_SESION",
+      "componente": "Gateway",
+      "ok": true,
+      "ms": 3,
+      "detalle": {
+        "requestId": "e2e-3f8519b20ebc"
+      }
+    },
+    {
+      "caso": "7.3",
+      "nombre": "Administración desde un rol sin permiso",
+      "entrada": "DELETE /catalogo/items/top_mango; GET /clientes; GET /reportes/ventas",
+      "identidad": "cocina, dueño, cliente",
+      "esperado": "403 en las tres",
+      "obtenido": "cocina DELETE 403, dueño DELETE 403, cliente /clientes 403, cocina reportes 403",
+      "componente": "Gateway (matriz de rutas) + inventario",
+      "ok": true,
+      "ms": 19,
+      "detalle": {
+        "requestIds": [
+          "e2e-42313e86767f",
+          "e2e-bdf646b6c458",
+          "e2e-69fc57bfd052",
+          "e2e-111cbc2e5178"
+        ]
+      }
+    },
+    {
+      "caso": "7.4",
+      "nombre": "Cabeceras de identidad falsificadas",
+      "entrada": "GET /clientes con X-Usuario-Rol: admin",
+      "identidad": "cliente",
+      "esperado": "403 (el gateway descarta la cabecera)",
+      "obtenido": "403: la identidad la pone el gateway, no el navegador",
+      "componente": "Gateway",
+      "ok": true,
+      "ms": 3,
+      "detalle": {
+        "requestId": "e2e-82765bf8f9c9"
+      }
+    },
+    {
+      "caso": "10.1",
+      "nombre": "Compra completa: pedido con precio calculado en el servidor",
+      "entrada": "POST /pedidos con precioUnitario: 1 en la línea",
+      "identidad": "cliente",
+      "esperado": "201, total = precio del catálogo",
+      "obtenido": "201 PF-00081, total 7890 (el 1 enviado se ignoró)",
+      "componente": "Pedidos + inventario + clientes",
+      "ok": true,
+      "ms": 168,
+      "detalle": {
+        "requestId": "e2e-3e2a72a0c2de",
+        "pedido": "PF-00081"
+      }
+    },
+    {
+      "caso": "7.5",
+      "nombre": "Consulta de un pedido ajeno (REST y GraphQL)",
+      "entrada": "GET /pedidos/{id}; resumenPedido(id)",
+      "identidad": "otro cliente",
+      "esperado": "404 sin datos; GraphQL null",
+      "obtenido": "REST 404 sin datos; GraphQL resumenPedido = null; la dueña sí lo ve (200)",
+      "componente": "Pedidos (propiedad del recurso) + GraphQL Gateway",
+      "ok": true,
+      "ms": 57,
+      "detalle": {
+        "requestIds": [
+          "e2e-a4ab22800249",
+          "e2e-b6f29d05c10e",
+          "e2e-4110b4bed2eb"
+        ]
+      }
+    },
+    {
+      "caso": "7.6",
+      "nombre": "Pago con datos alterados desde el frontend",
+      "entrada": "POST /pagos {monto: 1}; POST /pagos/notificacion sin firma y con firma falsa",
+      "identidad": "cliente",
+      "esperado": "monto = total del pedido; notificaciones 401",
+      "obtenido": "monto cobrado 7890 (no 1); notificación sin firma 401, firma falsa 401; pedido sigue PENDIENTE_PAGO",
+      "componente": "Pagos (firma HMAC, monto del pedido)",
+      "ok": true,
+      "ms": 197,
+      "detalle": {
+        "requestIds": [
+          "e2e-3270d9c7e6df",
+          "e2e-b930360e365f",
+          "e2e-c8faa763da43"
+        ]
+      }
+    },
+    {
+      "caso": "10.2",
+      "nombre": "Pago duplicado (doble clic)",
+      "entrada": "POST /pagos dos veces con la misma Idempotency-Key",
+      "identidad": "cliente",
+      "esperado": "el mismo pago",
+      "obtenido": "mismo pago PAG-D8AB2B052EC1",
+      "componente": "Pagos (idempotencia)",
+      "ok": true,
+      "ms": 6,
+      "detalle": {
+        "requestId": "e2e-cc649ec031bc"
+      }
+    },
+    {
+      "caso": "10.3",
+      "nombre": "Pago aprobado en la pasarela y notificación firmada",
+      "entrada": "POST pasarela /pagar/{token} APROBADO (dos veces)",
+      "identidad": "cliente (navegador en Servipag)",
+      "esperado": "pedido PAGADO con boleta; el segundo envío no hace nada",
+      "obtenido": "PAGADO, venta N° 79, boleta N° 79, ref. SVP-60397082; un solo paso PAGADO",
+      "componente": "Pasarela -> gateway -> pagos -> pedidos -> ActiveMQ",
+      "ok": true,
+      "ms": 82,
+      "detalle": {
+        "pedido": "PF-00081"
+      }
+    },
+    {
+      "caso": "10.4",
+      "nombre": "Flujo de cocina y despacho con permisos",
+      "entrada": "aceptar/terminar (cocina), despachar/entregar (despacho), y cruzados",
+      "identidad": "cocina, despacho",
+      "esperado": "estados en orden; cruzados 403",
+      "obtenido": "despacho→aceptar 403, cocina→despachar 403; pasos [200, 409, 200, 200, 200]; cocina ve solo nombre y teléfono; final ENTREGADO",
+      "componente": "Gateway + pedidos",
+      "ok": true,
+      "ms": 53,
+      "detalle": {
+        "pedido": "PF-00081"
+      }
+    },
+    {
+      "caso": "8.1",
+      "nombre": "Agregación GraphQL desde la pantalla del pedido",
+      "entrada": "resumenPedido(id) con pedido, pagos y productos",
+      "identidad": "cliente",
+      "esperado": "datos de pedidos + pagos + inventario en una respuesta",
+      "obtenido": "pedido + pago APROBADO + 4 categorías de productos; campo cliente negado al cliente (PROHIBIDO)",
+      "componente": "GraphQL Gateway",
+      "ok": true,
+      "ms": 31,
+      "detalle": {
+        "requestId": "e2e-e61e69cef7b3"
+      }
+    },
+    {
+      "caso": "8.2",
+      "nombre": "Límites GraphQL",
+      "entrada": "consulta de costo alto; misPedidos(primeros: 500)",
+      "identidad": "cliente",
+      "esperado": "rechazadas antes de ejecutar",
+      "obtenido": "costo: «La consulta cuesta 11102 y el máximo permitido es 1000.»; página >50: BAD_USER_INPUT",
+      "componente": "GraphQL Gateway",
+      "ok": true,
+      "ms": 16,
+      "detalle": {}
+    },
+    {
+      "caso": "8.3",
+      "nombre": "Reporte con agregación (admin/dueño)",
+      "entrada": "reporteVentas(desde, hasta)",
+      "identidad": "dueño; cocina",
+      "esperado": "dueño: categorías y conciliación; cocina: PROHIBIDO",
+      "obtenido": "dueño: 24 ventas, 5 categorías, 24 pagos aprobados; cocina: PROHIBIDO",
+      "componente": "GraphQL Gateway + pedidos + pagos + inventario",
+      "ok": true,
+      "ms": 35,
+      "detalle": {}
+    },
+    {
+      "caso": "10.5",
+      "nombre": "Reserva y recuperación de stock",
+      "entrada": "stock=1; pedido de 2 (409); pedido de 1; anular",
+      "identidad": "admin, cliente",
+      "esperado": "409 SIN_STOCK; stock 0; anular devuelve a 1",
+      "obtenido": "pedido de 2: 409 SIN_STOCK; pedido de 1: stock 0 y el catálogo lo muestra agotado; anulación: stock vuelve a 1",
+      "componente": "Inventario (reservas) + pedidos",
+      "ok": true,
+      "ms": 182,
+      "detalle": {}
+    },
+    {
+      "caso": "10.6",
+      "nombre": "Anular un pedido pagado devuelve el pago",
+      "entrada": "pedido pagado; POST /pedidos/{id}/anular",
+      "identidad": "cliente",
+      "esperado": "ANULADO, venta anulada, pago DEVUELTO",
+      "obtenido": "PF-00083: ANULADO, venta anulada, pago DEVUELTO",
+      "componente": "Pedidos + pagos + pasarela + inventario",
+      "ok": true,
+      "ms": 259,
+      "detalle": {
+        "requestId": "e2e-5c7a049a43ee"
+      }
+    },
+    {
+      "caso": "6.1",
+      "nombre": "Ruta interna no publicada",
+      "entrada": "POST /internos/pedidos/{id}/pago-confirmado",
+      "identidad": "admin",
+      "esperado": "404",
+      "obtenido": "404 RUTA_INEXISTENTE",
+      "componente": "Gateway (matriz de rutas)",
+      "ok": true,
+      "ms": 5,
+      "detalle": {
+        "requestId": "e2e-0a10ee7eecbb"
+      }
+    },
+    {
+      "caso": "7.7",
+      "nombre": "CSRF: petición desde otro sitio",
+      "entrada": "POST /pedidos con Origin ajeno y la cookie",
+      "identidad": "cliente",
+      "esperado": "403 ORIGEN_NO_PERMITIDO",
+      "obtenido": "403 ORIGEN_NO_PERMITIDO",
+      "componente": "Gateway",
+      "ok": true,
+      "ms": 2,
+      "detalle": {
+        "requestId": "e2e-71e16c2a2343"
+      }
+    },
+    {
+      "caso": "7.8",
+      "nombre": "Cookie de sesión protegida",
+      "entrada": "POST /auth/login",
+      "identidad": "cliente",
+      "esperado": "HttpOnly, SameSite, Path=/api; token fuera del cuerpo",
+      "obtenido": "HttpOnly; SameSite=Lax; Path=/api; el token no viaja en el cuerpo; tras logout el mismo token responde 401",
+      "componente": "Gateway",
+      "ok": true,
+      "ms": 79,
+      "detalle": {}
+    },
+    {
+      "caso": "7.9",
+      "nombre": "Acceso directo a los servicios privados",
+      "entrada": "GET a pedidos, inventario y GraphQL sin pasar por el gateway, con X-Usuario-Rol: admin",
+      "identidad": "atacante en la red",
+      "esperado": "403 en todos",
+      "obtenido": "pedidos 403, inventario 403, GraphQL 403, Auth Service 401",
+      "componente": "Cada servicio (credencial interna de Vault)",
+      "ok": true,
+      "ms": 56,
+      "detalle": {}
+    },
+    {
+      "caso": "7.10",
+      "nombre": "Un servicio no puede leer secretos ajenos en Vault",
+      "entrada": "token de inventario lee la credencial de pagos y el pepper",
+      "identidad": "inventario",
+      "esperado": "403 de Vault",
+      "obtenido": "propia 200; credencial de pagos 403; pepper 403",
+      "componente": "Vault (políticas por servicio)",
+      "ok": true,
+      "ms": 37,
+      "detalle": {}
+    },
+    {
+      "caso": "10.7",
+      "nombre": "Indisponibilidad de Vault",
+      "entrada": "Vault sellado; GET /catalogo/items y login",
+      "identidad": "anónimo",
+      "esperado": "503 SECRETOS_NO_DISPONIBLES (no deja pasar)",
+      "obtenido": "catálogo 503 SECRETOS_NO_DISPONIBLES; login 503",
+      "componente": "Gateway / Vault",
+      "ok": true,
+      "ms": 31047,
+      "detalle": {
+        "requestIds": [
+          "e2e-553090a1972a",
+          "e2e-3f942b16ac30"
+        ]
+      }
+    },
+    {
+      "caso": "7.11",
+      "nombre": "Límite de intentos de login",
+      "entrada": "25 logins seguidos con clave incorrecta",
+      "identidad": "anónimo",
+      "esperado": "bloqueo (429) antes del intento 25",
+      "obtenido": "401 en los primeros 5; 429 desde el intento 6",
+      "componente": "Auth Service (5 intentos) + gateway (20/min por IP)",
+      "ok": true,
+      "ms": 287,
+      "detalle": {
+        "codigos": [
+          401,
+          401,
+          401,
+          401,
+          401,
+          429,
+          429,
+          429,
+          429,
+          429,
+          429,
+          429,
+          429,
+          429,
+          429,
+          429,
+          429,
+          429,
+          429,
+          429,
+          429,
+          429,
+          429,
+          429,
+          429
+        ]
+      }
+    }
+  ]
+}

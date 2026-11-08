@@ -19,17 +19,14 @@ PF.vistas = PF.vistas || {};
   // Pedidos: #/admin/pedidos?estado=PAGADO&q=PF-00012
   // -------------------------------------------------------------------------
 
-  PF.vistas.adminPedidos = function ({ raiz, query, sesion }) {
+  PF.vistas.adminPedidos = async function ({ raiz, query, sesion }) {
     titulo("Pedidos");
 
     const estado = P.ESTADOS[query.get("estado")] ? query.get("estado") : "";
     const busqueda = (query.get("q") ?? "").trim().toLowerCase();
 
-    const pedidos = P.todos().filter(
-      (p) =>
-        (!estado || p.estado === estado) &&
-        (!busqueda || p.id.toLowerCase().includes(busqueda) || p.cliente.nombre.toLowerCase().includes(busqueda)),
-    );
+    // El filtro lo aplica el servicio de pedidos.
+    const pedidos = await P.todos({ estado, q: busqueda });
 
     pintar(
       raiz,
@@ -105,7 +102,7 @@ PF.vistas = PF.vistas || {};
       if (!motivo) return;
 
       try {
-        P.anular(id, sesion, motivo);
+        await P.anular(id, motivo);
         avisar(`Anulamos el pedido ${id}.`, { tipo: "exito" });
         PF.router.recargar();
       } catch (fallo) {
@@ -123,9 +120,9 @@ PF.vistas = PF.vistas || {};
    * virtual es el sistema, que registra cada venta cuando Servipag confirma
    * el pago. El dueño revisa aquí lo recaudado al cierre del día.
    */
-  PF.vistas.adminCaja = function ({ raiz, sesion }) {
+  PF.vistas.adminCaja = async function ({ raiz, sesion }) {
     titulo("Caja");
-    const delDia = P.reporte(hoy(), hoy());
+    const delDia = await P.reporte(hoy(), hoy());
 
     pintar(
       raiz,
@@ -201,9 +198,10 @@ PF.vistas = PF.vistas || {};
     `;
   }
 
-  PF.vistas.adminCocina = function ({ raiz, sesion }) {
+  PF.vistas.adminCocina = async function ({ raiz, sesion }) {
     titulo("Cocina");
-    const cola = P.colaCocina();
+    const cola = await P.colaCocina();
+    PF.ui.pendientesCocina = cola.filter((p) => p.estado === "PAGADO").length;
     const nuevos = cola.filter((p) => p.estado === "PAGADO").length;
 
     pintar(
@@ -238,13 +236,14 @@ PF.vistas = PF.vistas || {};
       }),
     );
 
-    raiz.querySelector(".cola")?.addEventListener("click", (evento) => {
+    raiz.querySelector(".cola")?.addEventListener("click", async (evento) => {
       const boton = evento.target.closest("[data-accion]");
       if (!boton) return;
       const id = boton.closest("[data-pedido]").dataset.pedido;
+      boton.disabled = true;
 
       try {
-        const pedido = boton.dataset.accion === "aceptar" ? P.aceptar(id, sesion) : P.terminar(id, sesion);
+        const pedido = boton.dataset.accion === "aceptar" ? await P.aceptar(id) : await P.terminar(id);
         avisar(`${pedido.id}: ${P.ESTADOS[pedido.estado]}.`, { tipo: "exito" });
         PF.router.recargar();
       } catch (fallo) {
@@ -258,9 +257,9 @@ PF.vistas = PF.vistas || {};
   // Despacho: #/admin/despacho
   // -------------------------------------------------------------------------
 
-  PF.vistas.adminDespacho = function ({ raiz, sesion }) {
+  PF.vistas.adminDespacho = async function ({ raiz, sesion }) {
     titulo("Despacho");
-    const cola = P.colaDespacho();
+    const cola = await P.colaDespacho();
 
     pintar(
       raiz,
@@ -296,7 +295,7 @@ PF.vistas = PF.vistas || {};
       }),
     );
 
-    raiz.querySelector(".cola")?.addEventListener("click", (evento) => {
+    raiz.querySelector(".cola")?.addEventListener("click", async (evento) => {
       const boton = evento.target.closest("[data-accion]");
       if (!boton) return;
       const tarjeta = boton.closest("[data-pedido]");
@@ -304,8 +303,8 @@ PF.vistas = PF.vistas || {};
       try {
         const pedido =
           boton.dataset.accion === "despachar"
-            ? P.despachar(tarjeta.dataset.pedido, sesion, tarjeta.querySelector("[data-chofer]").value)
-            : P.entregar(tarjeta.dataset.pedido, sesion);
+            ? await P.despachar(tarjeta.dataset.pedido, tarjeta.querySelector("[data-chofer]").value)
+            : await P.entregar(tarjeta.dataset.pedido);
         avisar(`${pedido.id}: ${P.ESTADOS[pedido.estado]}.`, { tipo: "exito" });
         PF.router.recargar();
       } catch (fallo) {
@@ -318,8 +317,8 @@ PF.vistas = PF.vistas || {};
   // Orden de despacho imprimible: #/admin/orden/:id
   // -------------------------------------------------------------------------
 
-  PF.vistas.ordenDespacho = function ({ raiz, params, sesion }) {
-    const pedido = P.obtener(params.id);
+  PF.vistas.ordenDespacho = async function ({ raiz, params, sesion }) {
+    const pedido = await P.obtener(params.id);
     titulo(`Orden de despacho ${params.id}`);
     const volver = sesion.perfil === "DESPACHO" ? "/admin/despacho" : "/admin/cocina";
 
@@ -328,7 +327,8 @@ PF.vistas = PF.vistas || {};
       return;
     }
 
-    const turno = P.colaCocina().findIndex((p) => p.id === pedido.id) + 1;
+    const cola = sesion.perfil === "DESPACHO" ? await P.colaDespacho() : await P.colaCocina();
+    const turno = cola.findIndex((p) => p.id === pedido.id) + 1;
 
     pintar(
       raiz,
@@ -372,7 +372,7 @@ PF.vistas = PF.vistas || {};
     );
 
     raiz.querySelector("[data-imprimir]").addEventListener("click", () => {
-      P.marcarImpresa(pedido.id);
+      P.marcarImpresa(pedido.id).catch(() => {});
       window.print();
     });
   };

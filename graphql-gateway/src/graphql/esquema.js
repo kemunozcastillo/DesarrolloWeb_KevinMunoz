@@ -36,14 +36,34 @@ export const typeDefs = /* GraphQL */ `
 
   type Pedido {
     id: ID!
+    clienteId: ID!
     estado: String!
     estadoTexto: String!
     modoEntrega: String!
     direccion: String
+    nota: String
+    chofer: String
     total: Int!
     creadoEn: String!
     lineas: [Linea!]!
     boleta: Boleta
+    anulacion: Anulacion
+    "Pasos del pedido. El cliente ve estado y fecha; quién hizo cada paso solo lo ve el personal."
+    historial: [Paso!]!
+  }
+
+  type Anulacion {
+    motivo: String!
+    fecha: String!
+    por: String!
+    devolucion: Boolean!
+  }
+
+  type Paso {
+    estado: String!
+    fecha: String!
+    actor: String
+    nota: String
   }
 
   type Linea {

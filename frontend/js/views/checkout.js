@@ -6,7 +6,7 @@ PF.vistas = PF.vistas || {};
  * dirección salen de la ficha del cliente.
  *   #/checkout?entrega=delivery
  */
-PF.vistas.checkout = function ({ raiz, query, sesion }) {
+PF.vistas.checkout = async function ({ raiz, query, sesion }) {
   const { crudo, html, pintar, precio, titulo } = PF.ui;
 
   titulo("Confirmar pedido");
@@ -17,8 +17,9 @@ PF.vistas.checkout = function ({ raiz, query, sesion }) {
     return;
   }
 
-  const cliente = PF.cuentas.obtenerCliente(sesion.id);
-  const conDespacho = PF.geografia.tieneDespacho(cliente.comuna);
+  const cliente = await PF.cuentas.obtenerCliente(sesion.id);
+  // Lo decide el servicio de clientes; el servicio de pedidos lo vuelve a revisar al confirmar.
+  const conDespacho = cliente.tieneDespacho;
 
   const modoInicial = conDespacho && query.get("entrega") === "delivery" ? "DELIVERY" : "RETIRO";
   const marcado = (condicion) => crudo(condicion ? "checked" : "");
@@ -64,7 +65,7 @@ PF.vistas.checkout = function ({ raiz, query, sesion }) {
 
           <p class="checkout__error" data-error role="alert" hidden></p>
           <button class="boton boton--primario boton--ancho" type="submit">Ir a pagar ${precio(carrito.total)}</button>
-          <p class="campo__ayuda checkout__nota">Pagas en Servipag. Con el pago confirmado, tu pedido pasa directo a cocina.</p>
+          <p class="campo__ayuda checkout__nota">El total final lo calcula Poke Fresh con los precios vigentes. Pagas en Servipag y, con el pago confirmado, tu pedido pasa directo a cocina.</p>
         </form>
 
         <aside class="resumen resumen--checkout" aria-label="Resumen del pedido">
@@ -89,19 +90,21 @@ PF.vistas.checkout = function ({ raiz, query, sesion }) {
     if (evento.target.name === "modo") PF.router.actualizarQuery({ entrega: evento.target.value === "DELIVERY" ? "delivery" : null });
   });
 
-  form.addEventListener("submit", (evento) => {
+  // Una clave por visita a esta pantalla: si el clic se repite, el backend devuelve el mismo pedido.
+  const idempotencia = PF.api.claveIdempotencia();
+  const boton = form.querySelector('[type="submit"]');
+
+  form.addEventListener("submit", async (evento) => {
     evento.preventDefault();
     PF.formularios.mostrarError(error, "");
+    boton.disabled = true;
 
     try {
-      const pedido = PF.pedidos.crear({
-        sesion,
-        modoEntrega: form.elements.modo.value,
-        nota: form.elements.nota.value,
-      });
+      const pedido = await PF.pedidos.crear({ modoEntrega: form.elements.modo.value, nota: form.elements.nota.value, idempotencia });
       PF.router.navegar(`/pago/${pedido.id}`, { reemplazar: true });
     } catch (fallo) {
       PF.formularios.mostrarError(error, fallo.message);
+      boton.disabled = false;
     }
   });
 };

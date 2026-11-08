@@ -3,8 +3,12 @@ PF.vistas = PF.vistas || {};
 /**
  * Reporte de ventas por período, para el dueño y el administrador.
  *   #/admin/reportes?desde=2026-09-01&hasta=2026-09-21
+ *
+ * Los totales vienen del servicio de pedidos (REST). Las secciones "Por
+ * categoría" y "Conciliación con pagos" vienen de la agregación GraphQL
+ * reporteVentas, que combina pedidos, inventario y pagos.
  */
-PF.vistas.adminReportes = function ({ raiz, query, sesion }) {
+PF.vistas.adminReportes = async function ({ raiz, query, sesion }) {
   const { crudo, html, pintar, precio, titulo, fechaHora, fechaCorta, panel, descargar } = PF.ui;
   const P = PF.pedidos;
 
@@ -35,7 +39,9 @@ PF.vistas.adminReportes = function ({ raiz, query, sesion }) {
     { texto: "Este mes", desde: inicioMes, hasta: hoy },
   ];
 
-  const r = P.reporte(desde, hasta);
+  const [r, { analisis }] = await Promise.all([P.reporte(desde, hasta), P.analisisVentas(desde, hasta).catch(() => ({ analisis: null }))]);
+  const NOMBRE_CATEGORIA = Object.fromEntries(PF.ui.CATEGORIAS.map((c) => [c.enum, c.titulo]));
+  const conciliacion = analisis?.conciliacion;
   const maximo = Math.max(1, ...r.porDia.map((d) => d.monto));
   const etiquetaDia = (valor) => {
     const [a, m, d] = valor.split("-");
@@ -104,6 +110,31 @@ PF.vistas.adminReportes = function ({ raiz, query, sesion }) {
             ${r.masVendidos.length
               ? html`<table class="tabla tabla--compacta"><tbody>${r.masVendidos.map((p) => html`<tr><td>${p.nombre}</td><td class="tabla__numero">${p.cantidad} u.</td><td class="tabla__numero">${precio(p.monto)}</td></tr>`)}</tbody></table>`
               : html`<p class="pendiente">Sin ventas en el período.</p>`}
+          </section>
+        </div>
+
+        <div class="reporte__dos">
+          <section>
+            <h2 class="subtitulo">Unidades por categoría</h2>
+            ${analisis?.porCategoria?.length
+              ? html`<table class="tabla tabla--compacta"><tbody>${analisis.porCategoria.map((c) => html`<tr><td>${NOMBRE_CATEGORIA[c.categoria] ?? c.categoria}</td><td class="tabla__numero">${c.unidades} u.</td></tr>`)}</tbody></table>`
+              : html`<p class="pendiente">${analisis ? "Sin ventas en el período." : "No disponible en este momento."}</p>`}
+          </section>
+          <section>
+            <h2 class="subtitulo">Conciliación con pagos</h2>
+            ${conciliacion
+              ? html`
+                  <table class="tabla tabla--compacta">
+                    <tbody>
+                      <tr><td>Ventas registradas</td><td class="tabla__numero">${conciliacion.ventas}</td><td class="tabla__numero">${precio(conciliacion.montoVentas)}</td></tr>
+                      <tr><td>Pagos aprobados</td><td class="tabla__numero">${conciliacion.pagosAprobados}</td><td class="tabla__numero">${precio(conciliacion.montoPagos)}</td></tr>
+                    </tbody>
+                  </table>
+                  ${conciliacion.pedidosConDiferencia.length
+                    ? html`<p class="aviso-parcial">Con diferencia: ${conciliacion.pedidosConDiferencia.join(", ")}</p>`
+                    : html`<p class="aviso-parcial">Cada venta tiene su pago aprobado por el mismo monto.</p>`}
+                `
+              : html`<p class="pendiente">No disponible en este momento.</p>`}
           </section>
         </div>
 
