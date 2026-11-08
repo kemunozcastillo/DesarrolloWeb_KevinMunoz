@@ -71,6 +71,8 @@ En modo demo el correo de verificación y la boleta no se envían de verdad: el 
 
 - `docker compose logs -f <servicio>` muestra los registros; cada línea trae el `X-Request-Id` de la petición.
 - Si Vault se reinicia solo, queda sellado y los servicios responden 503. Se arregla con `docker compose up -d` (vuelve a correr `vault-init`, que lo desbloquea).
+- Si un antivirus que revisa HTTPS (por ejemplo Kaspersky) bloquea el sitio, mostrará su propia advertencia de certificado no confiable: aceptarla para `https://localhost:8080` y para `https://localhost:9000` (son dos sitios distintos para el navegador). Conviene hacerlo antes de una demostración.
+- Si `https://localhost:8080` muestra un error de TLS o una página que no es la tienda, otro programa puede estar usando el puerto 8080 en IPv4 (por ejemplo un Apache instalado en Windows). Compruébalo con `netstat -ano | findstr :8080` y detén ese programa mientras uses el sistema.
 - Para partir de cero: `docker compose down -v` y de nuevo `docker compose up -d --build`.
 
 ## Pruebas
@@ -91,7 +93,7 @@ NODE_EXTRA_CA_CERTS=./ca.pem node pruebas/carga/carga.mjs   # prueba de carga (v
 
 En total son 86 pruebas unitarias y de integración (37 + 20 + 18 + 11) y 20 casos de punta a punta. Sin `--ca`, `casos.py` funciona igual pero no verifica el certificado (lo avisa en el caso 7.12). El caso 7.11 bloquea a propósito la cuenta del dueño unos 5 minutos y agota el límite de logins por IP del gateway: espera un minuto entre `casos.py` y `pantallas.py`, y para repetir `casos.py` espera 5 minutos o reinicia con `docker compose down -v`. Para la prueba de carga hay que subir `LIMITE_POR_MINUTO` en `.env` (por ejemplo 100000), recrear el gateway con `docker compose up -d gateway` y volver al valor por defecto (300) después.
 
-Sin Docker también se puede levantar todo con Mongo, Vault y ActiveMQ simulados en memoria (útil para las pruebas): `bash pruebas/local/levantar.sh`, y `python pruebas/e2e/casos.py --gateway http://127.0.0.1:8080 --pasarela http://127.0.0.1:9000 --directo` (ahí todo va en HTTP, sin TLS; el caso 7.12 no aplica y se omite) agrega 3 casos (7.9 acceso directo a los servicios, 7.10 secreto ajeno en Vault y 10.7 Vault sellado), 23 en total. Esos tres necesitan alcanzar la red privada desde el equipo, algo que en Docker está bloqueado a propósito, por eso solo corren en este entorno local.
+Sin Docker también se puede levantar todo con Mongo, Vault y ActiveMQ simulados en memoria (útil para las pruebas; está pensado para Linux o macOS y necesita `npm install` en `vault/` y en los componentes Node; en Windows no arranca tal cual): `bash pruebas/local/levantar.sh`, y `python pruebas/e2e/casos.py --gateway http://127.0.0.1:8080 --pasarela http://127.0.0.1:9000 --directo` (ahí todo va en HTTP, sin TLS; el caso 7.12 no aplica y se omite) agrega 3 casos (7.9 acceso directo a los servicios, 7.10 secreto ajeno en Vault y 10.7 Vault sellado), 23 en total. Esos tres necesitan alcanzar la red privada desde el equipo, algo que en Docker está bloqueado a propósito, por eso solo corren en este entorno local.
 
 ## Variables de entorno
 
