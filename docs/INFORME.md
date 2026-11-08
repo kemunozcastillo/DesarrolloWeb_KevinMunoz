@@ -731,7 +731,7 @@ No hay mutaciones en GraphQL: los cambios van por REST al servicio dueño, que a
 
 ### Métodos gRPC
 
-No aplica: ver ADR 0001 (sección 9).
+No aplica: no se implementó gRPC. La justificación, con los argumentos a favor y en contra y la evaluación de cada flujo, está en la sección 9 ("gRPC: por qué sí y por qué no") y en el [ADR 0001](adr/0001-analitica-y-grpc.md).
 
 ---
 
@@ -953,6 +953,25 @@ La decisión, con contexto, alternativas y consecuencias, está en [ADR 0001](ad
 | gRPC streaming (avisos a cocina) | No | Cocina se entera en segundos, no en milisegundos | La pantalla consulta cada 8 s; el evento ya sale por ActiveMQ, que además recupera lo pendiente tras una desconexión |
 | Trabajo largo asíncrono con identificador | No | No hay operaciones largas | El correo y la boleta ya son asíncronos por ActiveMQ y no bloquean el pago |
 | Carga y fallos | Sí, medidos | Objetivos de p95 y 0 % de error (ADR 0001) | `evidencias/carga.md` (tres escenarios) y pruebas de servicio caído (`502`), Vault caído (`503`) y error parcial en GraphQL |
+
+### gRPC: por qué sí y por qué no
+
+**Por qué sí podría usarse.** Aporta contratos tipados y generados (`.proto`), plazos y cancelación entre servicios, streaming del servidor con control de flujo, HTTP/2 con mensajes binarios y TLS o TLS mutuo con identidad en metadatos.
+
+**Por qué no se usa en este caso.**
+
+- **Ningún flujo lo necesita.** Todas las llamadas internas son puntuales y pequeñas (menos de 10 KB; de 2 a 4 por petición): cotizar y reservar (una por pedido), ficha del cliente, confirmar un pago y las lecturas del GraphQL con DataLoader. Ninguna es de alta frecuencia ni larga.
+- **No hay un requisito de streaming.** Cocina debe enterarse en segundos; el evento sale por ActiveMQ y la pantalla consulta cada 8 s.
+- **Lo que daría ya está cubierto:** plazo de 4 s por llamada interna (`502/504`), `X-Request-Id` e identidad propagados, operaciones idempotentes, TLS entre todos los saltos y contratos validados en el servidor con pruebas.
+- **El navegador no habla gRPC.** Habría que mantener REST hacia afuera y `.proto` hacia adentro para lo mismo, o agregar un proxy gRPC-Web.
+- **Costo de operación:** generación de código en Node y Python, un servidor gRPC junto a cada FastAPI y rehacer `healthcheck`, pruebas y controles de seguridad para otro protocolo.
+- **El rendimiento ya cumple:** 209 a 316 peticiones/s con REST y TLS, de 42 a 63 veces el pico proyectado.
+
+**Limitación.** No se midió gRPC contra REST; por eso no se afirma que sea más rápido, más lento ni que consuma más o menos CPU o memoria. La decisión se apoya en que el caso no tiene un requisito que lo justifique y en la capacidad medida del diseño actual.
+
+**Cuándo sería sí.** Un consumidor privado que necesite un flujo continuo de eventos con reanudación (por ejemplo, un monitor de despacho en tiempo real), una llamada interna que supere la capacidad medida, varios equipos o lenguajes que exijan contratos generados, o una operación larga que haya que cancelar. En ese caso: `unary` con plazo de 4 s para cotizar y reservar, un stream del servidor para eventos de pedido con el último evento recibido para reanudar sin duplicar, identidad en metadatos y un adaptador con Server-Sent Events en el gateway para el navegador. Es una propuesta y **no está implementada ni probada**.
+
+El análisis completo, con una evaluación flujo por flujo, está en el [ADR 0001](adr/0001-analitica-y-grpc.md).
 
 **Conclusión:** no se implementa un servicio de analítica separado ni gRPC, porque la carga proyectada es entre 42 y 63 veces menor que la medida y no hay flujos de streaming. La alternativa implementada (reporte en pedidos + agregación GraphQL + eventos por ActiveMQ) cumple los objetivos con la prueba de carga como evidencia. El ADR indica cuándo revisar la decisión.
 

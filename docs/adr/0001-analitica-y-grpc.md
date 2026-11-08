@@ -34,12 +34,53 @@ La prueba de carga (`docs/evidencias/carga.md`) midió, con 20 conexiones concur
 2. **gRPC entre servicios** (unary para cotizar y reservar stock; streaming de servidor para avisar a cocina de los pedidos nuevos).
 3. **Mantener REST interno y resolver la analítica con el servicio de pedidos y el GraphQL Gateway**, con avisos asíncronos por ActiveMQ.
 
+## Análisis de gRPC: por qué sí y por qué no
+
+### Qué aportaría gRPC (argumentos a favor)
+
+- **Contrato tipado y generado.** Un `.proto` define mensajes y métodos, y genera cliente y servidor en Node y en Python, sin escribir a mano la validación del formato de cada llamada.
+- **Plazos y cancelación nativos.** Cada llamada lleva un *deadline* que se propaga entre servicios, y el cliente puede cancelar.
+- **Streaming.** El servidor puede enviar una secuencia de eventos por una sola conexión (por ejemplo, pedidos nuevos a un consumidor privado), con control de flujo.
+- **Transporte eficiente.** HTTP/2 multiplexa llamadas en una conexión y Protocol Buffers ocupa menos bytes que JSON.
+- **Seguridad.** Admite TLS y TLS mutuo, y la identidad del llamador viaja en metadatos, con autorización por método.
+
+### Por qué no se usa en este caso (argumentos en contra)
+
+| Razón | Detalle en Poke Fresh |
+|---|---|
+| **No hay un flujo que lo necesite** | Se revisó cada comunicación interna (tabla siguiente): todas son llamadas puntuales y pequeñas (menos de 10 KB), de 2 a 4 por petición. Ninguna es de alta frecuencia, de larga duración ni requiere enviar una secuencia continua de mensajes |
+| **El streaming no es un requisito** | El único flujo "en vivo" del caso es el aviso a cocina, que debe llegar en segundos, no en milisegundos. Ya se publica como evento en ActiveMQ y la pantalla consulta cada 8 s |
+| **Los plazos, la cancelación y la idempotencia ya están cubiertos** | Cada llamada interna tiene un plazo de 4 s (`502/504` si se vence), propaga `X-Request-Id` e identidad, y las operaciones críticas son idempotentes (reserva, confirmación de pago, notificación) |
+| **El navegador no habla gRPC** | El frontend necesita HTTP/JSON a través del gateway (o gRPC-Web con un proxy adicional). Usar gRPC solo entre servicios obliga a mantener dos contratos para lo mismo, uno REST hacia afuera y otro `.proto` hacia adentro |
+| **Costo de operación** | Habría que generar código en dos lenguajes (Node y Python), agregar un servidor gRPC junto a cada FastAPI, y rehacer los `healthcheck`, las pruebas (hoy `httpx` y `node:test` sobre HTTP) y el recorrido de seguridad (credencial interna, TLS) para un protocolo distinto |
+| **El rendimiento ya cumple con margen** | El sistema medido con REST y TLS soporta de 209 a 316 peticiones/s con 0 % de error, de 42 a 63 veces el pico proyectado. No hay un problema de CPU, memoria o latencia que gRPC deba resolver |
+
+**Limitación de esta decisión.** No se midió gRPC contra REST: no hay una comparación controlada, así que **no se afirma que gRPC sea más lento, más rápido ni más costoso en CPU o memoria**. La decisión se apoya en que el caso no tiene un requisito que lo justifique y en la capacidad medida del diseño actual, no en un benchmark de gRPC.
+
+### Evaluación por flujo interno
+
+| Flujo | Modalidad si fuera gRPC | Frecuencia y tamaño | ¿Justifica gRPC? |
+|---|---|---|---|
+| pedidos → inventario: cotizar y reservar | Unary | Una vez por pedido (~150 al día); menos de 10 KB | No: REST ya es idempotente y con plazo |
+| pedidos → clientes: ficha del comprador | Unary | Una vez por pedido | No |
+| pagos → pedidos: confirmar pago | Unary | Una vez por pago | No: hoy es idempotente y se reintenta |
+| pagos → pasarela | Fuera de nuestro control | Contrato REST y firma HMAC del proveedor | No aplica: es un tercero (simulado) |
+| GraphQL → servicios (lecturas agregadas) | Unary con lotes | 2 a 4 llamadas por consulta, agrupadas con DataLoader | No |
+| Aviso de pedido pagado → cocina | Streaming de servidor | Eventos esporádicos; tolera segundos de demora | No: ActiveMQ ya desacopla y reentrega |
+| Reporte de ventas | Unary | Pocas veces al día | No |
+
+### Cuándo la respuesta sería sí
+
+Se implementaría gRPC si ocurre alguno de estos casos: (1) un consumidor privado necesita un **flujo continuo** de eventos con reanudación tras una desconexión (por ejemplo, un monitor de despacho con el estado de cada pedido en tiempo real); (2) una llamada interna supera la capacidad medida del REST, o su costo de CPU o memoria se vuelve el cuello de botella; (3) hay varios equipos o lenguajes que necesitan un contrato estricto y generado; (4) aparece una operación larga que conviene cancelar.
+
+Cómo se haría, sin implementarlo ahora: un `.proto` por sistema con los mismos mensajes que hoy viajan en JSON; `unary` con *deadline* de 4 s para cotizar y reservar; un `stream` de servidor para eventos de pedido, con el identificador del último evento recibido para reanudar sin duplicar efectos; la identidad del usuario y la credencial del servicio en metadatos, sobre el mismo TLS actual (con TLS mutuo si se agrega); y, para el navegador, un adaptador en el gateway con Server-Sent Events, sin exponer gRPC. Este esquema es una propuesta de diseño y **no está implementado ni probado**.
+
 ## Decisión
 
 Se elige la **alternativa 3**:
 
 - **Analítica:** no se crea un servicio separado. El reporte de ventas lo calcula el servicio de pedidos (dueño de las ventas) con una consulta por rango de fechas sobre un índice (`venta.fecha`), y el GraphQL Gateway agrega lo que necesita de otros servicios (categoría de cada producto desde inventario y conciliación con pagos). Con < 100 MB al año, una consulta indexada responde en milisegundos; un subsistema de big data sería costo sin beneficio.
-- **gRPC:** no se usa. Las llamadas internas son pocas por petición (2 a 4), con mensajes pequeños y sin streaming; REST con JSON ya cumple la latencia con amplio margen. Los avisos que sí son asíncronos (pedido pagado → cocina, boleta → correo) van por **ActiveMQ** (STOMP), que además desacopla: si el broker o el notificador se caen, el pago se registra igual.
+- **gRPC:** no se usa (ver el análisis de por qué sí y por qué no, más arriba). Las llamadas internas son pocas por petición (2 a 4), con mensajes pequeños y sin streaming; REST con JSON ya cumple la latencia con amplio margen. Los avisos que sí son asíncronos (pedido pagado → cocina, boleta → correo) van por **ActiveMQ** (STOMP), que además desacopla: si el broker o el notificador se caen, el pago se registra igual.
 - **Contratos explícitos igual:** cada llamada interna está documentada en el informe (sección 6) y probada; la tipificación que aportaría `.proto` se cubre con validación en el servidor y pruebas de contrato.
 
 ## Consecuencias
