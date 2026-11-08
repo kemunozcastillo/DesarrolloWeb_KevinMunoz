@@ -1,47 +1,59 @@
 /**
- * Gateway de Poke Fresh con sesiones.
+ * API Gateway de Poke Fresh: la única puerta pública del sistema.
  *
- *   1. El usuario inicia sesión: POST /api/auth/login. El gateway se lo pasa
- *      al Auth Service y guarda el token de sesión en una cookie HttpOnly.
- *   2. En cada petición a la API, el gateway lee la cookie y pregunta al Auth
- *      Service si la sesión sigue activa y qué rol tiene (introspección).
- *   3. Revisa si ese rol puede usar el método (solo admin puede borrar).
- *   4. Lee de Vault la credencial interna y reenvía al backend.
+ *   /                 el frontend (archivos estáticos)
+ *   /api/v1/auth/*    login, logout, sesión, verificación de correo
+ *   /api/v1/*         la API, según la matriz de rutas (src/rutas.js)
+ *   /api/salud        estado de cada componente
  *
- * Rutas:
- *   /api/auth/login, /api/auth/logout, /api/auth/sesion
- *   /api/v1/productos     requiere sesión; DELETE requiere rol admin
- *   /api/salud            pública
+ * Por cada petición a la API:
+ *   1. le pone un X-Request-Id (o respeta uno válido) para seguirla en los logs;
+ *   2. aplica el límite de peticiones;
+ *   3. si trae la cookie de sesión, pregunta al Auth Service quién es;
+ *   4. busca la ruta en la matriz y revisa si ese rol puede usarla;
+ *   5. reenvía al servicio privado con su credencial interna (de Vault) y la
+ *      identidad verificada, descartando lo que el navegador haya inventado.
  *
- * Códigos propios:
- *   401  sin sesión, o la sesión expiró o se cerró; credenciales incorrectas
- *   403  el rol no alcanza, o la petición viene de un sitio no autorizado
- *   429  usuario bloqueado por intentos fallidos
- *   500  Vault mal configurado
- *   502  Vault, el Auth Service o el backend no responden
- * El backend responde 403 si alguien lo llama sin pasar por el gateway.
+ * Respuestas propias: 401 sin sesión, 403 rol sin permiso u origen ajeno,
+ * 404 ruta inexistente, 429 límite, 502/504 servicio caído o lento,
+ * 503 Vault no disponible.
  */
 
 import { randomUUID } from "node:crypto";
-import cors from "cors";
 import express from "express";
 
 import { crearClienteAuth } from "./cliente-auth.js";
-import { proxyProductos } from "./proxy.js";
-import { autorizarPorRol, exigirSesion, manejarErrorServicios, rutasSesion, verificarOrigen } from "./sesion.js";
+import { limitarPorMinuto } from "./limites.js";
+import { crearReenvio } from "./reenvio.js";
+import { permitido, resolver } from "./rutas.js";
+import { error, identificar, manejarErrorServicios, rutasSesion, verificarOrigen } from "./sesion.js";
 import { crearClienteVault } from "./vault.js";
+
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src https://fonts.gstatic.com",
+  "img-src 'self' data:",
+  "connect-src 'self'",
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+].join("; ");
 
 export function crearApp(config, dependencias = {}) {
   const vault = dependencias.vault ?? crearClienteVault(config);
   const auth = dependencias.auth ?? crearClienteAuth(config, vault);
+  const reenviar = crearReenvio(config, vault);
 
   const app = express();
   app.disable("x-powered-by");
+  app.set("trust proxy", "loopback");
 
   app.use((req, res, next) => {
     const recibido = req.get("x-request-id");
     req.id = recibido && /^[\w-]{8,64}$/.test(recibido) ? recibido : randomUUID();
-    res.set({ "X-Request-Id": req.id, "X-Content-Type-Options": "nosniff", "Cache-Control": "no-store" });
+    res.set({ "X-Request-Id": req.id, "X-Content-Type-Options": "nosniff", "Referrer-Policy": "same-origin" });
     next();
   });
 
@@ -49,68 +61,74 @@ export function crearApp(config, dependencias = {}) {
     app.use((req, res, next) => {
       const inicio = performance.now();
       res.on("finish", () => {
-        const quien = req.usuario ? ` ${req.usuario.usuario}(${req.usuario.rol})` : "";
-        console.log(`${req.method} ${req.originalUrl}${quien} ${res.statusCode} ${Math.round(performance.now() - inicio)} ms [${req.id}]`);
+        // Sin correos ni cuerpos en el log: el rol y el id de la cuenta bastan para seguir la petición.
+        const quien = req.usuario ? ` ${req.usuario.rol}:${req.usuario.sub.slice(0, 8)}` : "";
+        console.log(`${req.method} ${req.originalUrl.split("?")[0]}${quien} ${res.statusCode} ${Math.round(performance.now() - inicio)} ms [${req.id}]`);
       });
       next();
     });
   }
 
-  // CORS con credenciales: el navegador solo manda la cookie a otro dominio
-  // si el servidor lo autoriza explícitamente para ese origen.
+  // --- Frontend -----------------------------------------------------------------
   app.use(
-    "/api",
-    cors({
-      origin: (origen, responder) => responder(null, !origen || config.origenesPermitidos.includes(origen)),
-      credentials: true,
-      methods: ["GET", "POST", "PUT", "DELETE"],
-      allowedHeaders: ["Content-Type", "X-Request-Id"],
-      exposedHeaders: ["X-Request-Id", "Retry-After"],
-      maxAge: 600,
+    express.static(config.dirFrontend, {
+      index: "index.html",
+      dotfiles: "ignore",
+      setHeaders: (res) => res.set({ "Content-Security-Policy": CSP, "X-Frame-Options": "DENY" }),
     }),
-    verificarOrigen(config),
   );
+
+  // --- API ------------------------------------------------------------------------
+  app.use("/api", (_req, res, next) => {
+    res.set("Cache-Control", "no-store");
+    next();
+  });
+  app.use("/api", limitarPorMinuto(config.limiteGeneral), verificarOrigen(config));
 
   app.get("/api/salud", async (_req, res) => {
     const consultar = (url) =>
-      fetch(url, { signal: AbortSignal.timeout(2_000) })
+      fetch(`${url}/salud`, { signal: AbortSignal.timeout(2_000) })
         .then((r) => (r.ok ? "ok" : `error ${r.status}`))
         .catch(() => "sin respuesta");
-
-    const [estadoVault, estadoAuth, estadoBackend] = await Promise.all([vault.salud(), consultar(`${config.urlAuth}/salud`), consultar(`${config.urlBackend}/salud`)]);
-    const todoBien = [estadoVault, estadoAuth, estadoBackend].every((e) => e === "ok");
-    res.status(todoBien ? 200 : 503).json({ gateway: "ok", vault: estadoVault, auth: estadoAuth, backend: estadoBackend });
+    const nombres = Object.keys(config.urls);
+    const estados = await Promise.all([vault.salud(), ...nombres.map((n) => consultar(config.urls[n]))]);
+    const detalle = { gateway: "ok", vault: estados[0], ...Object.fromEntries(nombres.map((n, i) => [n, estados[i + 1]])) };
+    res.status(estados.every((e) => e === "ok") ? 200 : 503).json(detalle);
   });
 
-  app.use("/api/auth", rutasSesion(config, auth));
+  const sensibles = limitarPorMinuto(config.limiteSensibles);
+  app.use(["/api/v1/auth/login", "/api/v1/auth/reenviar", "/api/v1/auth/verificar", "/api/v1/clientes/registro"], sensibles);
 
-  // Productos: sesión, rol y credencial interna, en ese orden. El rol se
-  // revisa antes de tocar Vault: un usuario sin permiso ni llega a pedir
-  // la credencial del backend.
-  app.use(
-    "/api/v1/productos",
-    exigirSesion(config, auth),
-    autorizarPorRol(),
-    async (req, _res, next) => {
-      try {
-        req.credencialInterna = await vault.leerValor(config.rutaSecretoBackend, "credencial_interna");
-        next();
-      } catch (err) {
-        next(err);
+  app.use("/api/v1", identificar(config, auth));
+  app.use("/api/v1/auth", rutasSesion(config, auth));
+
+  app.use("/api/v1", express.raw({ type: () => true, limit: "100kb" }), async (req, res, next) => {
+    const encontrada = resolver(req.method, req.path);
+    if (!encontrada) return error(res, 404, "RUTA_INEXISTENTE", `No existe ${req.method} /api/v1${req.path}.`);
+    if (encontrada.existeOtroMetodo) return error(res, 405, "METODO_NO_PERMITIDO", `La ruta /api/v1${req.path} no acepta ${req.method}.`);
+
+    const { ruta, destinoRuta } = encontrada;
+    if (!permitido(ruta.acceso, req.usuario)) {
+      if (!req.usuario) {
+        return error(res, 401, req.sesionVencida ? "SESION_EXPIRADA" : "SIN_SESION", req.sesionVencida ? "Tu sesión expiró. Vuelve a ingresar." : "Inicia sesión para continuar.");
       }
-    },
-    proxyProductos(config),
-  );
+      return error(res, 403, "PROHIBIDO", "Tu perfil no tiene permiso para esta operación.");
+    }
 
-  app.use((req, res) => {
-    res.status(404).json({ error: "RUTA_INEXISTENTE", mensaje: `No existe ${req.method} ${req.originalUrl}.`, idPeticion: req.id });
+    try {
+      // La notificación de la pasarela no lleva identidad de usuario: la autentica su firma.
+      const usuario = ruta.acceso === "webhook" ? null : req.usuario;
+      await reenviar(req, res, { destino: ruta.destino, ruta: destinoRuta, usuario });
+    } catch (err) {
+      next(err);
+    }
   });
 
+  app.use("/api", (req, res) => error(res, 404, "RUTA_INEXISTENTE", `No existe ${req.method} ${req.originalUrl.split("?")[0]}.`));
   app.use(manejarErrorServicios);
-
   app.use((err, req, res, _next) => {
     console.error(`[${req.id}] error interno:`, err);
-    res.status(500).json({ error: "ERROR_INTERNO", mensaje: "Ocurrió un error inesperado en el gateway.", idPeticion: req.id });
+    error(res, 500, "ERROR_INTERNO", "Ocurrió un error inesperado en el gateway.");
   });
 
   return app;

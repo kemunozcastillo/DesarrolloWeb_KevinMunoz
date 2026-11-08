@@ -4,20 +4,20 @@ import { leerConfig } from "./config.js";
 try {
   process.loadEnvFile();
 } catch {
-  /* sin .env: se usan las variables del sistema */
+  /* sin .env */
 }
 
 const config = leerConfig();
 
 if (!config.vaultToken) {
-  console.error("Falta VAULT_TOKEN: el gateway no puede validar sesiones sin acceso a Vault. Revisa el .env.");
+  console.error("Falta el token de Vault (VAULT_TOKEN o VAULT_TOKEN_ARCHIVO): el gateway lo necesita para leer las credenciales internas.");
   process.exit(1);
 }
 
-crearApp(config).listen(config.puerto, () => {
-  console.log(`Gateway seguro en http://localhost:${config.puerto}`);
-  console.log(`  Vault:        ${config.vaultAddr}`);
-  console.log(`  Auth Service: ${config.urlAuth}`);
-  console.log(`  Backend:      ${config.urlBackend}`);
-  if (!config.cookieSecure) console.log("  Cookie sin Secure: solo para probar en localhost, nunca en producción.");
+const servidor = crearApp(config).listen(config.puerto, config.host, () => {
+  console.log(`API Gateway en http://${config.host}:${config.puerto}`);
+  console.log(`  Frontend: ${config.dirFrontend}`);
+  console.log(`  Cookie Secure: ${config.cookieSecure ? "sí" : "no (solo para localhost)"}`);
 });
+
+process.on("SIGTERM", () => servidor.close(() => process.exit(0)));

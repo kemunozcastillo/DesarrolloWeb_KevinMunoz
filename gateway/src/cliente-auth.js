@@ -1,6 +1,6 @@
 /**
- * Cliente del Auth Service. El gateway se identifica con HTTP Basic: usuario
- * "gateway" y el secreto de introspección, que lee de Vault en cada llamada.
+ * Cliente del Auth Service para login, introspección y logout. El gateway se
+ * identifica con HTTP Basic: usuario "gateway" y su secreto, que lee de Vault.
  */
 
 export class ErrorAuth extends Error {
@@ -11,38 +11,37 @@ export class ErrorAuth extends Error {
   }
 }
 
-export function crearClienteAuth({ urlAuth, rutaSecretoIntrospeccion }, vault) {
-  async function llamar(ruta, cuerpo) {
-    const secreto = await vault.leerValor(rutaSecretoIntrospeccion, "secreto");
+export function crearClienteAuth({ urls, rutaInternos }, vault) {
+  async function llamar(ruta, cuerpo, idPeticion) {
+    const secreto = await vault.leerValor(`${rutaInternos}/auth-gateway`, "secreto");
     const credencial = Buffer.from(`gateway:${secreto}`).toString("base64");
 
     let respuesta;
     try {
-      respuesta = await fetch(`${urlAuth}${ruta}`, {
+      respuesta = await fetch(`${urls.auth}${ruta}`, {
         method: "POST",
-        headers: { Authorization: `Basic ${credencial}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Basic ${credencial}`, "Content-Type": "application/json", ...(idPeticion ? { "X-Request-Id": idPeticion } : {}) },
         body: JSON.stringify(cuerpo),
         signal: AbortSignal.timeout(5_000),
       });
     } catch (error) {
-      throw new ErrorAuth("El servicio de autenticación no responde.", error.cause?.code ?? error.name);
+      throw new ErrorAuth("El servicio de cuentas no responde.", error.cause?.code ?? error.name);
     }
 
     const datos = respuesta.status === 204 ? null : await respuesta.json().catch(() => null);
 
     // Un 5xx, o que el Auth Service rechace al propio gateway (secreto
-    // desalineado), son fallas nuestras y no del usuario: el gateway responde
-    // 502 en vez de decirle que su contraseña está mal.
-    if (respuesta.status >= 500 || datos?.error === "CLIENTE_NO_AUTORIZADO") {
-      throw new ErrorAuth("El servicio de autenticación no está disponible.", `HTTP ${respuesta.status} en ${ruta}${datos?.error ? ` (${datos.error})` : ""}`);
+    // desalineado), son fallas nuestras y no del usuario: 502, no "clave incorrecta".
+    if (respuesta.status >= 500 || datos?.codigo === "CLIENTE_NO_AUTORIZADO") {
+      throw new ErrorAuth("El servicio de cuentas no está disponible.", `HTTP ${respuesta.status} en ${ruta}${datos?.codigo ? ` (${datos.codigo})` : ""}`);
     }
-
     return { estado: respuesta.status, datos, retryAfter: respuesta.headers.get("retry-after") };
   }
 
   return {
-    login: (usuario, clave) => llamar("/login", { usuario, clave }),
-    introspect: async (token) => (await llamar("/introspect", { token })).datos,
-    logout: (token) => llamar("/logout", { token }),
+    login: (usuario, clave, id) => llamar("/login", { usuario, clave }, id),
+    introspect: async (token, id) => (await llamar("/introspect", { token }, id)).datos,
+    logout: (token, id) => llamar("/logout", { token }, id),
+    cambiarClave: (cuentaId, actual, nueva, id) => llamar("/clave", { cuentaId, actual, nueva }, id),
   };
 }

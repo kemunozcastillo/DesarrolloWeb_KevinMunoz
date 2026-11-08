@@ -1,82 +1,66 @@
 /**
- * Pruebas del gateway con Vault simulado, un Auth Service falso que cumple el
- * mismo contrato que el real (login, introspección, logout) y un backend
- * falso que exige la credencial interna.
+ * Pruebas del gateway con Vault, Auth Service y servicios simulados.
+ * El servicio simulado responde con lo que recibió, para revisar qué
+ * cabeceras y qué cuerpo le llegan de verdad.
  *
  *   npm test
  */
 
 import { after, before, beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
-import { randomBytes } from "node:crypto";
-import { promisify } from "node:util";
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import express from "express";
 
 import { crearApp } from "../src/app.js";
 import { leerConfig } from "../src/config.js";
 import { crearVaultFalso } from "./vault-falso.js";
 
-const ejecutar = promisify(execFile);
-const CREDENCIAL = "credencial-interna-de-prueba";
-const SECRETO = "secreto-de-introspeccion";
-const ORIGEN = "https://kevin.github.io";
-
 const escuchar = (app) => new Promise((r) => { const s = app.listen(0, "127.0.0.1", () => r(s)); });
 const url = (s) => `http://127.0.0.1:${s.address().port}`;
 
-function authFalso() {
+const SESIONES = {
+  "tok-cliente": { active: true, sub: "cuenta-1", rol: "cliente", sujeto: "cli_1", nombre: "Javiera Morales", email: "j@correo.cl", exp: 2e9 },
+  "tok-admin": { active: true, sub: "cuenta-2", rol: "admin", sujeto: "cuenta-2", nombre: "Camila Rojas", email: "a@p.cl", exp: 2e9 },
+  "tok-cocina": { active: true, sub: "cuenta-3", rol: "cocina", sujeto: "cuenta-3", nombre: "Francisca Lagos", email: "c@p.cl", exp: 2e9 },
+  "tok-dueno": { active: true, sub: "cuenta-4", rol: "dueno", sujeto: "cuenta-4", nombre: "Tomás Fuentes", email: "d@p.cl", exp: 2e9 },
+};
+
+function authFalso(registro) {
   const app = express();
-  const usuarios = { admin: { clave: "ClaveAdmin2026", rol: "admin" }, vendedor: { clave: "ClaveVende2026", rol: "usuario" } };
-  const sesiones = new Map();
-  const estado = { llamadas: [], secreto: SECRETO };
   app.use(express.json());
-  app.get("/salud", (_req, res) => res.json({ ok: true }));
-  app.use((req, res, next) => {
-    estado.llamadas.push(req.path);
-    if (req.get("authorization") !== `Basic ${Buffer.from(`gateway:${estado.secreto}`).toString("base64")}`) return res.status(401).json({ error: "CLIENTE_NO_AUTORIZADO" });
-    next();
-  });
+  app.use((req, res, next) => (req.get("authorization") === `Basic ${Buffer.from("gateway:secreto-gw").toString("base64")}` ? next() : res.status(401).json({ codigo: "CLIENTE_NO_AUTORIZADO" })));
   app.post("/login", (req, res) => {
-    const u = usuarios[req.body.usuario];
-    if (req.body.usuario === "bloqueado") return res.set("Retry-After", "300").status(429).json({ error: "USUARIO_BLOQUEADO", mensaje: "Demasiados intentos." });
-    if (!u || u.clave !== req.body.clave) return res.status(401).json({ error: "CREDENCIALES_INVALIDAS", mensaje: "Usuario o contraseña incorrectos." });
-    const token = randomBytes(32).toString("base64url");
-    const ahora = Math.floor(Date.now() / 1000);
-    sesiones.set(token, { sub: `id-${req.body.usuario}`, usuario: req.body.usuario, nombre: req.body.usuario, rol: u.rol, exp: ahora + 1800 });
-    res.json({ token, expira: ahora + 1800, expiraMaximo: ahora + 28800, usuario: { usuario: req.body.usuario, rol: u.rol } });
+    if (req.body.clave !== "Correcta2026") return res.status(401).json({ codigo: "CREDENCIALES", mensaje: "Correo o contraseña incorrectos." });
+    res.json({ token: "tok-cliente", expira: 2e9, expiraMaximo: Math.floor(Date.now() / 1000) + 3600, usuario: { id: "cuenta-1", rol: "cliente", sujeto: "cli_1", nombre: "Javiera", email: "j@correo.cl" } });
   });
-  app.post("/introspect", (req, res) => {
-    const s = sesiones.get(req.body.token);
-    res.json(s ? { active: true, ...s } : { active: false });
-  });
-  app.post("/logout", (req, res) => {
-    sesiones.delete(req.body.token);
+  app.post("/introspect", (req, res) => res.json(SESIONES[req.body.token] ?? { active: false }));
+  app.post("/logout", (_req, res) => res.status(204).end());
+  app.post("/clave", (req, res) => {
+    registro.clave = req.body;
     res.status(204).end();
   });
-  return { app, estado, sesiones };
+  app.post("/verificacion", (req, res) => res.json({ recibido: req.body }));
+  return app;
 }
 
-function backendFalso() {
+function servicioEco() {
   const app = express();
-  const recibidas = [];
-  app.use(express.json());
-  app.get("/salud", (_req, res) => res.json({ ok: true }));
-  app.all("*", (req, res) => {
-    recibidas.push({ metodo: req.method, url: req.url, cabeceras: req.headers });
-    if (req.get("x-credencial-interna") !== CREDENCIAL) return res.status(403).json({ detail: "Acceso directo no permitido." });
-    if (req.method === "DELETE") return res.status(204).end();
-    res.status(req.method === "POST" ? 201 : 200).json(req.method === "POST" ? { id: "nuevo" } : [{ nombre: "Ponzu" }]);
-  });
-  return { app, recibidas };
+  app.use(express.raw({ type: () => true }));
+  app.all("*", (req, res) => res.json({ metodo: req.method, ruta: req.originalUrl, cabeceras: req.headers, cuerpo: req.body?.toString?.() ?? "" }));
+  return app;
 }
 
-/** Saca la cookie pf_sesion de una respuesta. */
-const cookieDe = (respuesta) => respuesta.headers.getSetCookie().find((c) => c.startsWith("pf_sesion="));
-const valorCookie = (respuesta) => cookieDe(respuesta)?.split(";")[0];
+describe("API gateway", () => {
+  let vault, servidores, config, base, eco, registro;
 
-describe("gateway con sesiones", () => {
-  let vault, auth, backend, servidores, config, base;
+  const pedir = (ruta, { metodo = "GET", sesion, cuerpo, cabeceras = {} } = {}) =>
+    fetch(`${base}${ruta}`, {
+      method: metodo,
+      headers: { ...(sesion ? { Cookie: `pf_sesion=${sesion}` } : {}), ...(cuerpo ? { "Content-Type": "application/json" } : {}), ...cabeceras },
+      body: cuerpo === undefined ? undefined : typeof cuerpo === "string" ? cuerpo : JSON.stringify(cuerpo),
+    });
 
   async function gateway(cambios = {}) {
     const s = await escuchar(crearApp({ ...config, ...cambios }));
@@ -84,240 +68,154 @@ describe("gateway con sesiones", () => {
     return url(s);
   }
 
-  async function iniciar(usuario, clave, destino = base) {
-    const respuesta = await fetch(`${destino}/api/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ usuario, clave }) });
-    return { respuesta, cookie: valorCookie(respuesta) };
-  }
-
-  const pedir = (ruta, { cookie, metodo = "GET", cabeceras = {}, cuerpo, destino = base } = {}) =>
-    fetch(`${destino}${ruta}`, {
-      method: metodo,
-      headers: { ...(cookie ? { Cookie: cookie } : {}), ...(cuerpo ? { "Content-Type": "application/json" } : {}), ...cabeceras },
-      body: cuerpo ? JSON.stringify(cuerpo) : undefined,
-    });
-
   before(async () => {
+    registro = {};
     vault = crearVaultFalso();
-    vault.escribir("poke-fresh/backend", { credencial_interna: CREDENCIAL });
-    vault.escribir("poke-fresh/introspeccion", { secreto: SECRETO });
-    auth = authFalso();
-    backend = backendFalso();
-    const [sVault, sAuth, sBackend] = await Promise.all([escuchar(vault.app), escuchar(auth.app), escuchar(backend.app)]);
-    servidores = [sVault, sAuth, sBackend];
+    for (const s of ["inventario", "clientes", "pedidos", "pagos", "graphql"]) vault.escribir(`poke-fresh/internos/${s}`, { credencial: `cred-${s}` });
+    vault.escribir("poke-fresh/internos/auth-gateway", { secreto: "secreto-gw" });
+    const [sVault, sAuth, sEco] = await Promise.all([escuchar(vault.app), escuchar(authFalso(registro)), escuchar(servicioEco())]);
+    servidores = [sVault, sAuth, sEco];
+    eco = url(sEco);
+
+    const dir = await mkdtemp(join(tmpdir(), "front-"));
+    await writeFile(join(dir, "index.html"), "<!doctype html><title>Poke Fresh</title>");
 
     config = {
       ...leerConfig({ NODE_ENV: "test" }),
       vaultAddr: url(sVault),
       vaultToken: "root",
-      urlAuth: url(sAuth),
-      urlBackend: url(sBackend),
-      origenesPermitidos: [ORIGEN],
-      cookieSecure: true,
+      vaultCacheSegundos: 0,
+      dirFrontend: dir,
+      urls: { auth: url(sAuth), inventario: eco, clientes: eco, pedidos: eco, pagos: eco, graphql: eco },
     };
-    base = await gateway();
   });
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vault.estado.sellado = false;
-    auth.estado.secreto = SECRETO;
+    base = await gateway();
   });
 
   after(() => servidores.forEach((s) => s.close()));
 
-  // --- Login y cookie -------------------------------------------------------------
-
-  test("login correcto: cookie HttpOnly, Secure, SameSite y sin el token en el cuerpo", async () => {
-    const { respuesta } = await iniciar("vendedor", "ClaveVende2026");
-    const cookie = cookieDe(respuesta);
-    const cuerpo = await respuesta.json();
-
-    assert.equal(respuesta.status, 200);
-    for (const atributo of ["HttpOnly", "Secure", "SameSite=Lax", "Path=/api"]) assert.ok(cookie.includes(atributo), `falta ${atributo}`);
-    assert.equal(cuerpo.usuario.rol, "usuario");
-    assert.ok(!JSON.stringify(cuerpo).includes(cookie.split(";")[0].split("=")[1]), "el token no debe ir en el cuerpo");
+  test("sirve el frontend con Content-Security-Policy", async () => {
+    const r = await fetch(`${base}/`);
+    assert.equal(r.status, 200);
+    assert.match(r.headers.get("content-security-policy"), /script-src 'self'/);
+    assert.equal(r.headers.get("x-frame-options"), "DENY");
   });
 
-  test("credenciales incorrectas: 401 con el mensaje del Auth Service y sin cookie", async () => {
-    const { respuesta, cookie } = await iniciar("vendedor", "mala");
-    assert.equal(respuesta.status, 401);
-    assert.equal((await respuesta.json()).error, "CREDENCIALES_INVALIDAS");
-    assert.equal(cookie, undefined);
+  test("lo que no está en la matriz no existe: 404 (incluidas las rutas internas)", async () => {
+    assert.equal((await pedir("/api/v1/nada")).status, 404);
+    assert.equal((await pedir("/api/v1/internos/pedidos/PF-1/pago-confirmado", { metodo: "POST", sesion: "tok-admin" })).status, 404);
+    assert.equal((await pedir("/api/v1/pedidos/PF-1/pago-confirmado", { metodo: "POST", sesion: "tok-admin" })).status, 404);
   });
 
-  test("usuario bloqueado: 429 con Retry-After", async () => {
-    const { respuesta } = await iniciar("bloqueado", "x");
-    assert.equal(respuesta.status, 429);
-    assert.equal(respuesta.headers.get("retry-after"), "300");
+  test("catálogo público: pasa sin sesión, con la credencial interna y sin identidad", async () => {
+    const r = await pedir("/api/v1/catalogo/items?categoria=SALSA");
+    assert.equal(r.status, 200);
+    const eco = await r.json();
+    assert.equal(eco.ruta, "/items?categoria=SALSA");
+    assert.equal(eco.cabeceras["x-credencial-interna"], "cred-inventario");
+    assert.equal(eco.cabeceras["x-usuario-rol"], undefined);
   });
 
-  test("faltan datos: 400", async () => {
-    assert.equal((await pedir("/api/auth/login", { metodo: "POST", cuerpo: { usuario: "admin" } })).status, 400);
+  test("las cabeceras de identidad y la credencial que mande el navegador se descartan", async () => {
+    const r = await pedir("/api/v1/pedidos", {
+      sesion: "tok-cliente",
+      cabeceras: { "X-Usuario-Rol": "admin", "X-Usuario-Sujeto": "cli_otro", "X-Credencial-Interna": "inventada", Authorization: "Bearer x" },
+    });
+    const { cabeceras } = await r.json();
+    assert.equal(cabeceras["x-usuario-rol"], "cliente");
+    assert.equal(cabeceras["x-usuario-sujeto"], "cli_1");
+    assert.equal(cabeceras["x-credencial-interna"], "cred-pedidos");
+    assert.equal(cabeceras.authorization, undefined);
+    assert.equal(cabeceras.cookie, undefined);
   });
 
-  // --- 401: sin sesión o sesión terminada ---------------------------------------------
-
-  test("productos sin cookie: 401 y no llega al backend", async () => {
-    const antes = backend.recibidas.length;
-    const respuesta = await pedir("/api/v1/productos");
-    assert.equal(respuesta.status, 401);
-    assert.equal((await respuesta.json()).error, "SIN_SESION");
-    assert.equal(backend.recibidas.length, antes);
+  test("sin sesión: 401; sesión inválida: 401 y se borra la cookie", async () => {
+    assert.equal((await pedir("/api/v1/pedidos")).status, 401);
+    const r = await pedir("/api/v1/pedidos", { sesion: "tok-vencido" });
+    assert.equal(r.status, 401);
+    assert.equal((await r.json()).codigo, "SESION_EXPIRADA");
+    assert.match(r.headers.get("set-cookie"), /pf_sesion=;.*Max-Age=0/);
   });
 
-  test("cookie con un token inventado: 401 y la cookie se borra", async () => {
-    const respuesta = await pedir("/api/v1/productos", { cookie: "pf_sesion=inventado" });
-    assert.equal(respuesta.status, 401);
-    assert.equal((await respuesta.json()).error, "SESION_EXPIRADA");
-    assert.match(cookieDe(respuesta), /Max-Age=0/);
+  test("autorización por rol: cocina no ve reportes; dueño no borra productos; admin sí", async () => {
+    assert.equal((await pedir("/api/v1/reportes/ventas", { sesion: "tok-cocina" })).status, 403);
+    assert.equal((await pedir("/api/v1/catalogo/items/top_mango", { metodo: "DELETE", sesion: "tok-dueno" })).status, 403);
+    assert.equal((await pedir("/api/v1/catalogo/items/top_mango", { metodo: "PUT", sesion: "tok-dueno", cuerpo: {} })).status, 200);
+    assert.equal((await pedir("/api/v1/catalogo/items/top_mango", { metodo: "DELETE", sesion: "tok-admin" })).status, 200);
+    assert.equal((await pedir("/api/v1/clientes", { sesion: "tok-cliente" })).status, 403);
   });
 
-  test("logout revoca la sesión: la misma cookie deja de servir", async () => {
-    const { cookie } = await iniciar("admin", "ClaveAdmin2026");
-    assert.equal((await pedir("/api/v1/productos", { cookie })).status, 200);
+  test("login: cookie HttpOnly y SameSite; el token no viaja en el cuerpo", async () => {
+    const r = await pedir("/api/v1/auth/login", { metodo: "POST", cuerpo: { email: "j@correo.cl", clave: "Correcta2026" } });
+    assert.equal(r.status, 200);
+    const cookie = r.headers.get("set-cookie");
+    assert.match(cookie, /pf_sesion=tok-cliente/);
+    assert.match(cookie, /HttpOnly/);
+    assert.match(cookie, /SameSite=Lax/);
+    assert.match(cookie, /Path=\/api/);
+    const cuerpo = await r.json();
+    assert.equal(cuerpo.perfil, "CLIENTE");
+    assert.ok(!JSON.stringify(cuerpo).includes("tok-cliente"));
 
-    const salida = await pedir("/api/auth/logout", { metodo: "POST", cookie });
-    assert.equal(salida.status, 204);
-    assert.match(cookieDe(salida), /Max-Age=0/);
-    assert.equal((await pedir("/api/v1/productos", { cookie })).status, 401);
+    const malo = await pedir("/api/v1/auth/login", { metodo: "POST", cuerpo: { email: "j@correo.cl", clave: "mala" } });
+    assert.equal(malo.status, 401);
   });
 
-  test("cada petición consulta al Auth Service (introspección sin caché)", async () => {
-    const { cookie } = await iniciar("vendedor", "ClaveVende2026");
-    const antes = auth.estado.llamadas.filter((l) => l === "/introspect").length;
-    await pedir("/api/v1/productos", { cookie });
-    await pedir("/api/v1/productos", { cookie });
-    assert.equal(auth.estado.llamadas.filter((l) => l === "/introspect").length - antes, 2);
+  test("sesión actual y cambio de clave usan la cuenta de la sesión, no la del cuerpo", async () => {
+    const s = await (await pedir("/api/v1/auth/sesion", { sesion: "tok-cliente" })).json();
+    assert.deepEqual([s.tipo, s.id, s.perfil], ["CLIENTE", "cli_1", "CLIENTE"]);
+    await pedir("/api/v1/auth/clave", { metodo: "PUT", sesion: "tok-cliente", cuerpo: { cuentaId: "cuenta-2", actual: "a", nueva: "b" } });
+    assert.equal(registro.clave.cuentaId, "cuenta-1");
   });
 
-  test("/api/auth/sesion devuelve quién soy", async () => {
-    const { cookie } = await iniciar("admin", "ClaveAdmin2026");
-    const cuerpo = await (await pedir("/api/auth/sesion", { cookie })).json();
-    assert.equal(cuerpo.usuario, "admin");
-    assert.equal(cuerpo.rol, "admin");
+  test("las rutas públicas de /auth reenvían el cuerpo al Auth Service", async () => {
+    const r = await pedir("/api/v1/auth/verificar", { metodo: "POST", cuerpo: { email: "j@correo.cl", codigo: "123456" } });
+    assert.deepEqual((await r.json()).recibido, { email: "j@correo.cl", codigo: "123456" });
   });
 
-  // --- Con sesión válida -------------------------------------------------------------------
-
-  test("con sesión: 200, el backend recibe la credencial y el rol, pero no la cookie", async () => {
-    const { cookie } = await iniciar("vendedor", "ClaveVende2026");
-    const respuesta = await pedir("/api/v1/productos?categoria=SALSA", { cookie, cabeceras: { "X-Usuario-Rol": "admin", "X-Credencial-Interna": "inventada" } });
-    const recibida = backend.recibidas.at(-1);
-
-    assert.equal(respuesta.status, 200);
-    assert.equal(recibida.url, "/items?categoria=SALSA");
-    assert.equal(recibida.cabeceras["x-credencial-interna"], CREDENCIAL);
-    assert.equal(recibida.cabeceras["x-usuario-rol"], "usuario", "el rol lo pone el gateway, no el cliente");
-    assert.equal(recibida.cabeceras.cookie, undefined);
+  test("CSRF: un POST desde otro sitio se rechaza aunque traiga la cookie", async () => {
+    const r = await pedir("/api/v1/pedidos", { metodo: "POST", sesion: "tok-cliente", cuerpo: {}, cabeceras: { Origin: "https://sitio-malicioso.example" } });
+    assert.equal(r.status, 403);
+    assert.equal((await r.json()).codigo, "ORIGEN_NO_PERMITIDO");
   });
 
-  test("un usuario puede crear y editar", async () => {
-    const { cookie } = await iniciar("vendedor", "ClaveVende2026");
-    assert.equal((await pedir("/api/v1/productos", { cookie, metodo: "POST", cuerpo: { nombre: "x" } })).status, 201);
-    assert.equal((await pedir("/api/v1/productos/abc", { cookie, metodo: "PUT", cuerpo: { precio: 1 } })).status, 200);
+  test("la notificación de pago pasa sin sesión, con el cuerpo exacto y sin identidad", async () => {
+    const cuerpo = '{"orden":"PAG-1","monto":8490}';
+    const r = await pedir("/api/v1/pagos/notificacion", { metodo: "POST", sesion: "tok-admin", cuerpo, cabeceras: { "X-Firma": "abc" } });
+    const eco = await r.json();
+    assert.equal(eco.cuerpo, cuerpo);
+    assert.equal(eco.cabeceras["x-usuario-rol"], undefined);
   });
 
-  // --- 403: rol insuficiente ------------------------------------------------------------------
-
-  test("un usuario no puede borrar: 403 y no llega al backend", async () => {
-    const { cookie } = await iniciar("vendedor", "ClaveVende2026");
-    const antes = backend.recibidas.length;
-    const respuesta = await pedir("/api/v1/productos/abc", { cookie, metodo: "DELETE" });
-
-    assert.equal(respuesta.status, 403);
-    assert.equal((await respuesta.json()).error, "PERMISO_INSUFICIENTE");
-    assert.equal(backend.recibidas.length, antes);
-  });
-
-  test("el admin sí puede borrar", async () => {
-    const { cookie } = await iniciar("admin", "ClaveAdmin2026");
-    assert.equal((await pedir("/api/v1/productos/abc", { cookie, metodo: "DELETE" })).status, 204);
-    assert.equal(backend.recibidas.at(-1).metodo, "DELETE");
-  });
-
-  // --- 403: llamada directa al backend ------------------------------------------------------
-
-  test("directo al backend sin credencial: 403", async () => {
-    assert.equal((await fetch(`${config.urlBackend}/items`)).status, 403);
-  });
-
-  // --- CSRF y CORS -----------------------------------------------------------------------------
-
-  test("un POST desde un sitio no autorizado: 403 aunque traiga la cookie", async () => {
-    const { cookie } = await iniciar("admin", "ClaveAdmin2026");
-    const respuesta = await pedir("/api/v1/productos/abc", { cookie, metodo: "DELETE", cabeceras: { Origin: "https://sitio-malicioso.com" } });
-    assert.equal(respuesta.status, 403);
-    assert.equal((await respuesta.json()).error, "ORIGEN_NO_PERMITIDO");
-  });
-
-  test("desde el frontend autorizado sí pasa, y CORS permite credenciales", async () => {
-    const { cookie } = await iniciar("admin", "ClaveAdmin2026");
-    const respuesta = await pedir("/api/v1/productos", { cookie, cabeceras: { Origin: ORIGEN } });
-    assert.equal(respuesta.status, 200);
-    assert.equal(respuesta.headers.get("access-control-allow-origin"), ORIGEN);
-    assert.equal(respuesta.headers.get("access-control-allow-credentials"), "true");
-  });
-
-  // --- 500 / 502: servicios caídos ---------------------------------------------------------------
-
-  test("Auth Service caído: 502 en login y en productos", async () => {
-    const sinAuth = await gateway({ urlAuth: "http://127.0.0.1:9" });
-    assert.equal((await iniciar("admin", "ClaveAdmin2026", sinAuth)).respuesta.status, 502);
-    const respuesta = await pedir("/api/v1/productos", { cookie: "pf_sesion=x", destino: sinAuth });
-    assert.equal(respuesta.status, 502);
-    assert.equal((await respuesta.json()).error, "AUTH_NO_DISPONIBLE");
-  });
-
-  test("si el Auth Service rechaza al gateway, es 502 y no un 401 al usuario", async () => {
-    auth.estado.secreto = "otro-secreto";
-    assert.equal((await iniciar("admin", "ClaveAdmin2026")).respuesta.status, 502);
-  });
-
-  test("Vault sellado: 502", async () => {
-    const { cookie } = await iniciar("admin", "ClaveAdmin2026");
+  test("Vault caído: 503", async () => {
     vault.estado.sellado = true;
-    const respuesta = await pedir("/api/v1/productos", { cookie });
-    assert.equal(respuesta.status, 502);
-    assert.equal((await respuesta.json()).error, "VAULT_NO_DISPONIBLE");
+    const r = await pedir("/api/v1/catalogo/items");
+    assert.equal(r.status, 503);
+    assert.equal((await r.json()).codigo, "SECRETOS_NO_DISPONIBLES");
   });
 
-  test("token de Vault sin permiso: 500", async () => {
-    const mal = await gateway({ vaultToken: "no-existe" });
-    assert.equal((await iniciar("admin", "ClaveAdmin2026", mal)).respuesta.status, 500);
+  test("servicio caído: 502", async () => {
+    const otro = await gateway({ urls: { ...config.urls, inventario: "http://127.0.0.1:1" } });
+    const r = await fetch(`${otro}/api/v1/catalogo/items`);
+    assert.equal(r.status, 502);
+    assert.equal((await r.json()).codigo, "SERVICIO_NO_DISPONIBLE");
   });
 
-  test("backend caído: 502", async () => {
-    const sinBackend = await gateway({ urlBackend: "http://127.0.0.1:9" });
-    const { cookie } = await iniciar("admin", "ClaveAdmin2026", sinBackend);
-    const respuesta = await pedir("/api/v1/productos", { cookie, destino: sinBackend });
-    assert.equal(respuesta.status, 502);
-    assert.equal((await respuesta.json()).error, "BACKEND_NO_DISPONIBLE");
+  test("límite de intentos de login por minuto: 429", async () => {
+    const limitado = await gateway({ limiteSensibles: 3 });
+    const intento = () => fetch(`${limitado}/api/v1/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: "x@x.cl", clave: "mala" }) });
+    for (let i = 0; i < 3; i++) assert.equal((await intento()).status, 401);
+    const r = await intento();
+    assert.equal(r.status, 429);
+    assert.ok(Number(r.headers.get("retry-after")) > 0);
   });
 
-  test("salud: los cuatro componentes", async () => {
-    const cuerpo = await (await fetch(`${base}/api/salud`)).json();
-    assert.deepEqual(cuerpo, { gateway: "ok", vault: "ok", auth: "ok", backend: "ok" });
-  });
-
-  // --- Preparación de Vault --------------------------------------------------------------------------
-
-  test("npm run secretos crea tres tokens y cada uno lee solo lo suyo", async () => {
-    const limpio = crearVaultFalso();
-    const s = await escuchar(limpio.app);
-    servidores.push(s);
-
-    const { stdout } = await ejecutar(process.execPath, ["scripts/cargar-secretos.js"], { env: { ...process.env, VAULT_ADDR: url(s), VAULT_TOKEN: "root" } });
-    const tokens = Object.fromEntries([...stdout.matchAll(/(gateway|backend|auth-service)\s+VAULT_TOKEN=(\S+)/g)].map((m) => [m[1], m[2]]));
-    const lee = (servicio, ruta) => fetch(`${url(s)}/v1/secret/data/poke-fresh/${ruta}`, { headers: { "X-Vault-Token": tokens[servicio] } }).then((r) => r.status);
-
-    const esperado = {
-      gateway: { backend: 200, introspeccion: 200, auth: 403 },
-      backend: { backend: 200, introspeccion: 403, auth: 403 },
-      "auth-service": { backend: 403, introspeccion: 200, auth: 200 },
-    };
-    for (const [servicio, rutas] of Object.entries(esperado)) {
-      for (const [ruta, estado] of Object.entries(rutas)) {
-        assert.equal(await lee(servicio, ruta), estado, `${servicio} leyendo ${ruta}`);
-      }
-    }
+  test("cada respuesta lleva X-Request-Id y respeta uno válido recibido", async () => {
+    const r = await pedir("/api/v1/catalogo/items", { cabeceras: { "X-Request-Id": "prueba-12345678" } });
+    assert.equal(r.headers.get("x-request-id"), "prueba-12345678");
+    assert.equal((await r.json()).cabeceras["x-request-id"], "prueba-12345678");
   });
 });
