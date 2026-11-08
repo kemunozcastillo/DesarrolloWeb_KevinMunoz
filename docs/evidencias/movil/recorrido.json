@@ -1,0 +1,47 @@
+{
+  "pedido": "PF-00087",
+  "dispositivo": "390x812, táctil, escala 2 (Chromium con emulación móvil)",
+  "erroresConsola": [],
+  "pantallas": {
+    "01-inicio": {
+      "url": "https://localhost:8080/",
+      "https": true,
+      "desbordeHorizontal": false
+    },
+    "02-menu": {
+      "url": "https://localhost:8080/#/menu",
+      "https": true,
+      "desbordeHorizontal": false
+    },
+    "03-ingreso": {
+      "url": "https://localhost:8080/#/ingresar",
+      "https": true,
+      "desbordeHorizontal": false
+    },
+    "04-checkout": {
+      "url": "https://localhost:8080/#/checkout",
+      "https": true,
+      "desbordeHorizontal": false
+    },
+    "05-pago": {
+      "url": "https://localhost:8080/#/pago/PF-00087",
+      "https": true,
+      "desbordeHorizontal": false
+    },
+    "06-pasarela-servipag": {
+      "url": "https://localhost:9000/pagar/A_fE6xPnfpz_lDvG5rHxGbTFGccNsgCh",
+      "https": true,
+      "desbordeHorizontal": false
+    },
+    "07-pedido-pagado": {
+      "url": "https://localhost:8080/#/orden/PF-00087",
+      "https": true,
+      "desbordeHorizontal": false
+    },
+    "08-mis-pedidos": {
+      "url": "https://localhost:8080/#/mis-pedidos",
+      "https": true,
+      "desbordeHorizontal": false
+    }
+  }
+}
