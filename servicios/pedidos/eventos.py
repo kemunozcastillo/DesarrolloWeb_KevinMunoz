@@ -30,6 +30,8 @@ def _enviar(cola: str, cuerpo: dict) -> None:
 
     a = ajustes()
     conexion = stomp.Connection12([(a.activemq_host, a.activemq_puerto)], reconnect_attempts_max=1, timeout=2)
+    if a.activemq_ca:
+        conexion.set_ssl(for_hosts=[(a.activemq_host, a.activemq_puerto)], ca_certs=a.activemq_ca)
     conexion.connect(wait=True)
     try:
         conexion.send(

@@ -4,6 +4,7 @@ import { crearApp } from "./app.js";
 import { leerConfig } from "./config.js";
 import { repositorioMongo } from "./cuentas.js";
 import { crearCuentasDemo } from "./demo.js";
+import { crearServidor } from "./tls.js";
 import { crearClienteVault } from "./vault.js";
 
 try {
@@ -43,8 +44,8 @@ if (config.modoDemo) {
   if (creadas) console.log(`Modo demo: se crearon ${creadas} cuentas de prueba.`);
 }
 
-const servidor = crearApp(config, { vault, cuentas }).listen(config.puerto, config.host, () => {
-  console.log(`Auth Service en http://${config.host}:${config.puerto}`);
+const servidor = crearServidor(crearApp(config, { vault, cuentas }), config).listen(config.puerto, config.host, () => {
+  console.log(`Auth Service en ${config.tlsCert ? "https" : "http"}://${config.host}:${config.puerto}`);
   console.log(`  Sesiones: ${config.sesionInactividadSeg / 60} min de inactividad, ${config.sesionMaximaSeg / 3600} h como máximo`);
 });
 

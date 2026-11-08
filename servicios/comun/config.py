@@ -44,6 +44,8 @@ class Ajustes:
     urls: dict = field(default_factory=dict)
     activemq_host: str = ""
     activemq_puerto: int = 61613
+    # CA de prueba para hablar con ActiveMQ por STOMP+TLS. Vacío: sin TLS (pruebas y entorno local).
+    activemq_ca: str = ""
     zona_horaria: str = "America/Santiago"
     url_publica: str = "http://localhost:8080"
     url_notificacion_pagos: str = ""
@@ -80,6 +82,7 @@ def ajustes() -> Ajustes:
         },
         activemq_host=os.environ.get("ACTIVEMQ_HOST", ""),
         activemq_puerto=_entero("ACTIVEMQ_PUERTO", 61613),
+        activemq_ca=os.environ.get("ACTIVEMQ_CA", ""),
         # Dirección del sitio que ve el navegador (para volver desde la pasarela).
         url_publica=os.environ.get("URL_PUBLICA", "http://localhost:8080").rstrip("/"),
         # Dirección con que la pasarela llega al gateway para notificar el pago.

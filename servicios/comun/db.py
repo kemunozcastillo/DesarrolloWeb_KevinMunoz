@@ -25,7 +25,9 @@ async def _uri_con_credenciales() -> str:
     netloc = f"{quote_plus(datos['usuario'])}:{quote_plus(datos['clave'])}@{partes.hostname}"
     if partes.port:
         netloc += f":{partes.port}"
-    return urlunsplit((partes.scheme, netloc, f"/{a.mongo_db}", f"authSource={a.mongo_db}", ""))
+    # Se conserva lo que traiga la URI base (por ejemplo tls=true&tlsCAFile=...).
+    consulta = "&".join(filter(None, [f"authSource={a.mongo_db}", partes.query]))
+    return urlunsplit((partes.scheme, netloc, f"/{a.mongo_db}", consulta, ""))
 
 
 async def conectar() -> tuple[AsyncIOMotorClient, AsyncIOMotorDatabase]:

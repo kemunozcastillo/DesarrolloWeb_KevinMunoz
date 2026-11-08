@@ -1,5 +1,6 @@
 import { crearApp } from "./app.js";
 import { leerConfig } from "./config.js";
+import { crearServidor } from "./tls.js";
 
 const config = leerConfig();
 if (!config.vaultToken) {
@@ -8,5 +9,7 @@ if (!config.vaultToken) {
 }
 
 const app = await crearApp(config);
-const servidor = app.listen(config.puerto, config.host, () => console.log(`GraphQL Gateway en http://${config.host}:${config.puerto}/graphql`));
+const servidor = crearServidor(app, config).listen(config.puerto, config.host, () =>
+  console.log(`GraphQL Gateway en ${config.tlsCert ? "https" : "http"}://${config.host}:${config.puerto}/graphql`),
+);
 process.on("SIGTERM", () => servidor.close(() => process.exit(0)));

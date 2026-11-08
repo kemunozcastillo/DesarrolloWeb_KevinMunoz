@@ -1,5 +1,6 @@
 import { crearApp } from "./app.js";
 import { leerConfig } from "./config.js";
+import { crearServidor } from "./tls.js";
 
 try {
   process.loadEnvFile();
@@ -14,8 +15,8 @@ if (!config.vaultToken) {
   process.exit(1);
 }
 
-const servidor = crearApp(config).listen(config.puerto, config.host, () => {
-  console.log(`API Gateway en http://${config.host}:${config.puerto}`);
+const servidor = crearServidor(crearApp(config), config).listen(config.puerto, config.host, () => {
+  console.log(`API Gateway en ${config.tlsCert ? "https" : "http"}://${config.host}:${config.puerto}`);
   console.log(`  Frontend: ${config.dirFrontend}`);
   console.log(`  Cookie Secure: ${config.cookieSecure ? "sí" : "no (solo para localhost)"}`);
 });
