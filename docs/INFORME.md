@@ -9,8 +9,6 @@
 | **Versión del frontend** | 2.0: SPA en HTML, CSS y JavaScript sin frameworks, integrada con la API (rama `Evaluacion-2`). La versión 1.0 (entrega de frontend) guardaba todo en `localStorage`. |
 | **Fecha** | 09-11-2026 |
 
-Los diagramas están en `docs/diagramas/` como archivos Mermaid (`.mmd`, editables en cualquier editor de texto o en mermaid.live) y su imagen (`.png`). Las evidencias de ejecución están en `docs/evidencias/`. Además, [`docs/diagramas/poke-fresh.dsl`](diagramas/poke-fresh.dsl) modela el sistema en C4 con Structurizr DSL (adaptación del modelo de referencia del curso): contexto, contenedores, componentes, 14 flujos dinámicos y 2 despliegues.
-
 ## Índice
 
 0. [Requisitos y brechas declaradas](#0-requisitos-y-brechas-declaradas)
@@ -24,20 +22,7 @@ Los diagramas están en `docs/diagramas/` como archivos Mermaid (`.mmd`, editabl
 8. [Separación privada y agregaciones GraphQL](#8-separación-privada-y-agregaciones-graphql)
 9. [Analítica y gRPC](#9-analítica-y-grpc)
 10. [Backend completo e integración verificable](#10-backend-completo-e-integración-verificable)
-
-### Correspondencia con la pauta de evaluación
-
-| Criterio de la rúbrica | Puntos | Dónde está la evidencia |
-|---|---:|---|
-| Servicios y contratos | 10 | Sección 1: trazabilidad de pantallas, matriz de las 44 operaciones (S01 a S44) y contratos de ejemplo |
-| UML y límites de microservicios | 10 | Sección 2: UML (`diagramas/dominio.png`), cardinalidades, DTO y límites; sección 8 (mapa de clasificación) |
-| Sistemas y persistencia | 10 | Sección 3 (matriz de los cuatro sistemas, estados y fallos); sección 10 (MongoDB, índices, datos de ejemplo, pruebas de reglas) |
-| Stakeholders y seguridad | 10 | Sección 4 (permisos por rol), sección 7 (clasificación de datos y casos de validación ejecutados) |
-| API Gateway y secretos | 10 | Sección 5 (UML, fronteras, gateways), sección 6 (rutas, secretos, identidades); `gateway/`, `vault/`, redes en `docker-compose.yml` |
-| Agregaciones GraphQL | 15 | Sección 8: schema, resolvers, matriz de autorización, límites y capturas desde el frontend; `graphql-gateway/` |
-| Analítica y gRPC según aplicabilidad | 10 | Sección 9, [ADR 0001](adr/0001-analitica-y-grpc.md) y [`evidencias/carga.md`](evidencias/carga.md) |
-| Backend completo e integración | 15 | Sección 10: matriz requisito, pantalla, servicio, prueba y evidencia; capturas en escritorio, móvil y navegador real |
-| Pruebas y reproducibilidad | 10 | Sección 10 (pruebas y resultados), `README.md` (inicio y pruebas), `evidencias/` |
+- [Anexo A. Ejemplos de contrato por operación](#anexo-a-ejemplos-de-contrato-por-operación)
 
 ---
 
