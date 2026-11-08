@@ -86,15 +86,15 @@ cd graphql-gateway && npm install && npm test                        # 11 prueba
 
 # De punta a punta, con el sistema arriba (deja evidencia en docs/evidencias/)
 pip install httpx playwright && playwright install chromium
-python pruebas/e2e/casos.py --ca ca.pem     # 20 casos de seguridad y negocio (contra Docker, por HTTPS)
+python pruebas/e2e/casos.py --docker --ca ca.pem   # 23 casos de seguridad y negocio (contra Docker, por HTTPS); necesita el CLI de docker
 python pruebas/e2e/pantallas.py             # recorrido de 16 pantallas de escritorio y 6 móviles, con capturas
 python pruebas/e2e/movil.py                 # compra completa en móvil (390x812), 8 capturas; se puede repetir
 NODE_EXTRA_CA_CERTS=./ca.pem node pruebas/carga/carga.mjs   # prueba de carga (ver docs/evidencias/carga.md)
 ```
 
-En total son 86 pruebas unitarias y de integración (37 + 20 + 18 + 11) y 20 casos de punta a punta. Sin `--ca`, `casos.py` funciona igual pero no verifica el certificado (lo avisa en el caso 7.12). El caso 7.11 bloquea a propósito la cuenta del dueño unos 5 minutos y agota el límite de logins por IP del gateway: espera un minuto entre `casos.py` y `pantallas.py`, y para repetir `casos.py` espera 5 minutos o reinicia con `docker compose down -v`. Para la prueba de carga hay que subir `LIMITE_POR_MINUTO` en `.env` (por ejemplo 100000), recrear el gateway con `docker compose up -d gateway` y volver al valor por defecto (300) después.
+En total son 86 pruebas unitarias y de integración (37 + 20 + 18 + 11) y 23 casos de punta a punta. Con `--docker`, tres de ellos (7.9 acceso directo a los servicios, 7.10 secretos ajenos en Vault y 10.7 Vault inaccesible) se ejecutan dentro de la red privada con `docker compose exec`, y el 10.7 desconecta Vault de esa red 31 s y la vuelve a conectar; sin `--docker`, `casos.py` corre 20 y no hace esas tres pruebas. Sin `--ca`, `casos.py` funciona igual pero no verifica el certificado (lo avisa en el caso 7.12). El caso 7.11 bloquea a propósito la cuenta del dueño unos 5 minutos y agota el límite de logins por IP del gateway: espera un minuto entre `casos.py` y `pantallas.py`, y para repetir `casos.py` espera 5 minutos o reinicia con `docker compose down -v`. Para la prueba de carga hay que subir `LIMITE_POR_MINUTO` en `.env` (por ejemplo 100000), recrear el gateway con `docker compose up -d gateway` y volver al valor por defecto (300) después.
 
-Sin Docker también se puede levantar todo con Mongo, Vault y ActiveMQ simulados en memoria (útil para las pruebas; está pensado para Linux o macOS y necesita `npm install` en `vault/` y en los componentes Node; en Windows no arranca tal cual): `bash pruebas/local/levantar.sh`, y `python pruebas/e2e/casos.py --gateway http://127.0.0.1:8080 --pasarela http://127.0.0.1:9000 --directo` (ahí todo va en HTTP, sin TLS; el caso 7.12 no aplica y se omite) agrega 3 casos (7.9 acceso directo a los servicios, 7.10 secreto ajeno en Vault y 10.7 Vault sellado), 22 en total (los 19 que aplican sin TLS más esos 3). Esos tres necesitan alcanzar la red privada desde el equipo, algo que en Docker está bloqueado a propósito, por eso solo corren en este entorno local.
+Sin Docker también se puede levantar todo con Mongo, Vault y ActiveMQ simulados en memoria (útil para las pruebas; está pensado para Linux o macOS y necesita `npm install` en `vault/` y en los componentes Node; en Windows no arranca tal cual): `bash pruebas/local/levantar.sh`, y `python pruebas/e2e/casos.py --gateway http://127.0.0.1:8080 --pasarela http://127.0.0.1:9000 --directo` (ahí todo va en HTTP, sin TLS; el caso 7.12 no aplica y se omite) agrega esos mismos 3 casos (aquí se alcanzan desde el equipo), 22 en total (los 19 que aplican sin TLS más esos 3).
 
 ## Variables de entorno
 

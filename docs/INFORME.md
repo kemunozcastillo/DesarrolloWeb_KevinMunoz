@@ -86,7 +86,6 @@ Lo que no se implementa como en producción, por qué, y qué lo reemplaza:
 | Sesiones del Auth Service | Se guardan en memoria | Un reinicio del Auth Service cierra todas las sesiones (falla segura: hay que volver a ingresar) |
 | ActiveMQ sin autenticación | Broker solo accesible en la red privada y solo por STOMP sobre TLS (sin consola web ni otros protocolos) | Si se expone, se activa usuario y clave en el broker y se guardan en Vault |
 | Aviso a cocina "en vivo" | Sin WebSocket ni SSE | La pantalla de cocina consulta cada 8 s y avisa con sonido; ActiveMQ ya publica el evento por si se quiere empujar (ver ADR 0001) |
-| Casos 7.9, 7.10 y 10.7 no se ejecutan contra Docker | Prueban acceso directo a los servicios, secretos ajenos en Vault y Vault sellado, y desde el equipo la red privada no se alcanza (es lo que se busca) | Corren con `casos.py --directo` en el entorno local sin Docker, donde todo va en HTTP (22 casos en total: los 19 que aplican sin TLS más esos 3; el 7.12 solo aplica con HTTPS); en Docker la separación de redes se comprueba porque solo se publican los puertos 8080 y 9000 |
 | GitHub Pages | El frontend ahora necesita la API | Se sirve desde el gateway (mismo origen que la API). La versión estática de la entrega anterior sigue en la rama `Front-end` |
 
 ---
@@ -143,7 +142,7 @@ Datos: **Púb.** público, **Rest.** restringido (personal), **Cred.** credencia
 | S01 | R1 | Menú, Arma tu bowl: cargar productos | Consultar catálogo | `GET /catalogo/items` | `categoria`, `ids` (opcionales; hasta 100) | `200` lista de `{id, categoria, nombre, descripcion, precio, disponible}`; `[]` si no hay | `400` categoría inválida; solo campos permitidos (el stock lo ven admin y dueño) | Púb. | Anónimo |
 | S02 | R1, R12 | Panel Productos: abrir un producto | Obtener un producto | `GET /catalogo/items/:id` | `id` | `200` producto | `404 NO_ENCONTRADO` | Púb. | Anónimo |
 | S03 | R1 a R3 | Menú, Arma tu bowl, Promo: tamaños, reglas y promociones | Reglas del armado y recargos | `GET /catalogo/configuracion` | — | `200 {tamanos, reglas, promos}` | — | Púb. | Anónimo |
-| S04 | R12 | Productos: crear | Agregar un producto | `POST /catalogo/items` | Datos del producto (categoría, nombre, descripción, precio, stock, activo) | `201` producto | `400` datos inválidos; `409 DUPLICADO` (nombre) | Púb. (stock: interno) | admin, dueño |
+| S04 | R12 | Productos: crear | Agregar un producto | `POST /catalogo/items` | Datos del producto (categoría, nombre, descripción, precio, stock, disponible) | `201` producto | `400` datos inválidos (nombre de 2 a 80 caracteres, precio entero de 0 a 100.000, stock entero o vacío); `409 DUPLICADO` (nombre) | Púb. (stock: interno) | admin, dueño |
 | S05 | R12 | Productos: editar precio, disponibilidad y stock | Modificar un producto | `PUT /catalogo/items/:id` | Datos del producto | `200` producto | `400`; `404`; `409` nombre repetido | Púb. (stock: interno) | admin, dueño |
 | S06 | R12 | Productos: eliminar | Solicitar la eliminación de un producto | `DELETE /catalogo/items/:id` | `id` | `204` | `404`; solo admin. Los pedidos ya hechos conservan la descripción y el precio copiados | Púb. | admin |
 | S07 | R5 | Registro: crear cuenta | Registrar cliente y su cuenta | `POST /clientes/registro` | `{run, nombre, direccion, region, provincia, comuna, fechaNacimiento, sexo, email, telefono, clave}` | `201 {cliente, codigoDemo}` (nunca la clave ni su hash) | `400` ficha o clave débil; `409 DUPLICADO` (RUN o correo); `429` (20 por minuto por IP) | Rest. y Cred. | Anónimo |
@@ -157,7 +156,7 @@ Datos: **Púb.** público, **Rest.** restringido (personal), **Cred.** credencia
 | S15 | R4, R7 | Confirmar pedido: crear pedido | Crear el pedido desde la selección | `POST /pedidos` | `Idempotency-Key` (opcional); `{modoEntrega, nota, lineas}` solo con la selección | `201` pedido `PENDIENTE_PAGO` con el total calculado por inventario | `400 FUERA_DE_RADIO`, `400 SELECCION_INVALIDA`; `409 SIN_STOCK`; `403` si no es cliente; `502/504` si inventario o clientes no responden | Rest. y Fin. | cliente |
 | S16 | R9, R10, R14 | Mis pedidos, Panel Pedidos, Cocina, Despacho, Caja: listar | Consultar pedidos según el rol | `GET /pedidos` | `estado`, `cola` (`cocina` o `despacho`), `q`, `limite` (1 a 500) | `200` lista filtrada por rol (cocina y despacho ven solo nombre y teléfono del cliente) | `400` parámetro inválido; el cliente solo ve los suyos | Rest. | Con sesión (todos los roles) |
 | S17 | R14 | Panel y Cocina: abrir un pedido | Consultar un pedido | `GET /pedidos/:id` | `id` | `200` pedido según el rol | `404` si no es suyo o no existe (no confirma existencia) | Rest. | Con sesión (todos los roles) |
-| S18 | R8, R14 | Boleta: ver e imprimir | Consultar la boleta | `GET /pedidos/boleta/:numero` | `numero` | `200` boleta (neto, IVA, total, RUN) | `404` si no es suya | Rest. y Fin. | cliente, admin, dueño |
+| S18 | R8, R14 | Boleta: ver e imprimir | Consultar la boleta | `GET /pedidos/boleta/:numero` | `numero` | `200` el pedido con su `venta` y su `boleta` (neto, IVA, total) y los datos del comprador según el rol | `404` si no es suya | Rest. y Fin. | cliente, admin, dueño |
 | S19 | — | (sin pantalla) | Estados, choferes y caja | `GET /pedidos/configuracion` | — | `200 {estados, choferes, caja, cajero}` | — | Interno | Con sesión (todos los roles) |
 | S20 | R9 | Cocina: aceptar | Pasar a preparación | `POST /pedidos/:id/aceptar` | `id` | `200` pedido `EN_PREPARACION` | `409 ESTADO` si no está pagado o ya lo aceptó otro puesto; `404` | Rest. | admin, cocina |
 | S21 | R9 | Cocina: marcar listo | Dejar listo | `POST /pedidos/:id/terminar` | `id` | `200` pedido `LISTO_DESPACHO` o `LISTO_RETIRO` | `409 ESTADO`; `404` | Rest. | admin, cocina |
@@ -305,9 +304,11 @@ El contrato completo de cada servicio Python se puede ver en su OpenAPI (`/docs`
 
 ## 2. Dominio y límites de los microservicios
 
-![UML del dominio y los servicios públicos](diagramas/dominio.png)
+![UML del dominio: clases, atributos y multiplicidades](diagramas/dominio.png)
 
-Editable: [`diagramas/dominio.mmd`](diagramas/dominio.mmd) (Mermaid).
+![UML de los servicios públicos: operaciones con su ID y dependencias de las clases del dominio](diagramas/servicios.png)
+
+Editables (Mermaid): [`diagramas/dominio.mmd`](diagramas/dominio.mmd) y [`diagramas/servicios.mmd`](diagramas/servicios.mmd). Las dos figuras forman un solo UML: la segunda muestra los servicios y qué clases de la primera usa cada uno.
 
 ### Leyenda de notación y correspondencia con los servicios
 
@@ -420,6 +421,8 @@ Los cuatro sistemas mínimos del caso son microservicios privados, cada uno con 
 ### Mapa de componentes y despliegue
 
 ![Mapa de componentes](diagramas/componentes.png)
+
+Leyenda: las flechas continuas son llamadas entre componentes (todas por TLS 1.2 o superior); `Basic` es HTTP Basic con un secreto de Vault, `API key` es la clave del comercio ante la pasarela y `webhook HMAC` es la notificación firmada; las líneas punteadas son la lectura de secretos en Vault, cada componente con su propio token; `STOMP` es la mensajería hacia ActiveMQ. El detalle de qué se verifica en cada salto está en la tabla de fronteras de confianza (sección 5).
 
 Modelo C4 (`docs/diagramas/poke-fresh.dsl`): 25 vistas, validadas con el comando `validate` de Structurizr (imagen `structurizr/structurizr`) y exportables a Mermaid. Incluye C1 (contexto con la pasarela externa), C2 (contenedores, con recortes de catálogo, pedidos y pagos, y secretos), C3 de API Gateway, GraphQL Gateway, Auth Service y pedidos, vistas dinámicas de los flujos de los casos de validación (catálogo y su recuperación, pedido y su reintento, pedido propio y ajeno, sesión expirada, GraphQL con éxito, con error parcial y sobre el límite, pago, confirmación firmada y notificación falsa) y dos despliegues: `Docker_Compose` (el entregado) y `Local_Sin_Docker` (pruebas, con Mongo, Vault y ActiveMQ en memoria). Para verlo: pegar el archivo en https://structurizr.com/dsl o usar el CLI. No hay imágenes renderizadas de estas vistas en el repositorio; los `.png` de arriba siguen siendo los diagramas de referencia del informe.
 
@@ -792,8 +795,8 @@ Ejecutados contra el backend implementado con `pruebas/e2e/casos.py`. Resultados
 | 7.6 Pago alterado desde el frontend | `monto: 1`; notificación sin firma / firma falsa | cliente | monto real; 401 | monto 7.890; 401 y 401; pedido sigue pendiente | pagos |
 | 7.7 CSRF | `Origin` ajeno | cliente | 403 | 403 ORIGEN_NO_PERMITIDO | Gateway |
 | 7.8 Cookie y logout | login, logout | cliente | HttpOnly y Secure; 401 tras logout | Cumple | Gateway + Auth |
-| 7.9 Acceso directo al backend | servicios sin gateway | atacante en la red | 403/401 | pedidos 403, inventario 403, GraphQL 403, Auth 401 | Cada servicio |
-| 7.10 Secreto ajeno en Vault | token de inventario | inventario | 403 | propio 200; pagos 403; pepper 403 | Vault |
+| 7.9 Acceso directo al backend | desde un contenedor de la red privada, sin la credencial del destino y con `X-Usuario-Rol: admin` | atacante dentro de la red | 403/401 | pedidos 403, inventario 403, GraphQL 403, Auth 401 | Cada servicio |
+| 7.10 Secreto ajeno en Vault | dentro del contenedor de inventario, con su propio token | inventario | 403 | propio 200; pagos 403; pepper 403 | Vault |
 | 7.11 Fuerza bruta | 25 logins fallidos | anónimo | bloqueo | 429 desde el intento 6 | Auth + gateway |
 | 7.12 Transporte cifrado | GET en claro y por HTTPS | anónimo | sin HTTP en claro; HTTPS con HSTS; certificado verificado con la CA | Cumple | Gateway (TLS) |
 
@@ -951,6 +954,8 @@ La decisión, con contexto, alternativas y consecuencias, está en [ADR 0001](ad
 | Latencia aceptada del reporte | ≤ 2 s | Objetivo | Cumple |
 | Streaming | No se necesita (aviso a cocina en segundos) | Requisito | No; los avisos asíncronos van por ActiveMQ |
 
+**CPU y memoria bajo carga.** La prueba de carga (`evidencias/carga.md`) registró también el consumo de los contenedores con `docker stats`, en una sola muestra tomada durante el tercer escenario (la cola de cocina): pedidos 108 % de CPU y 63 MiB, MongoDB 91 % y 359 MiB, API Gateway 65 % y 130 MiB, Auth Service 40 % y 73 MiB; inventario, clientes y pagos, 0,1 % y entre 49 y 61 MiB; el GraphQL Gateway no se usó en ese escenario (0 %, 151 MiB). Con 100 % igual a un núcleo y una sola muestra, sirve para ver el orden de magnitud y que ningún contenedor se acerca a un límite de memoria; no permite afirmar cuánto consume cada pieza ni comparar con otra tecnología. Con esa carga (de 42 a 63 veces el pico proyectado) el consumo no justifica separar un servicio de alta demanda.
+
 ### Por qué no se implementa cada componente
 
 | Componente | ¿Se implementa? | Requisito del caso y carga que lo justificarían | Por qué no |
@@ -997,7 +1002,7 @@ El análisis completo, con una evaluación flujo por flujo, está en el [ADR 000
 | Contratos REST | Sección 1 y OpenAPI de cada servicio |
 | Contrato GraphQL | Sección 8 y `graphql-gateway/src/graphql/esquema.js` |
 | Contratos gRPC | No aplica (ADR 0001) |
-| Pruebas automatizadas | 86 unitarias y de integración + 20 de punta a punta (contra Docker, con TLS) + recorrido de pantallas + carga |
+| Pruebas automatizadas | 86 unitarias y de integración + 23 de punta a punta (contra Docker, con TLS) + recorrido de pantallas + carga |
 | Instrucciones | `README.md` |
 
 ### Pruebas y resultados
@@ -1008,7 +1013,7 @@ El análisis completo, con una evaluación flujo por flujo, está en el [ADR 000
 | `auth-service/test` | 20 | Login, bloqueo, expiración, revocación, verificación, permisos por cliente, hash y pepper, Vault sellado | 20/20 |
 | `gateway/test` | 18 | Matriz de rutas, roles, cabeceras falsificadas, cookie, CSRF, webhook, Vault y servicio caídos, límite, healthcheck, HSTS | 18/18 |
 | `graphql-gateway/test` | 11 | Agregación, batching, identidad, autorización por campo, error parcial, límites, paginación | 11/11 |
-| `pruebas/e2e/casos.py` | 20 | Casos del módulo 7 y del 10 contra el sistema levantado en Docker, por HTTPS | 20/20 |
+| `pruebas/e2e/casos.py --docker` | 23 | Casos del módulo 7 y del 10 contra el sistema levantado en Docker, por HTTPS; los casos 7.9, 7.10 y 10.7 se ejecutan dentro de la red privada | 23/23 |
 | `pruebas/e2e/pantallas.py` | 16 pantallas de escritorio + 6 móviles | Flujos principales en el navegador, en escritorio (1280×900) y en móvil (375×812, táctil) | Completo, sin errores de consola |
 | `pruebas/carga/carga.mjs` | 3 escenarios | Rendimiento contra el sistema en Docker | 0 % de error |
 
@@ -1098,7 +1103,7 @@ Las capturas muestran la página y no la barra de direcciones; el protocolo cons
 | R13 | Caja, Reportes | pedidos + GraphQL (S26, S32) | `test_reporte_de_ventas...`, caso 8.3 | OK | `pantallas/11-reportes-graphql.png` |
 | R14 | Pedido, Mis pedidos, Boleta | pedidos + GraphQL (S08, S09, S16 a S18, S30) | caso 7.5, 8.1 | OK | `pantallas/09`, `10` |
 
-### Ejemplo de autorización por pedido (lo pide la pauta)
+### Ejemplo de autorización por pedido
 
 Con la misma regla ("un cliente solo ve sus pedidos", aplicada por el servicio de pedidos):
 
@@ -1116,3 +1121,370 @@ Ambas en el caso 7.5 (`evidencias/e2e-resultados.json`, con sus `X-Request-Id`, 
 - **Health checks:** cada servicio tiene `/salud` (estado de Mongo y Vault), usado por Docker; `GET /api/salud` reúne todos.
 - **Logs:** una línea por petición con método, ruta, estado, duración, rol y `X-Request-Id`; sin cuerpos, correos ni tokens.
 - **Dependencias versionadas:** `package-lock.json` en cada proyecto Node, versiones fijas en `servicios/requirements.txt`, imágenes con versión (`mongo:7.0`, `hashicorp/vault:1.18`, `apache/activemq-classic:6.1.4`).
+
+---
+
+## Anexo A. Ejemplos de contrato por operación
+
+La sección 1 muestra el ejemplo completo de S01, S07, S15, S20, S22, S25, S27, S29 y S33. Este anexo agrega uno para cada operación restante, de modo que las 44 tienen petición y respuesta con datos ficticios. En todos, los errores tienen la forma `{"codigo": "...", "mensaje": "...", "idPeticion": "..."}` y los códigos de la matriz del módulo 1. Se abrevian con `...` los campos que ya se mostraron en otro ejemplo. S30 (`resumenPedido`) tiene su consulta y su respuesta completas en la sección 8.
+
+### Catálogo (inventario)
+
+**S02, obtener un producto** (anónimo).
+
+```http
+GET /api/v1/catalogo/items/pro_atun
+```
+```json
+200 {"id": "pro_atun", "categoria": "PROTEINA", "nombre": "Atún", "descripcion": "Grado sashimi, corte del día", "precio": 1500, "disponible": true}
+404 {"codigo": "NO_ENCONTRADO", "mensaje": "No existe el item pro_zzz.", "idPeticion": "e2e-4c1d9a0b7e2f"}
+```
+
+**S03, reglas del armado** (anónimo).
+
+```http
+GET /api/v1/catalogo/configuracion
+```
+```json
+200 {"tamanos": [{"id": "regular", "nombre": "Regular", "descripcion": "Porción individual", "precio": 6990, "salsasIncluidas": 2, "toppingsIncluidos": 3}, ...],
+     "reglas": {"basesIncluidas": 1, "maxBases": 3, "recargoBaseExtra": 500, "proteinasIncluidas": 1, "maxProteinas": 3, "recargoProteinaExtra": 2500, ...},
+     "promos": {"promo_combo": {"bowls": 1, "bebida": true, "tamanoId": "regular", "detalle": "Arma tu bowl regular y elige tu bebida."}, ...}}
+```
+
+**S04, crear un producto** (admin o dueño). Con rol de administración la respuesta incluye `stock` y `activo`.
+
+```http
+POST /api/v1/catalogo/items
+{"categoria": "TOPPING", "nombre": "Cebolla crispy", "descripcion": "Crocante, para dar textura", "precio": 700, "stock": 50, "disponible": true}
+```
+```json
+201 {"id": "top_cebolla_crispy", "categoria": "TOPPING", "nombre": "Cebolla crispy", "descripcion": "Crocante, para dar textura", "precio": 700, "disponible": true, "stock": 50, "activo": true}
+409 {"codigo": "DUPLICADO", "mensaje": "Ya existe un item llamado \"Cebolla crispy\".", "idPeticion": "..."}
+```
+
+**S05, modificar un producto** (admin o dueño). Solo se mandan los campos que cambian.
+
+```http
+PUT /api/v1/catalogo/items/top_cebolla_crispy
+{"precio": 800, "stock": 40}
+```
+```json
+200 {"id": "top_cebolla_crispy", "categoria": "TOPPING", "nombre": "Cebolla crispy", ..., "precio": 800, "disponible": true, "stock": 40, "activo": true}
+```
+
+**S06, eliminar un producto** (solo admin).
+
+```http
+DELETE /api/v1/catalogo/items/top_cebolla_crispy
+```
+```json
+204 (sin cuerpo)
+403 {"codigo": "PROHIBIDO", "mensaje": "Tu perfil no tiene permiso para esta operación.", "idPeticion": "..."}   (si es dueño)
+```
+
+### Clientes
+
+**S08, ver la ficha propia** (cliente).
+
+```http
+GET /api/v1/clientes/yo
+```
+```json
+200 {"id": "cli_3fa9c01b22de", "run": "12345678-5", "nombre": "Ana Prueba Soto", "direccion": "Av. Italia 1500", "region": "Región Metropolitana de Santiago", "provincia": "Santiago", "comuna": "Ñuñoa", "fechaNacimiento": "1995-03-10", "sexo": "F", "email": "ana.prueba@correo.cl", "telefono": "+56 9 1111 2222", "activo": true, "origen": "WEB", "creadoEn": "2026-11-08T14:02:11.000Z", "tieneDespacho": true}
+```
+
+**S09, editar la ficha propia** (cliente). El `run` y el `origen` no se pueden cambiar.
+
+```http
+PUT /api/v1/clientes/yo
+{"direccion": "Av. Italia 1520", "telefono": "+56 9 1111 3333"}
+```
+```json
+200 {"id": "cli_3fa9c01b22de", ..., "direccion": "Av. Italia 1520", "telefono": "+56 9 1111 3333", ...}
+```
+
+**S10, listar y buscar clientes** (admin).
+
+```http
+GET /api/v1/clientes?q=ana
+```
+```json
+200 [{"id": "cli_3fa9c01b22de", "run": "12345678-5", "nombre": "Ana Prueba Soto", "direccion": "Av. Italia 1500", "region": "Región Metropolitana de Santiago", "provincia": "Santiago", "comuna": "Ñuñoa", "fechaNacimiento": "1995-03-10", "sexo": "F", "email": "ana.prueba@correo.cl", "telefono": "+56 9 1111 2222", "activo": true, "origen": "WEB", "creadoEn": "2026-11-08T14:02:11.000Z", "tieneDespacho": true, "emailVerificado": true}]
+```
+
+**S11, registrar un cliente en el local** (admin). La clave temporal se entrega una sola vez y solo en modo demo.
+
+```http
+POST /api/v1/clientes
+{"run": "9.876.543-3", "nombre": "Luis Prueba Rojas", "direccion": "Av. Providencia 100", "region": "Región Metropolitana de Santiago", "provincia": "Santiago", "comuna": "Providencia", "fechaNacimiento": "1988-07-21", "sexo": "M", "email": "luis.prueba@correo.cl", "telefono": "+56 9 2222 3333"}
+```
+```json
+201 {"cliente": {"id": "cli_7be41c0d93aa", "run": "9876543-3", "nombre": "Luis Prueba Rojas", ..., "origen": "ADMIN", "emailVerificado": false}, "claveTemporal": "kmpa4821"}
+```
+
+**S12, abrir una ficha** (admin).
+
+```http
+GET /api/v1/clientes/cli_3fa9c01b22de
+```
+```json
+200 {"id": "cli_3fa9c01b22de", "run": "12345678-5", "nombre": "Ana Prueba Soto", "direccion": "Av. Italia 1500", "region": "Región Metropolitana de Santiago", "provincia": "Santiago", "comuna": "Ñuñoa", "fechaNacimiento": "1995-03-10", "sexo": "F", "email": "ana.prueba@correo.cl", "telefono": "+56 9 1111 2222", "activo": true, "origen": "WEB", "creadoEn": "2026-11-08T14:02:11.000Z", "tieneDespacho": true}
+404 {"codigo": "NO_ENCONTRADO", "mensaje": "No existe ese cliente.", "idPeticion": "..."}
+```
+
+**S13, editar una ficha** (admin).
+
+```http
+PUT /api/v1/clientes/cli_3fa9c01b22de
+{"telefono": "+56 9 7000 1111"}
+```
+```json
+200 {"id": "cli_3fa9c01b22de", ..., "telefono": "+56 9 7000 1111", ...}
+```
+
+**S14, activar o desactivar** (admin). Al desactivar se cierran las sesiones del cliente.
+
+```http
+PATCH /api/v1/clientes/cli_3fa9c01b22de/estado
+{"activo": false}
+```
+```json
+200 {"id": "cli_3fa9c01b22de", ..., "activo": false, ...}
+```
+
+### Pedidos
+
+**S16, cola de cocina** (cocina). Cocina recibe del cliente solo el nombre y el teléfono.
+
+```http
+GET /api/v1/pedidos?cola=cocina
+```
+```json
+200 [{"id": "PF-00084", "estado": "PAGADO", "modoEntrega": "DELIVERY", "total": 7890, "cliente": {"nombre": "Javiera Morales Díaz", "telefono": "+56 9 8123 4567"},
+      "lineas": [{"descripcion": "Bowl Regular: Arroz gohan, Salmón fresco, Ponzu, Palta", "cantidad": 1, "subtotal": 7890, ...}], "historial": [...]}]
+```
+
+**S17, abrir un pedido** (el cliente dueño; para el cliente el historial no trae quién hizo cada paso).
+
+```http
+GET /api/v1/pedidos/PF-00084
+```
+```json
+200 {"id": "PF-00084", "estado": "PAGADO", "total": 7890, ..., "historial": [{"estado": "PENDIENTE_PAGO", "fecha": "2026-11-08T03:15:01.120Z"}, {"estado": "PAGADO", "fecha": "2026-11-08T03:16:40.502Z"}]}
+404 {"codigo": "NO_ENCONTRADO", "mensaje": "No encontramos ese pedido.", "idPeticion": "..."}   (ajeno o inexistente: igual respuesta)
+```
+
+**S18, ver la boleta** (cliente dueño, admin o dueño).
+
+```http
+GET /api/v1/pedidos/boleta/79
+```
+```json
+200 {"id": "PF-00084", "estado": "PAGADO", "total": 7890,
+     "venta": {"numero": 79, "caja": "CAJA-WEB-01", "cajero": "Cajero virtual", "fecha": "2026-11-08T03:16:40.502Z", "total": 7890, "anulada": false},
+     "boleta": {"numero": 79, "fecha": "2026-11-08T03:16:40.502Z", "neto": 6630, "iva": 1260, "total": 7890, "enviadaA": "cliente@correo.cl"}, ...}
+404 {"codigo": "NO_ENCONTRADO", "mensaje": "No encontramos esa boleta.", "idPeticion": "..."}
+```
+
+**S19, configuración de pedidos** (con sesión; sin pantalla).
+
+```http
+GET /api/v1/pedidos/configuracion
+```
+```json
+200 {"estados": {"PENDIENTE_PAGO": "Pendiente de pago", "PAGADO": "Esperando cocina", ...}, "choferes": ["Luis Contreras", "Andrea Muñoz"], "caja": "CAJA-WEB-01", "cajero": "Cajero virtual"}
+```
+
+**S21, marcar el pedido listo** (cocina).
+
+```http
+POST /api/v1/pedidos/PF-00084/terminar
+```
+```json
+200 {"id": "PF-00084", "estado": "LISTO_DESPACHO", ...}
+409 {"codigo": "ESTADO", "mensaje": "...", "idPeticion": "..."}   (si no estaba en preparación)
+```
+
+**S23, registrar la entrega** (despacho).
+
+```http
+POST /api/v1/pedidos/PF-00084/entregar
+```
+```json
+200 {"id": "PF-00084", "estado": "ENTREGADO", ...}
+```
+
+**S24, registrar que se imprimió la orden** (cocina o despacho).
+
+```http
+POST /api/v1/pedidos/PF-00084/impresa
+```
+```json
+204 (sin cuerpo)
+```
+
+**S26, reporte de ventas** (admin o dueño). El CSV se arma en el frontend con esta respuesta.
+
+```http
+GET /api/v1/reportes/ventas?desde=2026-11-02&hasta=2026-11-08
+```
+```json
+200 {"desde": "2026-11-02", "hasta": "2026-11-08", "cantidad": 22, "monto": 229150, "promedio": 10416, "anuladas": 0, "montoAnulado": 0,
+     "porDia": [{"dia": "2026-11-02", "cantidad": 3, "monto": 24500}, ...], "porEntrega": [{"modo": "DELIVERY", "nombre": "Despacho a domicilio", "cantidad": 11, "monto": 108180}, ...],
+     "masVendidos": [...], "ventas": [...]}
+400 {"codigo": "...", "mensaje": "Indica las fechas como AAAA-MM-DD.", "idPeticion": "..."}
+```
+
+### Pagos
+
+**S28, pagos de un pedido** (sin pantalla). El `token` de la pasarela no sale.
+
+```http
+GET /api/v1/pagos?pedidoId=PF-00084
+```
+```json
+200 [{"id": "PAG-07A5E9CF2BEF", "pedidoId": "PF-00084", "monto": 7890, "medio": "SERVIPAG", "estado": "APROBADO", "referencia": "SVP-99801681", "creadoEn": "2026-11-08T03:16:02.000Z", "actualizadoEn": "2026-11-08T03:16:40.000Z", "urlPago": null}]
+```
+
+### Agregaciones GraphQL
+
+**S31, historial paginado** (cliente; sin pantalla).
+
+```http
+POST /api/v1/graphql
+{"query": "query ($n: Int) { misPedidos(primeros: $n) { nodos { id estadoTexto total } siguiente } }", "variables": {"n": 2}}
+```
+```json
+200 {"data": {"misPedidos": {"nodos": [{"id": "PF-00084", "estadoTexto": "Esperando cocina", "total": 7890}, {"id": "PF-00081", "estadoTexto": "Entregado", "total": 7890}], "siguiente": "eyJ..."}}}
+```
+
+**S32, reporte con categorías y conciliación** (admin o dueño).
+
+```http
+POST /api/v1/graphql
+{"query": "{ reporteVentas(desde: \"2026-11-02\", hasta: \"2026-11-08\") { cantidad monto porCategoria { categoria unidades } conciliacion { ventas pagosAprobados pedidosConDiferencia } } }"}
+```
+```json
+200 {"data": {"reporteVentas": {"cantidad": 22, "monto": 229150, "porCategoria": [{"categoria": "BASE", "unidades": 25}, ...], "conciliacion": {"ventas": 22, "pagosAprobados": 22, "pedidosConDiferencia": []}}}}
+```
+Para un cocina: `{"data": {"reporteVentas": null}, "errors": [{"message": "Tu perfil no puede consultar este dato.", "extensions": {"code": "PROHIBIDO"}}]}`.
+
+### Sesión y cuentas
+
+**S34, cerrar sesión.**
+
+```http
+POST /api/v1/auth/logout
+Cookie: pf_sesion=<token>
+```
+```json
+204 (sin cuerpo; la cookie se borra y el token queda revocado)
+```
+
+**S35, saber quién tiene sesión.**
+
+```http
+GET /api/v1/auth/sesion
+```
+```json
+200 {"tipo": "CLIENTE", "id": "cli_demo_1", "perfil": "CLIENTE", "nombre": "Javiera Morales Díaz", "email": "cliente@correo.cl", "expira": "2026-11-08T03:45:01.000Z"}
+200 null   (sin sesión: no es un error)
+```
+
+**S36, modo demostración.**
+
+```http
+GET /api/v1/auth/config
+```
+```json
+200 {"modoDemo": true, "cuentasDemo": [{"perfil": "Cliente", "email": "cliente@correo.cl", "clave": "Cliente2026"}, ...]}
+200 {"modoDemo": false, "cuentasDemo": []}
+```
+
+**S37, cambiar la contraseña** (con sesión).
+
+```http
+PUT /api/v1/auth/clave
+{"actual": "Cliente2026", "nueva": "OtraClave2027"}
+```
+```json
+204 (sin cuerpo)
+400 {"codigo": "CLAVE_ACTUAL", "mensaje": "La contraseña actual no es correcta.", "idPeticion": "..."}
+```
+
+**S38, verificar el correo.**
+
+```http
+POST /api/v1/auth/verificar
+{"email": "ana.prueba@correo.cl", "codigo": "482915"}
+```
+```json
+200 {"verificado": true}
+400 {"codigo": "CODIGO", "mensaje": "El código no coincide. Revisa el correo más reciente.", "idPeticion": "..."}
+```
+
+**S39, pedir un código nuevo.** La respuesta es la misma exista o no la cuenta.
+
+```http
+POST /api/v1/auth/reenviar
+{"email": "ana.prueba@correo.cl"}
+```
+```json
+200 {"mensaje": "Si el correo está registrado y sin verificar, enviamos un código nuevo.", "codigoDemo": "731540"}
+```
+
+### Usuarios internos
+
+**S40, listar** (admin). Sin hash ni datos de verificación.
+
+```http
+GET /api/v1/usuarios
+```
+```json
+200 [{"id": "6d0b8e47-12af-4c93-8b55-9f3e2a7c1d60", "email": "admin@pokefresh.cl", "rol": "admin", "nombre": "Camila Rojas", "activo": true, "emailVerificado": true, "creadoEn": "2026-11-08T14:20:00.000Z"}, ...]
+```
+
+**S41, crear** (admin).
+
+```http
+POST /api/v1/usuarios
+{"nombre": "Pedro Soto", "email": "pedro@pokefresh.cl", "rol": "cocina", "clave": "Cocina2027"}
+```
+```json
+201 {"id": "a3f1c9e2-5b7d-4c6a-9e10-2f8d7b6c4a11", "email": "pedro@pokefresh.cl", "rol": "cocina", "nombre": "Pedro Soto", "activo": true, "emailVerificado": true, "creadoEn": "2026-11-08T14:20:00.000Z"}
+400 {"codigo": "CLAVE_DEBIL", "mensaje": "La contraseña debe combinar letras y números.", "idPeticion": "..."}
+```
+
+**S42, editar** (admin). Cambiar la clave o el perfil cierra las sesiones de ese usuario.
+
+```http
+PUT /api/v1/usuarios/a3f1c9e2-5b7d-4c6a-9e10-2f8d7b6c4a11
+{"nombre": "Pedro Soto Vera", "rol": "despacho"}
+```
+```json
+200 {"id": "a3f1c9e2-5b7d-4c6a-9e10-2f8d7b6c4a11", "email": "pedro@pokefresh.cl", "rol": "despacho", "nombre": "Pedro Soto Vera", "activo": true, "emailVerificado": true, "creadoEn": "2026-11-08T14:20:00.000Z"}
+400 {"codigo": "ULTIMO_ADMIN", "mensaje": "Debe quedar al menos un administrador activo.", "idPeticion": "..."}
+```
+
+**S43, activar o desactivar** (admin).
+
+```http
+PATCH /api/v1/usuarios/a3f1c9e2-5b7d-4c6a-9e10-2f8d7b6c4a11/estado
+{"activo": false}
+```
+```json
+200 {"id": "a3f1c9e2-5b7d-4c6a-9e10-2f8d7b6c4a11", ..., "activo": false, ...}
+400 {"codigo": "PROPIA_CUENTA", "mensaje": "No puedes desactivar tu propia cuenta.", "idPeticion": "..."}
+```
+
+### Estado del sistema
+
+**S44, salud** (anónimo; sin datos personales).
+
+```http
+GET /api/salud
+```
+```json
+200 {"gateway": "ok", "vault": "ok", "auth": "ok", "graphql": "ok", "inventario": "ok", "clientes": "ok", "pedidos": "ok", "pagos": "ok"}
+503 {"gateway": "ok", "vault": "sin respuesta", ...}   (si algo no responde)
+```

@@ -1,5 +1,5 @@
 classDiagram
-  direction TB
+  direction LR
   class Cliente {
     id
     run
@@ -77,74 +77,3 @@ classDiagram
   Pedido "1" -- "0..*" Pago : intentos
   Pedido "1" -- "0..1" Reserva : descuenta stock
   Reserva "1" -- "1..*" Producto : afecta
-
-  class CatalogoService {
-    <<service inventario>>
-    S01 listarCatalogo(categoria)
-    S02 obtenerItem(id)
-    S03 obtenerConfiguracion()
-    S04 crearItem(datos)
-    S05 editarItem(id, datos)
-    S06 eliminarItem(id)
-  }
-  class ClientesService {
-    <<service clientes>>
-    S07 registrarCliente(datos)
-    S08 verMiFicha()
-    S09 editarMiFicha(datos)
-    S10 listarClientes(q)
-    S11 registrarEnLocal(datos)
-    S12 verCliente(id)
-    S13 editarCliente(id, datos)
-    S14 cambiarEstadoCliente(id)
-  }
-  class PedidosService {
-    <<service pedidos>>
-    S15 crearPedido(seleccion)
-    S16 listarPedidos(estado, cola, q)
-    S17 verPedido(id)
-    S18 verBoleta(numero)
-    S19 obtenerConfiguracionPedidos()
-    S20 aceptarPedido(id)
-    S21 terminarPedido(id)
-    S22 despacharPedido(id, chofer)
-    S23 entregarPedido(id)
-    S24 marcarImpresa(id)
-    S25 anularPedido(id, motivo)
-    S26 reporteVentas(desde, hasta)
-  }
-  class PagosService {
-    <<service pagos>>
-    S27 iniciarPago(pedidoId)
-    S28 consultarPagos(pedidoId)
-    S29 recibirNotificacion(firma, cuerpo)
-  }
-  class AuthService {
-    <<service auth>>
-    S33 login(email, clave)
-    S34 logout()
-    S37 cambiarClave(actual, nueva)
-    S38 verificarCorreo(email, codigo)
-    S39 reenviarCodigo(email)
-    S40 listarUsuarios()
-    S41 crearUsuario(datos)
-    S42 editarUsuario(id, datos)
-    S43 cambiarEstadoUsuario(id)
-  }
-  class GraphQLGateway {
-    <<service graphql>>
-    S30 resumenPedido(id)
-    S31 misPedidos(primeros, despuesDe)
-    S32 reporteVentas(desde, hasta)
-  }
-  CatalogoService ..> Producto : usa
-  CatalogoService ..> Reserva : usa
-  ClientesService ..> Cliente : usa
-  PedidosService ..> Pedido : usa
-  PedidosService ..> Venta : usa
-  PedidosService ..> Boleta : usa
-  PagosService ..> Pago : usa
-  AuthService ..> Cuenta : usa
-  GraphQLGateway ..> Pedido : lee
-  GraphQLGateway ..> Pago : lee
-  GraphQLGateway ..> Producto : lee

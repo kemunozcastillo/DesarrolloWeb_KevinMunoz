@@ -1,33 +1,33 @@
-flowchart LR
-  nav["Navegador<br/>frontend HTML/CSS/JS"]
-  subgraph externa["Red externa (puertos publicados, HTTPS)"]
-    gw["API Gateway<br/>Express :8080 (TLS)<br/>sirve el frontend"]
-    pas["Pasarela simulada<br/>Servipag de prueba :9000 (TLS)"]
+%%{init: {"flowchart": {"nodeSpacing": 18, "rankSpacing": 45, "padding": 4}, "themeVariables": {"fontSize": "22px"}}}%%
+flowchart TB
+  nav["Navegador<br/>frontend"]
+  subgraph externa["Red externa (HTTPS)"]
+    gw["API Gateway<br/>:8080"]
+    pas["Pasarela simulada<br/>:9000"]
   end
-  subgraph privada["Red privada (internal: sin puertos, sin Internet; TLS entre todos)"]
-    auth["Auth Service<br/>Node :4100"]
-    gql["GraphQL Gateway<br/>Apollo :4000"]
-    inv["inventario<br/>FastAPI :8001"]
-    cli["clientes<br/>FastAPI :8002"]
-    ped["pedidos<br/>FastAPI :8003"]
-    pag["pagos<br/>FastAPI :8004"]
-    vault[("HashiCorp Vault<br/>KV v2 + políticas")]
-    mongo[("MongoDB<br/>una base por servicio")]
-    mq[["ActiveMQ<br/>STOMP"]]
-    notif["notificador<br/>consumidor STOMP"]
+  subgraph privada["Red privada (internal, TLS entre todos)"]
+    auth["Auth Service<br/>:4100"]
+    gql["GraphQL Gateway<br/>:4000"]
+    inv["inventario<br/>:8001"]
+    cli["clientes<br/>:8002"]
+    ped["pedidos<br/>:8003"]
+    pag["pagos<br/>:8004"]
+    mq[["ActiveMQ"]]
+    notif["notificador"]
+    mongo[("MongoDB")]
+    vault[("Vault")]
   end
-  nav -- "HTTPS + cookie HttpOnly y Secure" --> gw
-  nav -- "página de pago (HTTPS)" --> pas
-  pas -- "HTTPS + notificación firmada HMAC" --> gw
-  gw -- "HTTPS + Basic (secreto en Vault)" --> auth
-  gw -- "HTTPS + credencial interna + identidad verificada" --> gql
+  nav -- "HTTPS" --> gw
+  nav -- "pago" --> pas
+  pas -- "webhook HMAC" --> gw
+  gw -- "Basic" --> auth
+  gw --> gql
   gw --> inv & cli & ped & pag
   gql --> ped & pag & inv & cli
-  cli -- Basic --> auth
+  cli -- "Basic" --> auth
   ped --> inv & cli & pag
   pag --> ped
-  pag -- "HTTPS + API key" --> pas
-  ped -- "publica (STOMP sobre TLS)" --> mq --> notif
-  auth & inv & cli & ped & pag -- "TLS" --> mongo
-  pas -. "HTTPS, cada servicio con su token" .-> vault
-  gw & auth & gql & inv & cli & ped & pag -.-> vault
+  pag -- "API key" --> pas
+  ped -- "STOMP" --> mq --> notif
+  auth & inv & cli & ped & pag --> mongo
+  gw & auth & gql & inv & cli & ped & pag & pas -.-> vault
