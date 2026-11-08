@@ -160,9 +160,49 @@ with sync_playwright() as p:
     ingresar(r, "ana.prueba@correo.cl", "Prueba2026")
     foto(r, "16-cliente-nuevo-con-sesion")
 
+    # --- Móvil (375x812, táctil): mismas pantallas del cliente y la operación ---------------------
+    desborde: dict[str, bool] = {}
+
+    def foto_movil(pagina, nombre, completa=False):
+        foto(pagina, nombre, completa)
+        # Que nada obligue a hacer scroll horizontal en el teléfono.
+        desborde[nombre] = pagina.evaluate("() => document.documentElement.scrollWidth > window.innerWidth + 1")
+
+    def nuevo_movil():
+        contexto = nav.new_context(viewport={"width": 375, "height": 812}, device_scale_factor=2, is_mobile=True, has_touch=True, locale="es-CL")
+        pagina = contexto.new_page()
+        pagina.on("console", lambda m: m.type == "error" and errores.append(f"{pagina.url}: {m.text}"))
+        pagina.on("pageerror", lambda e: errores.append(f"{pagina.url}: {e}"))
+        return pagina
+
+    m = nuevo_movil()
+    m.goto(SITIO)
+    m.wait_for_selector("text=Arma tu bowl")
+    foto_movil(m, "m01-inicio-movil")
+    m.goto(f"{SITIO}/#/menu")
+    m.wait_for_selector(".tarjeta-producto, .producto, article")
+    foto_movil(m, "m02-menu-movil")
+    ingresar(m, "cliente@correo.cl", "Cliente2026")
+    m.evaluate("l => localStorage.setItem('pokefresh:carrito', JSON.stringify([l]))", linea)
+    m.goto(f"{SITIO}/#/checkout")
+    m.wait_for_selector("text=Confirmar pedido")
+    foto_movil(m, "m03-checkout-movil", completa=True)
+    m.goto(f"{SITIO}/#/orden/{pedido}")
+    m.wait_for_selector("text=Entregado")
+    foto_movil(m, "m04-seguimiento-movil", completa=True)
+    m.goto(f"{SITIO}/#/mis-pedidos")
+    m.wait_for_selector(f"text={pedido}")
+    foto_movil(m, "m05-mis-pedidos-movil")
+
+    md = nuevo_movil()
+    ingresar(md, "despacho@pokefresh.cl", "Despacho2026")
+    md.goto(f"{SITIO}/#/admin/despacho")
+    md.wait_for_selector("text=Despacho")
+    foto_movil(md, "m06-despacho-movil")
+
     nav.close()
 
-resumen = {"pedido": pedido, "pantallas": pasos, "erroresConsola": errores, "llamadasApi": sorted(set(llamadas)), "ordenMuestraPagos": "Aprobado" in texto_orden}
+resumen = {"pedido": pedido, "pantallas": pasos, "erroresConsola": errores, "llamadasApi": sorted(set(llamadas)), "ordenMuestraPagos": "Aprobado" in texto_orden, "desbordeHorizontalMovil": desborde}
 (SALIDA / "recorrido.json").write_text(json.dumps(resumen, ensure_ascii=False, indent=2), encoding="utf-8")
 print(json.dumps({k: v for k, v in resumen.items() if k != "llamadasApi"}, ensure_ascii=False, indent=2))
 print(f"{len(set(llamadas))} rutas distintas de la API usadas por el frontend")
