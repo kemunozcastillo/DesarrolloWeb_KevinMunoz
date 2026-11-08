@@ -68,18 +68,20 @@ En modo demo el correo de verificación y la boleta no se envían de verdad: el 
 ```bash
 # Unitarias e integración de cada componente
 cd servicios && pip install -r requirements-dev.txt && pytest      # 35 pruebas
-cd auth-service && npm install && npm test                           # 19 pruebas
-cd gateway && npm install && npm test                                # 16 pruebas
+cd auth-service && npm install && npm test                           # 20 pruebas
+cd gateway && npm install && npm test                                # 17 pruebas
 cd graphql-gateway && npm install && npm test                        # 11 pruebas
 
 # De punta a punta, con el sistema arriba (deja evidencia en docs/evidencias/)
 pip install httpx playwright && playwright install chromium
-python pruebas/e2e/casos.py                 # 19 casos de seguridad y negocio
-python pruebas/e2e/pantallas.py             # recorrido del frontend con capturas
+python pruebas/e2e/casos.py                 # 19 casos de seguridad y negocio (contra Docker)
+python pruebas/e2e/pantallas.py             # recorrido de 16 pantallas con capturas
 node pruebas/carga/carga.mjs                # prueba de carga (ver docs/evidencias/carga.md)
 ```
 
-Sin Docker también se puede levantar todo con Mongo, Vault y ActiveMQ simulados en memoria (útil para las pruebas): `bash pruebas/local/levantar.sh`, y `python pruebas/e2e/casos.py --gateway http://127.0.0.1:8080 --pasarela http://127.0.0.1:9000 --directo` agrega los casos de acceso directo a los servicios.
+En total son 83 pruebas unitarias y de integración (35 + 20 + 17 + 11) y 19 casos de punta a punta. El caso 7.11 bloquea a propósito la cuenta del dueño unos 5 minutos y agota el límite de logins por IP del gateway: espera un minuto entre `casos.py` y `pantallas.py`, y para repetir `casos.py` espera 5 minutos o reinicia con `docker compose down -v`. Para la prueba de carga hay que subir `LIMITE_POR_MINUTO` en `.env` (por ejemplo 100000), recrear el gateway con `docker compose up -d gateway` y volver al valor por defecto (300) después.
+
+Sin Docker también se puede levantar todo con Mongo, Vault y ActiveMQ simulados en memoria (útil para las pruebas): `bash pruebas/local/levantar.sh`, y `python pruebas/e2e/casos.py --gateway http://127.0.0.1:8080 --pasarela http://127.0.0.1:9000 --directo` agrega 3 casos (7.9 acceso directo a los servicios, 7.10 secreto ajeno en Vault y 10.7 Vault sellado), 22 en total. Esos tres necesitan alcanzar la red privada desde el equipo, algo que en Docker está bloqueado a propósito, por eso solo corren en este entorno local.
 
 ## Variables de entorno
 

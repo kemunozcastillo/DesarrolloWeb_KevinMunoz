@@ -4,7 +4,7 @@
 |---|---|
 | **Caso** | 24, Poke Fresh: venta web de poke bowls con retiro en local y despacho gratis a 3 km |
 | **Ramo** | Desarrollo Web, Ingeniería Civil Informática, UNAB |
-| **Integrantes** | Kevin Muñoz *(completar con el resto del equipo)* |
+| **Integrantes** | **[COMPLETAR: integrantes]** |
 | **Versión del frontend** | 2.0: SPA en HTML, CSS y JavaScript sin frameworks, integrada con la API (rama `Evaluacion-2`). La versión 1.0 (entrega de frontend) guardaba todo en `localStorage`. |
 | **Fecha** | 09-11-2026 |
 
@@ -62,6 +62,7 @@ Lo que no se implementa como en producción, por qué, y qué lo reemplaza:
 | Sesiones del Auth Service | Se guardan en memoria | Un reinicio del Auth Service cierra todas las sesiones (falla segura: hay que volver a ingresar) |
 | ActiveMQ sin autenticación | Broker solo accesible en la red privada | Si se expone, se activa usuario y clave en el broker y se guardan en Vault |
 | Aviso a cocina "en vivo" | Sin WebSocket ni SSE | La pantalla de cocina consulta cada 8 s y avisa con sonido; ActiveMQ ya publica el evento por si se quiere empujar (ver ADR 0001) |
+| Casos 7.9, 7.10 y 10.7 no se ejecutan contra Docker | Prueban acceso directo a los servicios, secretos ajenos en Vault y Vault sellado, y desde el equipo la red privada no se alcanza (es lo que se busca) | Corren con `casos.py --directo` en el entorno local sin Docker (22 casos en total); en Docker la separación de redes se comprueba porque solo se publican los puertos 8080 y 9000 |
 | GitHub Pages | El frontend ahora necesita la API | Se sirve desde el gateway (mismo origen que la API). La versión estática de la entrega anterior sigue en la rama `Front-end` |
 
 ---
@@ -621,13 +622,13 @@ La decisión, con contexto, alternativas y consecuencias, está en [ADR 0001](ad
 |---|---|---|---|
 | Volumen de datos | ~55.000 pedidos/año, < 100 MB | Proyección | No |
 | Concurrencia en el pico | ~5 peticiones/s | Proyección | No |
-| Capacidad medida | 242 a 725 peticiones/s, p95 43 a 124 ms, 0 % de error | **Medición** (`evidencias/carga.md`) | No |
+| Capacidad medida | 118 a 157 peticiones/s, p95 174 a 237 ms, 0 % de error (en Docker) | **Medición** (`evidencias/carga.md`) | No |
 | Tamaño de mensaje | < 10 KB | Medición | No |
 | Frecuencia del reporte | Pocas veces al día | Proyección | No: consulta indexada en pedidos |
 | Latencia aceptada del reporte | ≤ 2 s | Objetivo | Cumple |
 | Streaming | No se necesita (aviso a cocina en segundos) | Requisito | No; los avisos asíncronos van por ActiveMQ |
 
-**Conclusión:** no se implementa un servicio de analítica separado ni gRPC, porque la carga proyectada es entre 48 y 145 veces menor que la medida y no hay flujos de streaming. La alternativa implementada (reporte en pedidos + agregación GraphQL + eventos por ActiveMQ) cumple los objetivos con la prueba de carga como evidencia. El ADR indica cuándo revisar la decisión.
+**Conclusión:** no se implementa un servicio de analítica separado ni gRPC, porque la carga proyectada es entre 24 y 31 veces menor que la medida y no hay flujos de streaming. La alternativa implementada (reporte en pedidos + agregación GraphQL + eventos por ActiveMQ) cumple los objetivos con la prueba de carga como evidencia. El ADR indica cuándo revisar la decisión.
 
 ---
 
@@ -644,7 +645,7 @@ La decisión, con contexto, alternativas y consecuencias, está en [ADR 0001](ad
 | Contratos REST | Sección 1 y OpenAPI de cada servicio |
 | Contrato GraphQL | Sección 8 y `graphql-gateway/src/graphql/esquema.js` |
 | Contratos gRPC | No aplica (ADR 0001) |
-| Pruebas automatizadas | 81 unitarias y de integración + 22 de punta a punta + recorrido de pantallas + carga |
+| Pruebas automatizadas | 83 unitarias y de integración + 19 de punta a punta (contra Docker) + recorrido de pantallas + carga |
 | Instrucciones | `README.md` |
 
 ### Pruebas y resultados
@@ -652,12 +653,12 @@ La decisión, con contexto, alternativas y consecuencias, está en [ADR 0001](ad
 | Conjunto | Cantidad | Qué cubre | Resultado |
 |---|---:|---|---|
 | `servicios/tests` (pytest) | 35 | Reglas de cada servicio, propiedad, cotización, stock, idempotencia, firma, Vault caído (503), servicio caído (502), datos de ejemplo | 35/35 |
-| `auth-service/test` | 19 | Login, bloqueo, expiración, revocación, verificación, permisos por cliente, hash y pepper, Vault sellado | 19/19 |
-| `gateway/test` | 16 | Matriz de rutas, roles, cabeceras falsificadas, cookie, CSRF, webhook, Vault y servicio caídos, límite | 16/16 |
+| `auth-service/test` | 20 | Login, bloqueo, expiración, revocación, verificación, permisos por cliente, hash y pepper, Vault sellado | 20/20 |
+| `gateway/test` | 17 | Matriz de rutas, roles, cabeceras falsificadas, cookie, CSRF, webhook, Vault y servicio caídos, límite, healthcheck | 17/17 |
 | `graphql-gateway/test` | 11 | Agregación, batching, identidad, autorización por campo, error parcial, límites, paginación | 11/11 |
-| `pruebas/e2e/casos.py` | 22 | Casos del módulo 7 y del 10 contra el sistema levantado | 22/22 |
+| `pruebas/e2e/casos.py` | 19 | Casos del módulo 7 y del 10 contra el sistema levantado en Docker | 19/19 |
 | `pruebas/e2e/pantallas.py` | 16 pantallas | Flujos principales en el navegador | Completo |
-| `pruebas/carga/carga.mjs` | 3 escenarios | Rendimiento | 0 % de error |
+| `pruebas/carga/carga.mjs` | 3 escenarios | Rendimiento contra el sistema en Docker | 0 % de error |
 
 ### Matriz requisito, pantalla, servicio, prueba y evidencia
 

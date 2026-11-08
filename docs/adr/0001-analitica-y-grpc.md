@@ -26,7 +26,7 @@ La evaluación pide decidir, con una necesidad medida o proyectada, si el caso n
 
 ### Medición
 
-La prueba de carga (`docs/evidencias/carga.md`) midió, con 20 conexiones concurrentes sin pausa: 725 peticiones/s en el catálogo (p95 43 ms), 242 peticiones/s en la agregación GraphQL (p95 124 ms) y 534 peticiones/s en la cola de cocina (p95 58 ms), con 0 % de errores. Es decir, entre 48 y 145 veces el pico proyectado.
+La prueba de carga (`docs/evidencias/carga.md`) midió, con 20 conexiones concurrentes sin pausa: 157 peticiones/s en el catálogo (p95 174 ms), 118 peticiones/s en la agregación GraphQL (p95 237 ms) y 139 peticiones/s en la cola de cocina (p95 191 ms), con 0 % de errores, todo contra el sistema en Docker. Es decir, entre 24 y 31 veces el pico proyectado.
 
 ## Alternativas consideradas
 
