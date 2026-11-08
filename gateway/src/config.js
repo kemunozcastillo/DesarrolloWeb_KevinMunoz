@@ -37,6 +37,8 @@ export function leerConfig(entorno = process.env) {
     // Certificado y clave del servidor (HTTPS). Sin ellos, HTTP.
     tlsCert: entorno.TLS_CERT ?? "",
     tlsKey: entorno.TLS_KEY ?? "",
+    // Vigencia de HSTS en segundos. En local es corta: HSTS sobre "localhost" afecta a todos los puertos.
+    hstsMaxAge: entero(entorno.HSTS_MAX_AGE, 31_536_000),
 
     // HashiCorp Vault (motor KV versión 2, montado en "secret").
     vaultAddr: url(entorno.VAULT_ADDR, "http://127.0.0.1:8200"),
