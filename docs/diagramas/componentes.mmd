@@ -1,10 +1,10 @@
 flowchart LR
   nav["Navegador<br/>frontend HTML/CSS/JS"]
-  subgraph externa["Red externa (puertos publicados)"]
-    gw["API Gateway<br/>Express :8080<br/>sirve el frontend"]
-    pas["Pasarela simulada<br/>Servipag de prueba :9000"]
+  subgraph externa["Red externa (puertos publicados, HTTPS)"]
+    gw["API Gateway<br/>Express :8080 (TLS)<br/>sirve el frontend"]
+    pas["Pasarela simulada<br/>Servipag de prueba :9000 (TLS)"]
   end
-  subgraph privada["Red privada (internal: sin puertos, sin Internet)"]
+  subgraph privada["Red privada (internal: sin puertos, sin Internet; TLS entre todos)"]
     auth["Auth Service<br/>Node :4100"]
     gql["GraphQL Gateway<br/>Apollo :4000"]
     inv["inventario<br/>FastAPI :8001"]
@@ -17,17 +17,17 @@ flowchart LR
     notif["notificador<br/>consumidor STOMP"]
   end
   nav -- "HTTPS + cookie HttpOnly y Secure" --> gw
-  nav -- "página de pago" --> pas
-  pas -- "notificación firmada HMAC" --> gw
-  gw -- "Basic (secreto en Vault)" --> auth
-  gw -- "credencial interna + identidad verificada" --> gql
+  nav -- "página de pago (HTTPS)" --> pas
+  pas -- "HTTPS + notificación firmada HMAC" --> gw
+  gw -- "HTTPS + Basic (secreto en Vault)" --> auth
+  gw -- "HTTPS + credencial interna + identidad verificada" --> gql
   gw --> inv & cli & ped & pag
   gql --> ped & pag & inv & cli
   cli -- Basic --> auth
   ped --> inv & cli & pag
   pag --> ped
-  pag -- "API key" --> pas
-  ped -- "publica" --> mq --> notif
-  auth & inv & cli & ped & pag --> mongo
-  pas -. "cada servicio con su token" .-> vault
+  pag -- "HTTPS + API key" --> pas
+  ped -- "publica (STOMP sobre TLS)" --> mq --> notif
+  auth & inv & cli & ped & pag -- "TLS" --> mongo
+  pas -. "HTTPS, cada servicio con su token" .-> vault
   gw & auth & gql & inv & cli & ped & pag -.-> vault
