@@ -12,7 +12,6 @@
 ## Índice
 
 - [Contexto del proyecto](#contexto-del-proyecto)
-- [Glosario](#glosario)
 0. [Requisitos y brechas declaradas](#0-requisitos-y-brechas-declaradas)
 1. [Servicios y contratos](#1-servicios-y-contratos)
 2. [Dominio y límites de los microservicios](#2-dominio-y-límites-de-los-microservicios)
@@ -65,28 +64,6 @@ Las capturas de este recorrido están en las secciones 8 y 10, y el detalle téc
 - **S01 a S44:** operaciones del backend, numeradas (sección 1). Cada tabla del informe las nombra con ese número.
 - **Sí\*:** en las tablas de permisos significa "permitido, pero solo si se cumple una condición" (por ejemplo, un cliente ve pedidos, pero solo los suyos). Se explica en la sección 4.
 - **Caso 7.5, 8.1, 10.4 y similares:** pruebas de punta a punta que se ejecutan contra el sistema funcionando (`pruebas/e2e/casos.py`). El primer número es el módulo de la pauta donde se pide esa prueba. Los resultados están en la sección 7 y en `evidencias/e2e-resultados.md`.
-
----
-
-## Glosario
-
-| Término | Qué significa aquí |
-|---|---|
-| API Gateway | La única puerta de entrada al sistema: revisa sesión, permisos y límites antes de pasar la petición |
-| Cookie HttpOnly | Cookie que el navegador envía sola pero que el JavaScript de la página no puede leer, así un script malicioso no la roba |
-| CSRF | Ataque en que otro sitio hace que el navegador de una persona envíe una petición a la tienda con la sesión de esa persona; se evita comprobando de qué sitio viene la petición |
-| DataLoader | Técnica del GraphQL Gateway que junta muchas lecturas parecidas en una sola llamada (por ejemplo, los productos de todas las líneas de un pedido) |
-| DTO | La versión de un dato que se envía a quien lo pide, con solo los campos que esa persona puede ver (cocina recibe nombre y teléfono del cliente, no su RUN) |
-| GraphQL | Forma de consultar en la que quien pregunta indica los campos que necesita; aquí sirve para juntar datos de varios servicios en una consulta |
-| HMAC | Firma calculada sobre un mensaje con una clave secreta compartida; demuestra que el aviso viene de la pasarela y que nadie lo cambió |
-| Idempotencia | Repetir la misma petición produce el mismo resultado: un doble clic en "Pagar" no cobra dos veces (se usa la cabecera `Idempotency-Key`) |
-| Introspección | El gateway le pregunta al Auth Service, en cada petición, si el token de la cookie es válido y a quién pertenece |
-| Pepper | Secreto extra, guardado en Vault, que se mezcla con la contraseña antes de guardarla con scrypt (una función lenta, con una sal distinta por cuenta); si alguien roba la base, esos hashes no sirven por sí solos |
-| TLS y HSTS | El cifrado de la conexión (el candado de HTTPS) y la cabecera que obliga al navegador a usar siempre HTTPS |
-| Token opaco | Texto aleatorio sin datos dentro; solo el Auth Service sabe a quién pertenece |
-| Vault y `vault-init` | Vault es el gestor de secretos donde viven las credenciales; `vault-init` es el contenedor que corre una sola vez al arrancar y crea los secretos, los tokens y los usuarios de base de datos |
-| Webhook (notificación) | Aviso que la pasarela envía por su cuenta al sistema cuando termina un pago |
-| STOMP y ActiveMQ | Cola de mensajes que lleva avisos (la boleta al correo, el pedido a cocina) sin bloquear el pago |
 
 ---
 
