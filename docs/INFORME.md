@@ -692,7 +692,7 @@ Cada petición que llega de afuera debe terminar en el servicio correcto, y cada
 
 La imagen que sirve aquí es la de un edificio con muchas puertas. Cada servicio tiene su propia llave y esa llave no abre las demás: si alguien consigue la de pagos, solo entra a pagos. El gateway es el único que lleva varias llaves, porque su trabajo es llamar a todos, y por eso es la pieza más vigilada. Los tres tipos de identidad que aparecen en esta sección son distintos entre sí: la **persona** se identifica con su cookie de sesión, un **servicio** con su credencial interna, y la **pasarela** con la firma de sus avisos.
 
-Las llaves no están escritas en el código ni en el repositorio: viven en Vault, y `vault-init`, el contenedor que corre una sola vez al arrancar, las crea al azar. Cada servicio recibe un token que solo le permite leer sus propias rutas, y cada uno tiene su propio usuario de base de datos. Si Vault deja de responder, el sistema se cierra en vez de abrirse: después de unos minutos de gracia, los servicios responden 503 y no dejan pasar a nadie.
+Las llaves no están escritas en el código ni en el repositorio: viven en Vault, y `vault-init`, el contenedor que corre una sola vez al arrancar, las crea al azar. Cada servicio recibe un token que solo le permite leer sus propias rutas, y cada uno tiene su propio usuario de base de datos. Una limitación que está declarada entre las brechas de la sección 0: en Docker Compose los tokens de todos los servicios se escriben en un mismo volumen de solo lectura, en vez de montarse cada uno solo en su contenedor; lo que protege es que cada token solo puede leer sus propias rutas de Vault. En producción lo resolvería el orquestador (Docker secrets o Kubernetes). Si Vault deja de responder, el sistema se cierra en vez de abrirse: después de unos minutos de gracia, los servicios responden 503 y no dejan pasar a nadie.
 
 ### Matriz de rutas
 
@@ -763,7 +763,7 @@ Referencias, nunca valores. Todos los genera `vault-init` al azar (256 bits) y v
 | `poke-fresh/auth` (`pepper`) | Pepper de contraseñas | `vault-init` (una sola vez) | auth | Se mezcla con la clave antes de scrypt | Vault | Hashes de contraseñas | **No se rota a la ligera**: obliga a pedir cambio de contraseña a todos. Por eso `vault-init` nunca lo regenera |
 | `poke-fresh/pasarela/comercio` (`api_key`, `secreto_firma`) | Claves del comercio ante el proveedor | `vault-init` en la demostración; el proveedor en producción | pagos, pasarela | Crear transacciones y firmar o verificar notificaciones | Vault | Operar la cuenta del comercio (nunca llega al navegador) | Pedir claves nuevas al proveedor y actualizar el secreto |
 | `poke-fresh/mongo/<servicio>` (`usuario`, `clave`) | Credencial de base de datos | `vault-init` | ese servicio (y `semilla` la suya) | Conectarse a su base | Vault | `readWrite` solo en su base | Cambiar la clave en Vault y correr `vault-init` (actualiza el usuario en Mongo) |
-| Token de Vault de cada servicio | Token con TTL 720 h | Vault, vía `vault-init` | ese servicio | Leer sus rutas | Volumen de solo lectura (ver brecha de distribución) | Solo lectura de sus rutas | Revocarlo en Vault; `vault-init` emite uno nuevo |
+| Token de Vault de cada servicio | Token con TTL 720 h | Vault, vía `vault-init` | ese servicio | Leer sus rutas | Volumen de solo lectura (ver «Distribución de tokens de Vault» en las brechas de la sección 0) | Solo lectura de sus rutas | Revocarlo en Vault; `vault-init` emite uno nuevo |
 | `MONGO_ROOT_CLAVE` | Secreto de arranque | La persona que opera | mongo, vault-init | Crear los usuarios por servicio | `.env` fuera del repo | Administrar Mongo (ningún servicio la usa) | Cambiarla en Mongo y en `.env` |
 | Certificados TLS y CA de prueba | Certificados | `tls-init` | todos los servicios | Cifrar y autenticar cada salto | Volúmenes `tls` (certificados) y `tls-ca` (clave de la CA, solo `tls-init`) | Un certificado por componente | Borrar el volumen `tls` y recrear: se emiten nuevos |
 
@@ -1021,7 +1021,41 @@ La decisión, con contexto, alternativas y consecuencias, está en [ADR 0001](ad
 | Latencia aceptada del reporte | ≤ 2 s | Objetivo | Cumple |
 | Streaming | No se necesita (aviso a cocina en segundos) | Requisito | No; los avisos asíncronos van por ActiveMQ |
 
-**CPU y memoria bajo carga.** La prueba de carga (`evidencias/carga.md`) registró también el consumo de los contenedores con `docker stats`, en una sola muestra tomada durante el tercer escenario (la cola de cocina): pedidos 108 % de CPU y 63 MiB, MongoDB 91 % y 359 MiB, API Gateway 65 % y 130 MiB, Auth Service 40 % y 73 MiB; inventario, clientes y pagos, 0,1 % y entre 49 y 61 MiB; el GraphQL Gateway no se usó en ese escenario (0 %, 151 MiB). Con 100 % igual a un núcleo y una sola muestra, sirve para ver el orden de magnitud y que ningún contenedor se acerca a un límite de memoria; no permite afirmar cuánto consume cada pieza ni comparar con otra tecnología. Con esa carga (de 42 a 63 veces el pico proyectado) el consumo no justifica separar un servicio de alta demanda.
+### La prueba de carga
+
+La decisión de no separar un servicio de analítica ni usar gRPC se apoya en una **medición**, no en una proyección. El detalle y los comandos para repetirla están en [`evidencias/carga.md`](evidencias/carga.md).
+
+- **Entorno:** un PC con Windows 11, AMD Ryzen 7 5800H (16 hilos), 16 GB de RAM y Docker Desktop (el motor ve 16 CPU y 15,3 GiB). El generador de carga, `pruebas/carga/carga.mjs`, corre en el mismo equipo, fuera de Docker, y entra por el puerto 8080 por HTTPS verificando el certificado; por eso compite por CPU con los contenedores y las latencias incluyen la red de Docker Desktop.
+- **Sistema:** el `docker-compose.yml` completo, con MongoDB, Vault y ActiveMQ reales, las dos redes y TLS en todos los saltos.
+- **Datos:** los de ejemplo (6 clientes, 80 pedidos, 29 productos) más lo que crean las pruebas de punta a punta.
+- **Carga:** 20 conexiones concurrentes durante 20 segundos por escenario, sin pausa entre peticiones: el peor caso, porque cada conexión pide apenas recibe la respuesta anterior.
+
+| Escenario | Qué mide | Peticiones | Por segundo | p50 | p95 | p99 | Errores |
+|---|---|---:|---:|---:|---:|---:|---:|
+| `GET /catalogo/items` (anónimo) | Lectura pública del catálogo en inventario, sin sesión | 6.339 | 316,4 | 61,4 ms | 91,6 ms | 116,3 ms | 0 % |
+| GraphQL `resumenPedido` (cliente) | Agregación de pedidos, pagos e inventario, con sesión | 4.195 | 209,1 | 89,1 ms | 146,8 ms | 202,5 ms | 0 % |
+| `GET /pedidos?cola=cocina` (cocina) | Cola de cocina: sesión, introspección y consulta a MongoDB | 5.113 | 254,8 | 77,6 ms | 110,0 ms | 146,7 ms | 0 % |
+
+**CPU y memoria.** Se registraron con `docker stats`, en una sola muestra tomada durante el tercer escenario (100 % equivale a un núcleo):
+
+| Contenedor | CPU | Memoria |
+|---|---:|---:|
+| pedidos | 108 % | 63 MiB |
+| MongoDB | 91 % | 359 MiB |
+| API Gateway (TLS y reenvío) | 65 % | 130 MiB |
+| Auth Service (introspección en cada petición) | 40 % | 73 MiB |
+| inventario, clientes, pagos | 0,1 % | de 49 a 61 MiB |
+| GraphQL Gateway (sin uso en este escenario) | 0 % | 151 MiB |
+
+Con una sola muestra no se pueden sacar conclusiones finas sobre cuánto consume cada pieza: sirve para ver el orden de magnitud y que ningún contenedor se acerca a un límite de memoria. Tampoco permite comparar con otra tecnología.
+
+**Comparación con los objetivos** (ADR 0001):
+
+| Objetivo | Medido | ¿Cumple? |
+|---|---|---|
+| p95 menor a 300 ms en catálogo y colas | 92 ms y 110 ms | Sí |
+| p95 menor a 500 ms en agregaciones GraphQL | 147 ms | Sí |
+| Soportar el pico estimado de 5 peticiones por segundo con 0 % de error | De 209 a 316 peticiones por segundo, 0 % de error | Sí, con un margen de 42 a 63 veces |
 
 ### Por qué no se implementa cada componente
 
