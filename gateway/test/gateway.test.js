@@ -104,6 +104,12 @@ describe("API gateway", () => {
     assert.equal(r.headers.get("x-frame-options"), "DENY");
   });
 
+  test("/salud responde sin sesión ni consultar a otros componentes (healthcheck de Docker)", async () => {
+    const r = await fetch(`${base}/salud`);
+    assert.equal(r.status, 200);
+    assert.deepEqual(await r.json(), { gateway: "ok" });
+  });
+
   test("lo que no está en la matriz no existe: 404 (incluidas las rutas internas)", async () => {
     assert.equal((await pedir("/api/v1/nada")).status, 404);
     assert.equal((await pedir("/api/v1/internos/pedidos/PF-1/pago-confirmado", { metodo: "POST", sesion: "tok-admin" })).status, 404);

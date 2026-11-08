@@ -57,6 +57,9 @@ export function crearApp(config, dependencias = {}) {
     next();
   });
 
+  // Vida del proceso, para el healthcheck de Docker. No consulta a nadie ni deja registro.
+  app.get("/salud", (_req, res) => res.json({ gateway: "ok" }));
+
   if (config.registrarAccesos) {
     app.use((req, res, next) => {
       const inicio = performance.now();
