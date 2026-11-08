@@ -922,6 +922,12 @@ El cliente pidió `cliente { email }` y no lo obtuvo: la selección de campos no
 - `14-pedido-vista-admin.png`: el administrador ve además "Contacto del cliente" (servicio de clientes).
 - `11-reportes-graphql.png`: "Unidades por categoría" y "Conciliación con pagos", desde `reporteVentas`.
 
+![Pantalla del pedido (06-pedido-pagado-graphql.png): el pedido, servicio de pedidos, junto a la sección "Pagos", servicio de pagos, obtenidos con resumenPedido](evidencias/pantallas/06-pedido-pagado-graphql.png)
+
+![Vista del administrador (14-pedido-vista-admin.png): además aparece "Contacto del cliente", servicio de clientes, solo para admin](evidencias/pantallas/14-pedido-vista-admin.png)
+
+![Reportes (11-reportes-graphql.png): "Unidades por categoría" y "Conciliación con pagos", desde reporteVentas](evidencias/pantallas/11-reportes-graphql.png)
+
 `recorrido.json` lista las rutas de la API que usó el navegador: todas bajo `/api/v1`; ninguna a un servicio interno.
 
 **Control.** La consulta combina realmente subsistemas (3 o 4 servicios por consulta). Cada servicio conserva su autoridad (la propiedad la decide pedidos). La selección de campos no filtra datos restringidos (autorización por campo). La red privada y los permisos se verificaron en ejecución (casos 7.5, 7.9 y 8.1 a 8.3).
@@ -1014,6 +1020,63 @@ Además, `pruebas/e2e/movil.py` recorre en móvil (390×812, táctil, escala 2) 
 ### Evidencia en navegador real
 
 `evidencias/navegador-real/` tiene 8 capturas de una compra completa hecha en Microsoft Edge por HTTPS (pedido PF-00086, pago aprobado en la pasarela de `https://localhost:9000`, boleta N° 83) y `datos-navegador.json` con el navegador, el protocolo, las URLs visitadas y la cabecera HSTS. Las capturas muestran la página y no la barra de direcciones; el protocolo consta en ese archivo. Antes de capturar se aceptó a mano la advertencia que el antivirus muestra por el certificado de prueba.
+
+### Capturas de la ejecución
+
+Todas salen del sistema levantado en Docker, por HTTPS, con datos ficticios. Las de escritorio y las del teléfono emulado las generan `pruebas/e2e/pantallas.py` y `pruebas/e2e/movil.py`; las del navegador real se tomaron a mano en Edge. Las tres capturas de la sección 8 (pedido con pagos, vista del administrador y reportes) no se repiten aquí.
+
+#### Escritorio (Chromium, 1280×900): compra, cocina, despacho y administración
+
+![Inicio: la tienda pública](evidencias/pantallas/01-inicio.png)
+![Menú cargado desde el servicio de inventario](evidencias/pantallas/02-menu-desde-inventario.png)
+
+![Confirmar pedido: solo se manda la selección](evidencias/pantallas/03-checkout.png)
+![Pago: el pedido queda pendiente hasta que la pasarela confirme](evidencias/pantallas/04-pago.png)
+
+![Pasarela de pago simulada (Servipag), en el puerto 9000](evidencias/pantallas/05-pasarela-servipag.png)
+
+![Cocina: cola de pedidos pagados, en orden de llegada](evidencias/pantallas/07-cocina.png)
+![Despacho: pedidos listos para entregar](evidencias/pantallas/08-despacho.png)
+
+![Seguimiento: el pedido en estado Entregado, con su boleta](evidencias/pantallas/09-seguimiento-entregado.png)
+
+![Mis pedidos: historial del cliente](evidencias/pantallas/10-mis-pedidos.png)
+
+![Administración: productos y stock](evidencias/pantallas/12-productos-stock.png)
+![Administración: clientes](evidencias/pantallas/13-clientes.png)
+
+![Registro: verificación de correo (modo demo)](evidencias/pantallas/15-verificacion-correo.png)
+![Cliente nuevo con sesión iniciada](evidencias/pantallas/16-cliente-nuevo-con-sesion.png)
+
+#### Teléfono emulado (Chromium, 390×812, táctil): compra completa
+
+![Inicio](evidencias/movil/01-inicio.png)
+![Menú](evidencias/movil/02-menu.png)
+![Ingreso](evidencias/movil/03-ingreso.png)
+![Checkout](evidencias/movil/04-checkout.png)
+
+![Pago](evidencias/movil/05-pago.png)
+![Pasarela Servipag](evidencias/movil/06-pasarela-servipag.png)
+![Pedido pagado con boleta](evidencias/movil/07-pedido-pagado.png)
+![Mis pedidos](evidencias/movil/08-mis-pedidos.png)
+
+Es una emulación en Chromium, no un teléfono real.
+
+#### Navegador real (Microsoft Edge): compra completa por HTTPS
+
+![Inicio](evidencias/navegador-real/01-inicio.jpg)
+![Menú](evidencias/navegador-real/02-menu.jpg)
+
+![Ingreso](evidencias/navegador-real/03-ingreso.jpg)
+![Checkout](evidencias/navegador-real/04-checkout.jpg)
+
+![Pago](evidencias/navegador-real/05-pago.jpg)
+![Pasarela de pago en https://localhost:9000](evidencias/navegador-real/06-pasarela-servipag.jpg)
+
+![Pedido pagado](evidencias/navegador-real/07-pedido-pagado.jpg)
+![Mis pedidos](evidencias/navegador-real/08-mis-pedidos.jpg)
+
+Las capturas muestran la página y no la barra de direcciones; el protocolo consta en `evidencias/navegador-real/datos-navegador.json`.
 
 ### Matriz requisito, pantalla, servicio, prueba y evidencia
 

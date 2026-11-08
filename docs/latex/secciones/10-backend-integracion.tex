@@ -59,6 +59,178 @@ Además, \texttt{pruebas/\allowbreak{}e2e/\allowbreak{}movil.\allowbreak{}py} re
 \texttt{evidencias/\allowbreak{}navegador-\allowbreak{}real/\allowbreak{}} tiene 8 capturas de una compra completa hecha en Microsoft Edge por HTTPS (pedido PF-00086, pago aprobado en la pasarela de \texttt{https:\allowbreak{}/\allowbreak{}/\allowbreak{}localhost:\allowbreak{}9000}, boleta N° 83) y \texttt{datos-\allowbreak{}navegador.\allowbreak{}json} con el navegador, el protocolo, las URLs visitadas y la cabecera HSTS. Las capturas muestran la página y no la barra de direcciones; el protocolo consta en ese archivo. Antes de capturar se aceptó a mano la advertencia que el antivirus muestra por el certificado de prueba.
 
 
+\subsection{Capturas de la ejecución}
+
+Todas salen del sistema levantado en Docker, por HTTPS, con datos ficticios. Las de escritorio y las del teléfono emulado las generan \texttt{pruebas/\allowbreak{}e2e/\allowbreak{}pantallas.\allowbreak{}py} y \texttt{pruebas/\allowbreak{}e2e/\allowbreak{}movil.\allowbreak{}py}; las del navegador real se tomaron a mano en Edge. Las tres capturas de la sección 8 (pedido con pagos, vista del administrador y reportes) no se repiten aquí.
+
+
+\subsubsection{Escritorio (Chromium, 1280×900): compra, cocina, despacho y administración}
+
+\begin{figure}[H]\centering
+\begin{minipage}[t]{0.485\linewidth}\centering
+\includegraphics[width=\linewidth,height=0.42\textheight,keepaspectratio]{../evidencias/pantallas/01-inicio.png}
+\captionof{figure}{Inicio: la tienda pública}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.485\linewidth}\centering
+\includegraphics[width=\linewidth,height=0.42\textheight,keepaspectratio]{../evidencias/pantallas/02-menu-desde-inventario.png}
+\captionof{figure}{Menú cargado desde el servicio de inventario}
+\end{minipage}
+\end{figure}
+
+\begin{figure}[H]\centering
+\begin{minipage}[t]{0.485\linewidth}\centering
+\includegraphics[width=\linewidth,height=0.42\textheight,keepaspectratio]{../evidencias/pantallas/03-checkout.png}
+\captionof{figure}{Confirmar pedido: solo se manda la selección}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.485\linewidth}\centering
+\includegraphics[width=\linewidth,height=0.42\textheight,keepaspectratio]{../evidencias/pantallas/04-pago.png}
+\captionof{figure}{Pago: el pedido queda pendiente hasta que la pasarela confirme}
+\end{minipage}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth,height=0.8\textheight,keepaspectratio]{../evidencias/pantallas/05-pasarela-servipag.png}
+\caption{Pasarela de pago simulada (Servipag), en el puerto 9000}
+\end{figure}
+
+\begin{figure}[H]\centering
+\begin{minipage}[t]{0.485\linewidth}\centering
+\includegraphics[width=\linewidth,height=0.42\textheight,keepaspectratio]{../evidencias/pantallas/07-cocina.png}
+\captionof{figure}{Cocina: cola de pedidos pagados, en orden de llegada}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.485\linewidth}\centering
+\includegraphics[width=\linewidth,height=0.42\textheight,keepaspectratio]{../evidencias/pantallas/08-despacho.png}
+\captionof{figure}{Despacho: pedidos listos para entregar}
+\end{minipage}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth,height=0.8\textheight,keepaspectratio]{../evidencias/pantallas/09-seguimiento-entregado.png}
+\caption{Seguimiento: el pedido en estado Entregado, con su boleta}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth,height=0.8\textheight,keepaspectratio]{../evidencias/pantallas/10-mis-pedidos.png}
+\caption{Mis pedidos: historial del cliente}
+\end{figure}
+
+\begin{figure}[H]\centering
+\begin{minipage}[t]{0.485\linewidth}\centering
+\includegraphics[width=\linewidth,height=0.42\textheight,keepaspectratio]{../evidencias/pantallas/12-productos-stock.png}
+\captionof{figure}{Administración: productos y stock}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.485\linewidth}\centering
+\includegraphics[width=\linewidth,height=0.42\textheight,keepaspectratio]{../evidencias/pantallas/13-clientes.png}
+\captionof{figure}{Administración: clientes}
+\end{minipage}
+\end{figure}
+
+\begin{figure}[H]\centering
+\begin{minipage}[t]{0.485\linewidth}\centering
+\includegraphics[width=\linewidth,height=0.42\textheight,keepaspectratio]{../evidencias/pantallas/15-verificacion-correo.png}
+\captionof{figure}{Registro: verificación de correo (modo demo)}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.485\linewidth}\centering
+\includegraphics[width=\linewidth,height=0.42\textheight,keepaspectratio]{../evidencias/pantallas/16-cliente-nuevo-con-sesion.png}
+\captionof{figure}{Cliente nuevo con sesión iniciada}
+\end{minipage}
+\end{figure}
+
+\subsubsection{Teléfono emulado (Chromium, 390×812, táctil): compra completa}
+
+\begin{figure}[H]\centering
+\begin{minipage}[t]{0.242\linewidth}\centering
+\includegraphics[width=\linewidth,height=0.4\textheight,keepaspectratio]{../evidencias/movil/01-inicio.png}
+\captionof{figure}{Inicio}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.242\linewidth}\centering
+\includegraphics[width=\linewidth,height=0.4\textheight,keepaspectratio]{../evidencias/movil/02-menu.png}
+\captionof{figure}{Menú}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.242\linewidth}\centering
+\includegraphics[width=\linewidth,height=0.4\textheight,keepaspectratio]{../evidencias/movil/03-ingreso.png}
+\captionof{figure}{Ingreso}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.242\linewidth}\centering
+\includegraphics[width=\linewidth,height=0.4\textheight,keepaspectratio]{../evidencias/movil/04-checkout.png}
+\captionof{figure}{Checkout}
+\end{minipage}
+\end{figure}
+
+\begin{figure}[H]\centering
+\begin{minipage}[t]{0.242\linewidth}\centering
+\includegraphics[width=\linewidth,height=0.4\textheight,keepaspectratio]{../evidencias/movil/05-pago.png}
+\captionof{figure}{Pago}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.242\linewidth}\centering
+\includegraphics[width=\linewidth,height=0.4\textheight,keepaspectratio]{../evidencias/movil/06-pasarela-servipag.png}
+\captionof{figure}{Pasarela Servipag}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.242\linewidth}\centering
+\includegraphics[width=\linewidth,height=0.4\textheight,keepaspectratio]{../evidencias/movil/07-pedido-pagado.png}
+\captionof{figure}{Pedido pagado con boleta}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.242\linewidth}\centering
+\includegraphics[width=\linewidth,height=0.4\textheight,keepaspectratio]{../evidencias/movil/08-mis-pedidos.png}
+\captionof{figure}{Mis pedidos}
+\end{minipage}
+\end{figure}
+
+Es una emulación en Chromium, no un teléfono real.
+
+
+\subsubsection{Navegador real (Microsoft Edge): compra completa por HTTPS}
+
+\begin{figure}[H]\centering
+\begin{minipage}[t]{0.485\linewidth}\centering
+\includegraphics[width=\linewidth,height=0.42\textheight,keepaspectratio]{../evidencias/navegador-real/01-inicio.jpg}
+\captionof{figure}{Inicio}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.485\linewidth}\centering
+\includegraphics[width=\linewidth,height=0.42\textheight,keepaspectratio]{../evidencias/navegador-real/02-menu.jpg}
+\captionof{figure}{Menú}
+\end{minipage}
+\end{figure}
+
+\begin{figure}[H]\centering
+\begin{minipage}[t]{0.485\linewidth}\centering
+\includegraphics[width=\linewidth,height=0.42\textheight,keepaspectratio]{../evidencias/navegador-real/03-ingreso.jpg}
+\captionof{figure}{Ingreso}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.485\linewidth}\centering
+\includegraphics[width=\linewidth,height=0.42\textheight,keepaspectratio]{../evidencias/navegador-real/04-checkout.jpg}
+\captionof{figure}{Checkout}
+\end{minipage}
+\end{figure}
+
+\begin{figure}[H]\centering
+\begin{minipage}[t]{0.485\linewidth}\centering
+\includegraphics[width=\linewidth,height=0.42\textheight,keepaspectratio]{../evidencias/navegador-real/05-pago.jpg}
+\captionof{figure}{Pago}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.485\linewidth}\centering
+\includegraphics[width=\linewidth,height=0.42\textheight,keepaspectratio]{../evidencias/navegador-real/06-pasarela-servipag.jpg}
+\captionof{figure}{Pasarela de pago en https://localhost:9000}
+\end{minipage}
+\end{figure}
+
+\begin{figure}[H]\centering
+\begin{minipage}[t]{0.485\linewidth}\centering
+\includegraphics[width=\linewidth,height=0.42\textheight,keepaspectratio]{../evidencias/navegador-real/07-pedido-pagado.jpg}
+\captionof{figure}{Pedido pagado}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.485\linewidth}\centering
+\includegraphics[width=\linewidth,height=0.42\textheight,keepaspectratio]{../evidencias/navegador-real/08-mis-pedidos.jpg}
+\captionof{figure}{Mis pedidos}
+\end{minipage}
+\end{figure}
+
+Las capturas muestran la página y no la barra de direcciones; el protocolo consta en \texttt{evidencias/\allowbreak{}navegador-\allowbreak{}real/\allowbreak{}datos-\allowbreak{}navegador.\allowbreak{}json}.
+
+
 \subsection{Matriz requisito, pantalla, servicio, prueba y evidencia}
 
 {\footnotesize

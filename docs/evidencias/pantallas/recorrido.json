@@ -1,5 +1,5 @@
 {
-  "pedido": "PF-00084",
+  "pedido": "PF-00081",
   "pantallas": [
     "01-inicio",
     "02-menu-desde-inventario",
@@ -33,7 +33,7 @@
     "GET /v1/clientes",
     "GET /v1/clientes/yo",
     "GET /v1/pedidos",
-    "GET /v1/pedidos/PF-00084",
+    "GET /v1/pedidos/PF-00081",
     "GET /v1/reportes/ventas",
     "POST /v1/auth/login",
     "POST /v1/auth/verificar",
@@ -41,9 +41,9 @@
     "POST /v1/graphql",
     "POST /v1/pagos",
     "POST /v1/pedidos",
-    "POST /v1/pedidos/PF-00084/aceptar",
-    "POST /v1/pedidos/PF-00084/entregar",
-    "POST /v1/pedidos/PF-00084/terminar"
+    "POST /v1/pedidos/PF-00081/aceptar",
+    "POST /v1/pedidos/PF-00081/entregar",
+    "POST /v1/pedidos/PF-00081/terminar"
   ],
   "ordenMuestraPagos": true,
   "desbordeHorizontalMovil": {
