@@ -4,3 +4,6 @@ node_modules/
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# CA de prueba exportada del volumen tls para verificar el certificado (cambia con cada docker compose down -v)
+/ca.pem
