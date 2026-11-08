@@ -20,7 +20,7 @@ import os
 import random
 import secrets
 from datetime import datetime, timedelta, timezone
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlsplit
 from zoneinfo import ZoneInfo
 
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -201,9 +201,11 @@ async def conectar() -> AsyncIOMotorClient:
     ruta = os.environ.get("MONGO_RUTA_VAULT")
     if ruta:
         datos = await vault.leer_secreto(ruta)
-        host = uri.split("://", 1)[1].rstrip("/")
+        partes = urlsplit(uri)
         # El usuario de la semilla vive en pf_clientes y tiene readWrite en clientes, pedidos y pagos.
-        uri = f"mongodb://{quote_plus(datos['usuario'])}:{quote_plus(datos['clave'])}@{host}/?authSource=pf_clientes"
+        # Se conserva lo que traiga la URI base (tls=true&tlsCAFile=...).
+        consulta = "&".join(filter(None, ["authSource=pf_clientes", partes.query]))
+        uri = f"mongodb://{quote_plus(datos['usuario'])}:{quote_plus(datos['clave'])}@{partes.netloc}/?{consulta}"
     return AsyncIOMotorClient(uri, serverSelectionTimeoutMS=10000)
 
 

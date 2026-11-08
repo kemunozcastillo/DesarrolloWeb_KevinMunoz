@@ -54,6 +54,8 @@ export function crearApp(config, dependencias = {}) {
     const recibido = req.get("x-request-id");
     req.id = recibido && /^[\w-]{8,64}$/.test(recibido) ? recibido : randomUUID();
     res.set({ "X-Request-Id": req.id, "X-Content-Type-Options": "nosniff", "Referrer-Policy": "same-origin" });
+    // Con HTTPS, el navegador no vuelve a pedir este sitio por HTTP.
+    if (config.tlsCert) res.set("Strict-Transport-Security", `max-age=${config.hstsMaxAge}`);
     next();
   });
 

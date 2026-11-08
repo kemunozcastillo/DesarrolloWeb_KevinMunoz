@@ -62,6 +62,9 @@ def conectar():
     host = os.environ.get("ACTIVEMQ_HOST", "localhost")
     puerto = int(os.environ.get("ACTIVEMQ_PUERTO", "61613"))
     conexion = stomp.Connection12([(host, puerto)], reconnect_attempts_max=1)
+    ca = os.environ.get("ACTIVEMQ_CA")
+    if ca:
+        conexion.set_ssl(for_hosts=[(host, puerto)], ca_certs=ca)
     escuchador = Escuchador(conexion)
     conexion.set_listener("", escuchador)
     # Sin usuario si el broker no exige autenticación (ActiveMQ por defecto, solo en la red privada).

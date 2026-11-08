@@ -22,6 +22,9 @@ export function leerConfig(entorno = process.env) {
   return {
     puerto: entero(entorno.PORT, 4100),
     host: entorno.HOST ?? "127.0.0.1",
+    // Certificado y clave del servidor (HTTPS). Sin ellos, HTTP.
+    tlsCert: entorno.TLS_CERT ?? "",
+    tlsKey: entorno.TLS_KEY ?? "",
 
     vaultAddr: (entorno.VAULT_ADDR ?? "http://127.0.0.1:8200").replace(/\/$/, ""),
     vaultToken: tokenVault(entorno),

@@ -1,0 +1,45 @@
+{
+  "fecha": "2026-11-08",
+  "navegador": "Microsoft Edge 157 (Chromium) en Windows 10/11, controlado con la extensión Claude in Chrome",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36 Edg/157.0.0.0",
+  "viewport": { "ancho": 1528, "alto": 684, "escalaDePixeles": 1.25 },
+  "protocolo": "https:",
+  "urlsVisitadas": [
+    "https://localhost:8080/",
+    "https://localhost:8080/#/menu",
+    "https://localhost:8080/#/ingresar",
+    "https://localhost:8080/#/checkout",
+    "https://localhost:8080/#/pago/PF-00086",
+    "https://localhost:9000/pagar/<token>",
+    "https://localhost:8080/#/orden/PF-00086",
+    "https://localhost:8080/#/mis-pedidos"
+  ],
+  "respuestaDeSalud": {
+    "url": "https://localhost:8080/api/salud",
+    "strictTransportSecurity": "max-age=300",
+    "componentes": { "gateway": "ok", "vault": "ok", "clientes": "ok", "inventario": "ok", "pedidos": "ok", "pagos": "ok", "graphql": "ok", "auth": "no se pudo leer (la herramienta del navegador ocultó el valor)" }
+  },
+  "flujo": {
+    "cuenta": "cliente de prueba (modo demo)",
+    "pedido": "PF-00086",
+    "total": 6990,
+    "pago": "Aprobado en la pasarela simulada, ref. SVP-44894309",
+    "boleta": 83,
+    "estadoFinal": "Esperando cocina"
+  },
+  "capturas": {
+    "01-inicio.jpg": "Inicio, sin sesión",
+    "02-menu.jpg": "Menú desde inventario",
+    "03-ingreso.jpg": "Formulario de ingreso",
+    "04-checkout.jpg": "Confirmar pedido (total calculado por el servidor)",
+    "05-pago.jpg": "Pago del pedido PF-00086",
+    "06-pasarela-servipag.jpg": "Pasarela simulada en https://localhost:9000",
+    "07-pedido-pagado.jpg": "Pedido pagado: pago aprobado y boleta N° 83",
+    "08-mis-pedidos.jpg": "Historial del cliente"
+  },
+  "limitaciones": [
+    "Las capturas muestran el contenido de la página, no la barra de direcciones; el protocolo queda registrado en este archivo (location.protocol) y en las URLs visitadas.",
+    "El certificado es de una CA de prueba: el antivirus del equipo mostró su advertencia y se aceptó a mano para los puertos 8080 y 9000 antes de capturar.",
+    "En este navegador la ventana no se pudo reducir a tamaño de teléfono (el viewport siguió en 1528 px), por eso las capturas móviles son las de emulación en evidencias/movil/."
+  ]
+}

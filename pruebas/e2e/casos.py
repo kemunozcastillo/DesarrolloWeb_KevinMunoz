@@ -6,9 +6,11 @@ docs/evidencias/e2e-resultados.md (tabla) y e2e-resultados.json (detalle con
 el X-Request-Id de cada petición, para buscarla en los logs).
 
     python pruebas/e2e/casos.py                       (gateway en http://localhost:8080)
-    python pruebas/e2e/casos.py --directo             también prueba entrar directo a los
-                                                      servicios (solo entorno local: en
-                                                      docker no tienen puertos publicados)
+    python pruebas/e2e/casos.py --docker --ca ca.pem  además prueba, DENTRO de la red de Docker, el
+                                                      acceso directo a los servicios (7.9), los
+                                                      secretos ajenos en Vault (7.10) y Vault
+                                                      inaccesible (10.7). Requiere el CLI de docker
+    python pruebas/e2e/casos.py --directo             lo mismo en el entorno local sin Docker
 
 Requiere: pip install httpx
 """
@@ -16,6 +18,7 @@ Requiere: pip install httpx
 import argparse
 import json
 import re
+import subprocess
 import sys
 import time
 import uuid
@@ -25,13 +28,17 @@ from pathlib import Path
 import httpx
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--gateway", default="http://localhost:8080")
-parser.add_argument("--pasarela", default="http://localhost:9000")
+parser.add_argument("--gateway", default="https://localhost:8080")
+parser.add_argument("--pasarela", default="https://localhost:9000")
+parser.add_argument("--ca", default=None, help="ca.pem de la CA de prueba para verificar el certificado (si no, no se verifica)")
 parser.add_argument("--directo", action="store_true")
+parser.add_argument("--docker", action="store_true", help="corre 7.9, 7.10 y 10.7 dentro de la red de docker compose")
 parser.add_argument("--salida", default=str(Path(__file__).resolve().parents[2] / "docs" / "evidencias"))
 args = parser.parse_args()
 
 API = f"{args.gateway}/api/v1"
+# Con HTTPS y la CA de prueba (--ca) se verifica el certificado; sin ella, no (certificado autofirmado).
+VERIFICAR = args.ca if args.ca else not args.gateway.startswith("https://")
 resultados: list[dict] = []
 
 
@@ -40,7 +47,7 @@ class Navegador:
 
     def __init__(self, nombre: str):
         self.nombre = nombre
-        self.http = httpx.Client(base_url=API, timeout=15, headers={"Origin": args.gateway})
+        self.http = httpx.Client(base_url=API, timeout=15, headers={"Origin": args.gateway}, verify=VERIFICAR)
 
     def pedir(self, metodo, ruta, **kw):
         kw.setdefault("headers", {})["X-Request-Id"] = f"e2e-{uuid.uuid4().hex[:12]}"
@@ -190,8 +197,8 @@ def _():
 
 @caso("10.3", "Pago aprobado en la pasarela y notificación firmada", "POST pasarela /pagar/{token} APROBADO (dos veces)", "cliente (navegador en Servipag)", "pedido PAGADO con boleta; el segundo envío no hace nada", "Pasarela -> gateway -> pagos -> pedidos -> ActiveMQ")
 def _():
-    url = estado["pago"]["urlPago"].replace("http://localhost:9000", args.pasarela).replace("http://127.0.0.1:9000", args.pasarela)
-    with httpx.Client(timeout=15) as nav:
+    url = estado["pago"]["urlPago"].replace("https://localhost:9000", args.pasarela).replace("http://localhost:9000", args.pasarela).replace("http://127.0.0.1:9000", args.pasarela)
+    with httpx.Client(timeout=15, verify=VERIFICAR) as nav:
         r = nav.post(url, data={"decision": "APROBADO"}, follow_redirects=False)
         r2 = nav.post(url, data={"decision": "APROBADO"}, follow_redirects=False)
     assert r.status_code == 303 and r2.status_code == 303
@@ -281,8 +288,8 @@ def _():
 def _():
     p = cliente.pedir("POST", "/pedidos", json={"modoEntrega": "RETIRO", "lineas": [{"tipo": "ITEM", "cantidad": 1, "itemId": "beb_te"}]}).json()
     pago = cliente.pedir("POST", "/pagos", json={"pedidoId": p["id"]}, headers={"Idempotency-Key": str(uuid.uuid4())}).json()
-    with httpx.Client(timeout=15) as nav:
-        nav.post(pago["urlPago"].replace("http://localhost:9000", args.pasarela).replace("http://127.0.0.1:9000", args.pasarela), data={"decision": "APROBADO"})
+    with httpx.Client(timeout=15, verify=VERIFICAR) as nav:
+        nav.post(pago["urlPago"].replace("https://localhost:9000", args.pasarela).replace("http://localhost:9000", args.pasarela).replace("http://127.0.0.1:9000", args.pasarela), data={"decision": "APROBADO"})
     r = cliente.pedir("POST", f"/pedidos/{p['id']}/anular", json={"motivo": "Me equivoqué de dirección"})
     a = r.json()
     pagos = cliente.pedir("GET", "/pagos", params={"pedidoId": p["id"]}).json()
@@ -310,13 +317,104 @@ def _():
     r = n.ingresar("cliente@correo.cl", "Cliente2026")
     cookie = r.headers["set-cookie"]
     assert "HttpOnly" in cookie and "SameSite=Lax" in cookie and "Path=/api" in cookie
+    if args.gateway.startswith("https://"):
+        assert "Secure" in cookie
     token = re.search(r"pf_sesion=([^;]+)", cookie).group(1)
     assert token not in r.text
     salir = n.pedir("POST", "/auth/logout")
     despues = n.http.get("/pedidos", headers={"Cookie": f"pf_sesion={token}"})
     assert salir.status_code == 204 and despues.status_code == 401
-    return "HttpOnly; SameSite=Lax; Path=/api; el token no viaja en el cuerpo; tras logout el mismo token responde 401", {}
+    return "HttpOnly; Secure; SameSite=Lax; Path=/api; el token no viaja en el cuerpo; tras logout el mismo token responde 401" if args.gateway.startswith("https://") else "HttpOnly; SameSite=Lax; Path=/api; el token no viaja en el cuerpo; tras logout el mismo token responde 401", {}
 
+
+# Solo aplica con HTTPS (en el entorno local sin Docker todo va en HTTP).
+if args.gateway.startswith("https://"):
+
+    @caso("7.12", "Transporte cifrado en el borde", "GET en claro y por HTTPS al gateway; cabeceras de la respuesta", "anónimo", "el puerto no atiende HTTP en claro; HTTPS con HSTS; la CA de prueba verifica el certificado", "Gateway (TLS)")
+    def _():
+        en_claro = args.gateway.replace("https://", "http://", 1)
+        try:
+            r = httpx.get(f"{en_claro}/api/salud", timeout=5)
+            claro = f"respondió {r.status_code}"
+            rechazado = r.status_code >= 400 or not r.text.startswith("{")
+        except httpx.HTTPError:
+            claro = "sin respuesta en claro"
+            rechazado = True
+        assert rechazado, f"el gateway atiende HTTP en claro ({claro})"
+        seguro = httpx.get(f"{args.gateway}/api/salud", timeout=10, verify=VERIFICAR)
+        assert seguro.status_code == 200 and "max-age" in seguro.headers.get("strict-transport-security", "")
+        verificado = "certificado verificado con la CA de prueba" if args.ca else "certificado no verificado (falta --ca)"
+        return f"HTTP en claro: {claro}; HTTPS 200 con Strict-Transport-Security; {verificado}", {"requestId": rid(seguro)}
+
+
+RAIZ = Path(__file__).resolve().parents[2]
+
+
+def en_contenedor(servicio: str, codigo: str) -> dict:
+    """Ejecuta un script de Python DENTRO del contenedor de un servicio (en la red privada) y devuelve su JSON.
+    Así se prueba desde adentro lo que desde el equipo no se alcanza: los servicios no publican puertos."""
+    r = subprocess.run(
+        ["docker", "compose", "exec", "-T", servicio, "python", "-c", codigo],
+        cwd=RAIZ, capture_output=True, text=True, timeout=60,
+    )
+    assert r.returncode == 0, f"docker compose exec {servicio} falló: {r.stderr.strip()[-300:]}"
+    return json.loads(r.stdout.strip().splitlines()[-1])
+
+
+if args.docker:
+
+    @caso("7.9", "Acceso directo a los servicios privados", "Desde un contenedor de la red privada (clientes, sin la credencial de esos servicios): GET a pedidos e inventario, POST a GraphQL y a Auth, con X-Usuario-Rol: admin", "atacante dentro de la red", "403 en los servicios, 401 en Auth", "Cada servicio (credencial interna de Vault)")
+    def _():
+        guion = (
+            "import httpx, json\n"
+            "h = {'X-Usuario-Id': 'x', 'X-Usuario-Rol': 'admin', 'X-Usuario-Sujeto': 'x'}\n"
+            "c = [httpx.get('https://pedidos:8003/pedidos', headers=h).status_code,\n"
+            "     httpx.get('https://inventario:8001/items', headers=h).status_code,\n"
+            "     httpx.post('https://graphql:4000/graphql', headers=h, json={'query': '{__typename}'}).status_code,\n"
+            "     httpx.post('https://auth:4100/login', json={'usuario': 'admin@pokefresh.cl', 'clave': 'Admin2026'}).status_code]\n"
+            "print(json.dumps(c))\n"
+        )
+        codigos = en_contenedor("clientes", guion)
+        assert codigos == [403, 403, 403, 401], codigos
+        return f"pedidos {codigos[0]}, inventario {codigos[1]}, GraphQL {codigos[2]}, Auth Service {codigos[3]}", {}
+
+    @caso("7.10", "Un servicio no puede leer secretos ajenos en Vault", "Dentro del contenedor de inventario, con su propio token: lee su credencial, la de pagos y el pepper", "inventario", "propia 200; ajenas 403 de Vault", "Vault (políticas por servicio)")
+    def _():
+        guion = (
+            "import httpx, json, os\n"
+            "t = open(os.environ['VAULT_TOKEN_ARCHIVO']).read().strip()\n"
+            "h = {'X-Vault-Token': t}\n"
+            "u = os.environ['VAULT_ADDR'] + '/v1/secret/data/poke-fresh/'\n"
+            "print(json.dumps([httpx.get(u + r, headers=h).status_code for r in ('internos/inventario', 'internos/pagos', 'auth')]))\n"
+        )
+        propio, ajeno, pepper = en_contenedor("inventario", guion)
+        assert (propio, ajeno, pepper) == (200, 403, 403), (propio, ajeno, pepper)
+        return f"propia {propio}; credencial de pagos {ajeno}; pepper {pepper}", {}
+
+    @caso("10.7", "Indisponibilidad de Vault", "Se desconecta Vault de la red privada; GET /catalogo/items y login", "anónimo", "503 SECRETOS_NO_DISPONIBLES (no deja pasar); al reconectar, vuelve a responder", "Gateway / Vault")
+    def _():
+        def docker(*a):
+            r = subprocess.run(["docker", *a], cwd=RAIZ, capture_output=True, text=True, timeout=60)
+            assert r.returncode == 0, f"docker {' '.join(a)}: {r.stderr.strip()[-200:]}"
+            return r.stdout.strip()
+
+        vault = docker("compose", "ps", "-q", "vault")
+        red = next(n for n in json.loads(docker("inspect", "-f", "{{json .NetworkSettings.Networks}}", vault)) if n.endswith("_privada"))
+        docker("network", "disconnect", red, vault)
+        try:
+            time.sleep(31)  # el gateway guarda lo leído de Vault 30 s
+            r = anonimo.pedir("GET", "/catalogo/items")
+            l = Navegador("x").pedir("POST", "/auth/login", json={"email": "admin@pokefresh.cl", "clave": "Admin2026"})
+        finally:
+            docker("network", "connect", "--alias", "vault", red, vault)
+        assert r.status_code == 503 and l.status_code in (502, 503), (r.status_code, l.status_code)
+        for _ in range(20):  # Vault vuelve y el gateway se recupera solo
+            if anonimo.pedir("GET", "/catalogo/items").status_code == 200:
+                break
+            time.sleep(2)
+        else:
+            raise AssertionError("el catálogo no se recuperó al reconectar Vault")
+        return f"catálogo {r.status_code} {r.json()['codigo']}; login {l.status_code}; al reconectar, catálogo 200", {"requestIds": [rid(r), rid(l)]}
 
 if args.directo:
 

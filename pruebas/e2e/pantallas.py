@@ -3,7 +3,7 @@ Recorre las pantallas principales en un navegador real (Chromium) contra el
 sistema levantado y guarda capturas en docs/evidencias/pantallas/. Sirve
 como evidencia de que el frontend usa las APIs reales a través del gateway.
 
-    python pruebas/e2e/pantallas.py [--sitio http://localhost:8080]
+    python pruebas/e2e/pantallas.py [--sitio https://localhost:8080]
 
 Requiere: pip install playwright && playwright install chromium
 """
@@ -16,7 +16,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--sitio", default="http://localhost:8080")
+parser.add_argument("--sitio", default="https://localhost:8080")
 args = parser.parse_args()
 
 SALIDA = Path(__file__).resolve().parents[2] / "docs" / "evidencias" / "pantallas"
@@ -28,7 +28,7 @@ pasos: list[str] = []
 
 
 def nuevo(navegador):
-    contexto = navegador.new_context(viewport={"width": 1280, "height": 900}, locale="es-CL")
+    contexto = navegador.new_context(viewport={"width": 1280, "height": 900}, locale="es-CL", ignore_https_errors=True)
     pagina = contexto.new_page()
     pagina.on("console", lambda m: m.type == "error" and errores.append(f"{pagina.url}: {m.text}"))
     pagina.on("pageerror", lambda e: errores.append(f"{pagina.url}: {e}"))
@@ -112,7 +112,9 @@ with sync_playwright() as p:
     d.wait_for_timeout(800)
 
     c.goto(f"{SITIO}/#/orden/{pedido}")
-    c.wait_for_selector("text=Entregado")
+    # La SPA no vuelve a pedir el pedido si la ruta no cambió: se recarga y se espera la etiqueta de estado (no el paso "Entregado" de la barra, que siempre está).
+    c.reload()
+    c.wait_for_selector(".estado-pedido:has-text('Entregado')")
     foto(c, "09-seguimiento-entregado", completa=True)
     c.goto(f"{SITIO}/#/mis-pedidos")
     c.wait_for_selector(f"text={pedido}")
@@ -169,7 +171,7 @@ with sync_playwright() as p:
         desborde[nombre] = pagina.evaluate("() => document.documentElement.scrollWidth > window.innerWidth + 1")
 
     def nuevo_movil():
-        contexto = nav.new_context(viewport={"width": 375, "height": 812}, device_scale_factor=2, is_mobile=True, has_touch=True, locale="es-CL")
+        contexto = nav.new_context(viewport={"width": 375, "height": 812}, device_scale_factor=2, is_mobile=True, has_touch=True, locale="es-CL", ignore_https_errors=True)
         pagina = contexto.new_page()
         pagina.on("console", lambda m: m.type == "error" and errores.append(f"{pagina.url}: {m.text}"))
         pagina.on("pageerror", lambda e: errores.append(f"{pagina.url}: {e}"))
@@ -188,7 +190,8 @@ with sync_playwright() as p:
     m.wait_for_selector("text=Confirmar pedido")
     foto_movil(m, "m03-checkout-movil", completa=True)
     m.goto(f"{SITIO}/#/orden/{pedido}")
-    m.wait_for_selector("text=Entregado")
+    m.reload()
+    m.wait_for_selector(".estado-pedido:has-text('Entregado')")
     foto_movil(m, "m04-seguimiento-movil", completa=True)
     m.goto(f"{SITIO}/#/mis-pedidos")
     m.wait_for_selector(f"text={pedido}")

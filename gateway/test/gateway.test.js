@@ -110,6 +110,13 @@ describe("API gateway", () => {
     assert.deepEqual(await r.json(), { gateway: "ok" });
   });
 
+  test("con TLS configurado el gateway agrega HSTS; sin TLS no", async () => {
+    const claro = await fetch(`${base}/salud`);
+    assert.equal(claro.headers.get("strict-transport-security"), null);
+    const seguro = await fetch(`${await gateway({ tlsCert: "/run/tls/gateway.crt", tlsKey: "/run/tls/gateway.key" })}/salud`);
+    assert.match(seguro.headers.get("strict-transport-security"), /max-age=\d+/);
+  });
+
   test("lo que no está en la matriz no existe: 404 (incluidas las rutas internas)", async () => {
     assert.equal((await pedir("/api/v1/nada")).status, 404);
     assert.equal((await pedir("/api/v1/internos/pedidos/PF-1/pago-confirmado", { metodo: "POST", sesion: "tok-admin" })).status, 404);

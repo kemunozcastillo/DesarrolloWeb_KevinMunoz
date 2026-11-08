@@ -22,4 +22,5 @@ RUN useradd --create-home --uid 10001 servicio
 USER servicio
 
 ENV PORT=8000
-CMD ["sh", "-c", "uvicorn ${SERVICIO}.main:app --host 0.0.0.0 --port ${PORT} --no-server-header"]
+# Con TLS_CERT y TLS_KEY el servicio habla HTTPS; sin ellos, HTTP (pruebas y entorno local).
+CMD ["sh", "-c", "uvicorn ${SERVICIO}.main:app --host 0.0.0.0 --port ${PORT} --no-server-header ${TLS_CERT:+--ssl-certfile $TLS_CERT --ssl-keyfile $TLS_KEY}"]

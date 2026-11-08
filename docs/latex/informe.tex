@@ -1,0 +1,104 @@
+% =====================================================================================
+% Informe de arquitectura: Evaluación Unidad 2, Poke Fresh (caso 24)
+%
+% Cómo compilar (desde esta carpeta):   xelatex informe.tex   (dos veces, por el índice)
+%   - También sirve latexmk:            latexmk -xelatex informe.tex
+%   - Las imágenes de los diagramas se leen de ../diagramas/ (si subes esto a Overleaf,
+%     sube esa carpeta y cambia \graphicspath).
+%
+% Cómo editar:
+%   - La portada está en portada.tex: reemplázala por la portada institucional.
+%   - Cada sección del informe está en su propio archivo dentro de secciones/.
+%   - Las tablas están en el formato de longtable; para cambiar el ancho de una columna
+%     edita el número antes de \linewidth (las fracciones de una tabla suman 1).
+% =====================================================================================
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage{fontspec}                       % requiere XeLaTeX o LuaLaTeX (acentos y símbolos)
+\usepackage[spanish,es-noshorthands]{babel}
+\usepackage[letterpaper,top=1.9cm,bottom=1.9cm,left=1.9cm,right=1.9cm]{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{pdflscape}                      % tablas y diagramas grandes en páginas apaisadas
+\usepackage{float}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{fancyhdr}
+\usepackage[hidelinks]{hyperref}
+
+\graphicspath{{../diagramas/}}
+
+% Títulos sin numeración automática: ya llevan su número ("1. Servicios y contratos").
+\setcounter{secnumdepth}{0}
+\setcounter{tocdepth}{2}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.55em}
+\setlength{\LTpre}{0.6em}
+\setlength{\LTpost}{0.8em}
+\renewcommand{\arraystretch}{1.1}
+\setlength{\emergencystretch}{3em}
+\captionsetup{font=small,labelfont=bf}
+
+% Bloques de código (http, json, graphql): se cortan líneas largas y se conserva la sangría.
+\newlength{\ttw}
+\newenvironment{codigo}
+  {\par\medskip\begingroup\ttfamily\footnotesize\raggedright\setlength{\parindent}{0pt}\setlength{\parskip}{0pt}%
+   \settowidth{\ttw}{x}\leftskip=1em\hangindent=2em}
+  {\endgroup\par\medskip}
+
+% Evita un título solo al pie de una página: si queda poco espacio, pasa a la siguiente.
+\newcommand{\necesito}[1]{\par\ifdim\pagegoal<\maxdimen\ifdim\dimexpr\pagegoal-\pagetotal\relax<#1\relax\newpage\fi\fi}
+\let\origsection\section
+\let\origsubsection\subsection
+\renewcommand{\section}{\necesito{10\baselineskip}\origsection}
+\renewcommand{\subsection}{\necesito{9\baselineskip}\origsubsection}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small Poke Fresh: Backend}
+\fancyhead[R]{\small Evaluación 2}
+\fancyfoot[C]{\small\thepage}
+\renewcommand{\headrulewidth}{0.3pt}
+
+\begin{document}
+
+% ---- Portada (reemplazable) ---------------------------------------------------------
+\input{portada}
+
+% ---- Índice ---------------------------------------------------------------------------
+\pagenumbering{roman}
+\tableofcontents
+\clearpage
+\pagenumbering{arabic}
+
+% ---- Contenido ------------------------------------------------------------------------
+\input{secciones/contexto}
+\clearpage
+\input{secciones/00-requisitos}
+\clearpage
+\input{secciones/01-servicios-contratos}
+\clearpage
+\input{secciones/02-dominio}
+\clearpage
+\input{secciones/03-sistemas}
+\clearpage
+\input{secciones/04-stakeholders-permisos}
+\clearpage
+\input{secciones/05-gateway}
+\clearpage
+\input{secciones/06-rutas-secretos}
+\clearpage
+\input{secciones/07-datos-sensibles}
+\clearpage
+\input{secciones/08-graphql}
+\clearpage
+\input{secciones/09-analitica-grpc}
+\clearpage
+\input{secciones/10-backend-integracion}
+\clearpage
+\input{secciones/anexo-a}
+
+\end{document}

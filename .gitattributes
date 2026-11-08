@@ -1,0 +1,2 @@
+# Los scripts de shell deben llegar con saltos de línea LF aunque se clone en Windows (si no, fallan dentro de Linux).
+*.sh text eol=lf

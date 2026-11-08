@@ -1,0 +1,194 @@
+% Generado desde docs/INFORME.md. Editar libremente.
+
+\section{4. Stakeholders y matriz de permisos}
+
+Un sistema seguro no solo pregunta quién eres, también qué puedes hacer. Aquí se describe quiénes usan Poke Fresh (clientes, personal del local, la pasarela de pago, el equipo de TI) y qué puede hacer cada uno con cada servicio. Para cada operación hay una decisión por rol y, cuando corresponde, una condición: por ejemplo, un cliente puede ver pedidos, pero solo los suyos.
+
+
+\subsection{Stakeholders}
+
+{\small
+\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 0.1652\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1478\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.3435\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.3435\linewidth-2\tabcolsep\relax}|}
+\hline
+\textbf{Stakeholder} & \textbf{Interés} & \textbf{Qué puede hacer} & \textbf{Qué protege el sistema de él} \\ \hline
+\endfirsthead
+\hline
+\textbf{Stakeholder} & \textbf{Interés} & \textbf{Qué puede hacer} & \textbf{Qué protege el sistema de él} \\ \hline
+\endhead
+Visitante & Ver el menú y precios & Catálogo, registrarse & Datos de clientes y pedidos \\ \hline
+Cliente & Comprar, seguir su pedido & Sus pedidos, su ficha, pagar, anular antes de cocina & Pedidos y datos de otros clientes; fijar precios o confirmar pagos \\ \hline
+Administrador & Operar todo el local & Todo el panel & Desactivarse a sí mismo o dejar el local sin administrador \\ \hline
+Dueño & Ventas y productos & Reportes, caja, productos (sin eliminar) & Datos de clientes y gestión de usuarios \\ \hline
+Cocina & Preparar en orden & Cola de cocina, aceptar, terminar & Reportes, RUN y correo de los clientes \\ \hline
+Encargado de despacho & Entregar & Cola de despacho, chofer, entrega & Reportes, RUN y correo \\ \hline
+Servipag & Cobrar & Notificar resultados firmados & Notificar sin la firma, o con otro monto \\ \hline
+Equipo de TI & Operar y auditar & \textbf{Sin permisos operativos} en la aplicación: no tiene rol ni cuenta; recibe información por los logs con \texttt{X-\allowbreak{}Request-\allowbreak{}Id} y \texttt{/\allowbreak{}api/\allowbreak{}salud} (S44) & Ver contraseñas, tokens o cuerpos en los logs \\ \hline
+\end{longtable}
+}
+
+\subsection{Partes interesadas, roles e identidades técnicas}
+
+{\small
+\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 0.2633\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.3639\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.3728\linewidth-2\tabcolsep\relax}|}
+\hline
+\textbf{Categoría} & \textbf{Quiénes} & \textbf{Cómo se representan} \\ \hline
+\endfirsthead
+\hline
+\textbf{Categoría} & \textbf{Quiénes} & \textbf{Cómo se representan} \\ \hline
+\endhead
+Roles de usuario (con permisos operativos) & Cliente, administrador, dueño, cocina, encargado de despacho & Cuentas en el Auth Service con un perfil; el gateway aplica el rol y el servicio dueño aplica la propiedad \\ \hline
+Parte interesada sin permisos operativos & Equipo de TI & Sin cuenta ni rol. Recibe información por logs y \texttt{/\allowbreak{}api/\allowbreak{}salud}; nunca por la API de negocio. Ver contraseñas o tokens en los logs está excluido \\ \hline
+Identidades técnicas & Servipag (webhook), gateway, cada servicio, notificador & Servipag se autentica con la firma del cuerpo; los componentes internos, con su credencial de servicio y su token de Vault (sección 6) \\ \hline
+Visitante & Quien aún no ingresa & Sin identidad: solo operaciones públicas (S01 a S03, S07, S33, S35, S36, S38, S39) \\ \hline
+\end{longtable}
+}
+
+La autenticación (quién eres) la hace el Auth Service por introspección del token; la autorización (qué puedes hacer) la decide el gateway por rol y el servicio dueño por propiedad y estado.
+
+
+\subsection{Por qué los permisos son así}
+
+\begin{itemize}[nosep,leftmargin=*]
+\item \textbf{Cada rol recibe lo mínimo que necesita para hacer su trabajo.} Cocina necesita saber qué preparar y a quién avisar: ve el nombre y el teléfono del cliente, pero no su RUN ni su correo. Despacho ve su cola y la dirección de entrega. El dueño mira ventas y productos, pero no administra usuarios.
+\item \textbf{Hay dos candados, no uno.} El gateway comprueba el rol (un cliente no puede entrar al panel de cocina) y el servicio dueño del dato vuelve a comprobar la regla fina, como que un pedido sea de quien lo pide. Si alguien llegara a un servicio por otro camino, el segundo candado igual diría que no.
+\item \textbf{Un pedido ajeno se responde como inexistente.} Cuando un cliente pide el pedido de otra persona, el servicio contesta 404 y no 403: un “prohibido” confirmaría que ese pedido existe.
+\item \textbf{Siempre queda alguien a cargo.} El sistema no deja desactivar al último administrador ni que alguien cambie su propio perfil, para que nadie se quede sin acceso por un error.
+\item \textbf{Ocultar un botón no es un permiso.} Lo que importa es lo que el backend responde, y por eso las pruebas de la sección 7 se hacen contra el backend, no contra la pantalla.
+\end{itemize}
+
+\begin{landscape}
+\subsection{Permisos por rol y servicio}
+Decisión por rol y por ID de servicio (la ruta y el verbo son los del módulo 1). \textbf{Sí}: permitido. \textbf{Sí*}: permitido solo si se cumple la condición de la última columna. \textbf{No}: denegado (el gateway responde 403, o 401 si no hay sesión). El control grueso (rol) lo aplica el gateway con la matriz de rutas; la condición la aplica el servicio dueño del dato y se vuelve a comprobar ahí. Esta tabla se generó leyendo \texttt{gateway/\allowbreak{}src/\allowbreak{}rutas.\allowbreak{}js}, así que no puede contradecir al código.
+
+\vspace{0.6em}
+{\scriptsize
+\setlength{\LTpre}{0pt}\setlength{\LTpost}{0pt}
+\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 0.0510\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1432\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.0940\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.0797\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.0725\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.0869\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.0653\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.0653\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.0869\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.2552\linewidth-2\tabcolsep\relax}|}
+\hline
+\textbf{ID} & \textbf{Verbo y ruta (\texttt{/\allowbreak{}api/\allowbreak{}v1})} & \textbf{Visitante} & \textbf{Cliente} & \textbf{Cocina} & \textbf{Despacho} & \textbf{Dueño} & \textbf{Admin} & \textbf{Servipag} & \textbf{Alcance y condición} \\ \hline
+\endfirsthead
+\hline
+\textbf{ID} & \textbf{Verbo y ruta (\texttt{/\allowbreak{}api/\allowbreak{}v1})} & \textbf{Visitante} & \textbf{Cliente} & \textbf{Cocina} & \textbf{Despacho} & \textbf{Dueño} & \textbf{Admin} & \textbf{Servipag} & \textbf{Alcance y condición} \\ \hline
+\endhead
+S01 & \texttt{GET /\allowbreak{}catalogo/\allowbreak{}items} & Sí & Sí & Sí & Sí & Sí & Sí & No & Stock y \texttt{activo} solo se ven como admin o dueño \\ \hline
+S02 & \texttt{GET /\allowbreak{}catalogo/\allowbreak{}items/\allowbreak{}:\allowbreak{}id} & Sí & Sí & Sí & Sí & Sí & Sí & No & Igual que S01 \\ \hline
+S03 & \texttt{GET /\allowbreak{}catalogo/\allowbreak{}configuracion} & Sí & Sí & Sí & Sí & Sí & Sí & No & — \\ \hline
+S04 & \texttt{POST /\allowbreak{}catalogo/\allowbreak{}items} & No & No & No & No & Sí & Sí & No & Nombre único; precio y stock válidos \\ \hline
+S05 & \texttt{PUT /\allowbreak{}catalogo/\allowbreak{}items/\allowbreak{}:\allowbreak{}id} & No & No & No & No & Sí & Sí & No & Nombre único; precio y stock válidos \\ \hline
+S06 & \texttt{DELETE /\allowbreak{}catalogo/\allowbreak{}items/\allowbreak{}:\allowbreak{}id} & No & No & No & No & No & Sí & No & Solo admin (inventario lo vuelve a comprobar) \\ \hline
+S07 & \texttt{POST /\allowbreak{}clientes/\allowbreak{}registro} & Sí & Sí & Sí & Sí & Sí & Sí & No & RUN con dígito verificador y único; correo único; clave fuerte \\ \hline
+S08 & \texttt{GET /\allowbreak{}clientes/\allowbreak{}yo} & No & Sí* & No & No & No & No & No & Solo su ficha (\texttt{X-\allowbreak{}Usuario-\allowbreak{}Sujeto}) \\ \hline
+S09 & \texttt{PUT /\allowbreak{}clientes/\allowbreak{}yo} & No & Sí* & No & No & No & No & No & Solo su ficha; no cambia RUN ni estado \\ \hline
+S10 & \texttt{GET /\allowbreak{}clientes} & No & No & No & No & No & Sí & No & — \\ \hline
+S11 & \texttt{POST /\allowbreak{}clientes} & No & No & No & No & No & Sí & No & RUN y correo únicos; clave temporal generada por el servidor \\ \hline
+S12 & \texttt{GET /\allowbreak{}clientes/\allowbreak{}:\allowbreak{}id} & No & No & No & No & No & Sí & No & — \\ \hline
+S13 & \texttt{PUT /\allowbreak{}clientes/\allowbreak{}:\allowbreak{}id} & No & No & No & No & No & Sí & No & — \\ \hline
+S14 & \texttt{PATCH /\allowbreak{}clientes/\allowbreak{}:\allowbreak{}id/\allowbreak{}estado} & No & No & No & No & No & Sí & No & Desactivar cierra sus sesiones \\ \hline
+S15 & \texttt{POST /\allowbreak{}pedidos} & No & Sí* & No & No & No & No & No & Cuenta activa; despacho solo en las comunas de reparto; precio de inventario; stock \\ \hline
+S16 & \texttt{GET /\allowbreak{}pedidos} & No & Sí* & Sí* & Sí* & Sí & Sí & No & Cliente: solo los suyos. Cocina y despacho: solo su cola \\ \hline
+S17 & \texttt{GET /\allowbreak{}pedidos/\allowbreak{}:\allowbreak{}id} & No & Sí* & Sí* & Sí* & Sí & Sí & No & Cliente: solo si es suyo (si no, 404). Cocina: solo pagados. Despacho: solo listos, en camino o entregados \\ \hline
+S18 & \texttt{GET /\allowbreak{}pedidos/\allowbreak{}boleta/\allowbreak{}:\allowbreak{}numero} & No & Sí* & No & No & Sí & Sí & No & Cliente: solo la suya \\ \hline
+S19 & \texttt{GET /\allowbreak{}pedidos/\allowbreak{}configuracion} & No & Sí & Sí & Sí & Sí & Sí & No & — \\ \hline
+S20 & \texttt{POST /\allowbreak{}pedidos/\allowbreak{}:\allowbreak{}id/\allowbreak{}aceptar} & No & No & Sí* & No & No & Sí* & No & Solo desde PAGADO; condición atómica \\ \hline
+S21 & \texttt{POST /\allowbreak{}pedidos/\allowbreak{}:\allowbreak{}id/\allowbreak{}terminar} & No & No & Sí* & No & No & Sí* & No & Solo desde EN\_\allowbreak{}PREPARACION; condición atómica \\ \hline
+S22 & \texttt{POST /\allowbreak{}pedidos/\allowbreak{}:\allowbreak{}id/\allowbreak{}despachar} & No & No & No & Sí* & No & Sí* & No & Solo desde LISTO\_\allowbreak{}DESPACHO; chofer de la lista \\ \hline
+S23 & \texttt{POST /\allowbreak{}pedidos/\allowbreak{}:\allowbreak{}id/\allowbreak{}entregar} & No & No & No & Sí* & No & Sí* & No & Solo desde EN\_\allowbreak{}DESPACHO o LISTO\_\allowbreak{}RETIRO \\ \hline
+S24 & \texttt{POST /\allowbreak{}pedidos/\allowbreak{}:\allowbreak{}id/\allowbreak{}impresa} & No & No & Sí & Sí & No & Sí & No & — \\ \hline
+S25 & \texttt{POST /\allowbreak{}pedidos/\allowbreak{}:\allowbreak{}id/\allowbreak{}anular} & No & Sí* & No & No & No & Sí* & No & Cliente: solo el suyo. Solo en PENDIENTE\_\allowbreak{}PAGO o PAGADO; motivo de 5 a 200 caracteres \\ \hline
+S26 & \texttt{GET /\allowbreak{}reportes/\allowbreak{}ventas} & No & No & No & No & Sí & Sí & No & Período máximo de un año \\ \hline
+S27 & \texttt{POST /\allowbreak{}pagos} & No & Sí* & No & No & No & No & No & Pedido suyo y pendiente (lo decide pedidos); monto del pedido; \texttt{Idempotency-\allowbreak{}Key} \\ \hline
+S28 & \texttt{GET /\allowbreak{}pagos} & No & Sí* & No & No & Sí & Sí & No & Pedidos decide si puede ver ese pedido \\ \hline
+S29 & \texttt{POST /\allowbreak{}pagos/\allowbreak{}notificacion} & No & No & No & No & No & No & Sí (firma) & Firma HMAC válida; token y monto coinciden \\ \hline
+S30 & \texttt{POST /\allowbreak{}graphql} \texttt{resumenPedido} & No & Sí* & Sí* & Sí* & Sí & Sí & No & Cliente: solo si el pedido es suyo. Cocina y despacho: según su cola. Campo \texttt{cliente}: solo admin \\ \hline
+S31 & \texttt{POST /\allowbreak{}graphql} \texttt{misPedidos} & No & Sí* & No & No & No & No & No & Solo los pedidos del propio cliente \\ \hline
+S32 & \texttt{POST /\allowbreak{}graphql} \texttt{reporteVentas} & No & No & No & No & Sí & Sí & No & Solo admin y dueño \\ \hline
+S33 & \texttt{POST /\allowbreak{}auth/\allowbreak{}login} & Sí & Sí & Sí & Sí & Sí & Sí & No & 20 por minuto por IP; bloqueo por correo tras 5 intentos fallidos \\ \hline
+S34 & \texttt{POST /\allowbreak{}auth/\allowbreak{}logout} & Sí & Sí & Sí & Sí & Sí & Sí & No & — \\ \hline
+S35 & \texttt{GET /\allowbreak{}auth/\allowbreak{}sesion} & Sí & Sí & Sí & Sí & Sí & Sí & No & Sin sesión responde \texttt{null} \\ \hline
+S36 & \texttt{GET /\allowbreak{}auth/\allowbreak{}config} & Sí & Sí & Sí & Sí & Sí & Sí & No & Sin cuentas de demostración si \texttt{MODO\_\allowbreak{}DEMO=\allowbreak{}false} \\ \hline
+S37 & \texttt{PUT /\allowbreak{}auth/\allowbreak{}clave} & No & Sí & Sí & Sí & Sí & Sí & No & La cuenta sale de la sesión, no del cuerpo \\ \hline
+S38 & \texttt{POST /\allowbreak{}auth/\allowbreak{}verificar} & Sí & Sí & Sí & Sí & Sí & Sí & No & 20 por minuto por IP; no revela si el correo existe \\ \hline
+S39 & \texttt{POST /\allowbreak{}auth/\allowbreak{}reenviar} & Sí & Sí & Sí & Sí & Sí & Sí & No & 20 por minuto por IP; respuesta igual exista o no el correo \\ \hline
+S40 & \texttt{GET /\allowbreak{}usuarios} & No & No & No & No & No & Sí & No & — \\ \hline
+S41 & \texttt{POST /\allowbreak{}usuarios} & No & No & No & No & No & Sí & No & Clave fuerte; perfil válido \\ \hline
+S42 & \texttt{PUT /\allowbreak{}usuarios/\allowbreak{}:\allowbreak{}id} & No & No & No & No & No & Sí* & No & Siempre queda un admin activo; nadie cambia su propio perfil \\ \hline
+S43 & \texttt{PATCH /\allowbreak{}usuarios/\allowbreak{}:\allowbreak{}id/\allowbreak{}estado} & No & No & No & No & No & Sí* & No & Siempre queda un admin activo; nadie desactiva su propia cuenta \\ \hline
+S44 & \texttt{GET /\allowbreak{}api/\allowbreak{}salud} & Sí & Sí & Sí & Sí & Sí & Sí & No & Sin datos personales \\ \hline
+\end{longtable}
+}
+\end{landscape}
+
+La columna Servipag es la identidad técnica de la pasarela: no tiene sesión ni rol; su único permiso es S29, autenticado con la firma del cuerpo. Las identidades técnicas internas (gateway, servicios, notificador) no figuran aquí porque no usan estas rutas públicas: se autentican entre sí con las credenciales de la sección 6.
+
+
+\textbf{Verbos por recurso.} “No aplicable” significa que la operación no existe (404 o 405), no que se deniegue:
+
+
+{\footnotesize
+\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 0.0947\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1409\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.2353\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1694\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.2385\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1213\linewidth-2\tabcolsep\relax}|}
+\hline
+\textbf{Recurso} & \textbf{GET} & \textbf{POST} & \textbf{PUT} & \textbf{DELETE} & \textbf{PATCH} \\ \hline
+\endfirsthead
+\hline
+\textbf{Recurso} & \textbf{GET} & \textbf{POST} & \textbf{PUT} & \textbf{DELETE} & \textbf{PATCH} \\ \hline
+\endhead
+Producto & Permitido (campos públicos) & admin, dueño & admin, dueño & Solo admin & No aplicable \\ \hline
+Cliente (ficha) & Cliente (la suya), admin & Público (registro); admin (en el local) & Cliente (la suya), admin & No aplicable: se desactiva, no se borra & admin (activar o desactivar) \\ \hline
+Pedido & Con condición por rol & Cliente (crear); roles operativos (cambios de estado) & No aplicable: un pedido no se reemplaza & No aplicable: se anula con S25 y el registro se conserva & No aplicable \\ \hline
+Pago & Cliente, admin, dueño & Cliente (iniciar); Servipag (notificar) & No aplicable & No aplicable & No aplicable \\ \hline
+Usuario interno & admin & admin & admin & No aplicable: se desactiva & admin \\ \hline
+Sesión & Cualquiera (informa quién es) & Público (ingresar y salir) & Con sesión (cambiar clave) & No aplicable & No aplicable \\ \hline
+\end{longtable}
+}
+
+\textbf{Anulación e historial.} Anular un pedido no borra nada: el pedido pasa a \texttt{ANULADO} con un nuevo paso en su historial (quién, cuándo y el motivo), la venta se marca anulada, se registra la devolución del pago y la reserva de stock se libera. Las ventas anuladas siguen apareciendo en el reporte como anuladas.
+
+
+\textbf{Ocultar un botón no es un permiso.} Cocina no ve el botón de anular, y aunque llamara a S25 con su cookie la matriz de rutas lo rechaza con 403 (probado por rol en \texttt{gateway/\allowbreak{}test}; en Docker, casos 7.3 y 7.4). Lo comprobado contra el backend está en la sección 7.
+
+
+\subsection{Condiciones por ruta (control grueso del gateway y regla fina del servicio)}
+
+La columna “Gateway” es el control grueso (rol); “Condición en el servicio” es la regla fina que aplica el dueño del dato.
+
+
+{\footnotesize
+\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 0.0865\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1292\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.2634\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1416\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.3794\linewidth-2\tabcolsep\relax}|}
+\hline
+\textbf{ID} & \textbf{Verbo} & \textbf{Ruta (\texttt{/\allowbreak{}api/\allowbreak{}v1})} & \textbf{Gateway} & \textbf{Condición en el servicio} \\ \hline
+\endfirsthead
+\hline
+\textbf{ID} & \textbf{Verbo} & \textbf{Ruta (\texttt{/\allowbreak{}api/\allowbreak{}v1})} & \textbf{Gateway} & \textbf{Condición en el servicio} \\ \hline
+\endhead
+S01 a S03 & GET & \texttt{/\allowbreak{}catalogo/\allowbreak{}items[\allowbreak{}/\allowbreak{}:\allowbreak{}id]}, \texttt{/\allowbreak{}catalogo/\allowbreak{}configuracion} & Público & Stock solo si admin o dueño \\ \hline
+S04, S05 & POST, PUT & \texttt{/\allowbreak{}catalogo/\allowbreak{}items[\allowbreak{}/\allowbreak{}:\allowbreak{}id]} & admin, dueño & Validación de nombre, precio, stock; nombre único \\ \hline
+S06 & DELETE & \texttt{/\allowbreak{}catalogo/\allowbreak{}items/\allowbreak{}:\allowbreak{}id} & admin & Solo admin (también en inventario) \\ \hline
+S07 & POST & \texttt{/\allowbreak{}clientes/\allowbreak{}registro} & Público (20/min por IP) & RUN válido y único, correo único, clave fuerte \\ \hline
+S08, S09 & GET, PUT & \texttt{/\allowbreak{}clientes/\allowbreak{}yo} & cliente & Solo su ficha (\texttt{X-\allowbreak{}Usuario-\allowbreak{}Sujeto}); no cambia RUN ni estado \\ \hline
+S10, S11 & GET, POST & \texttt{/\allowbreak{}clientes} & admin & Alta en el local con clave temporal \\ \hline
+S12 a S14 & GET, PUT, PATCH & \texttt{/\allowbreak{}clientes/\allowbreak{}:\allowbreak{}id[\allowbreak{}/\allowbreak{}estado]} & admin & Desactivar cierra sus sesiones \\ \hline
+S15 & POST & \texttt{/\allowbreak{}pedidos} & cliente & Cuenta activa; despacho solo en radio; precio de inventario; stock \\ \hline
+S16 & GET & \texttt{/\allowbreak{}pedidos} & todos los roles & Cliente: solo los suyos. Cocina: solo su cola. Despacho: solo la suya \\ \hline
+S17 & GET & \texttt{/\allowbreak{}pedidos/\allowbreak{}:\allowbreak{}id} & todos los roles & Cliente: solo si es suyo (si no, 404). Cocina: solo pagados. Despacho: solo listos/en camino/entregados \\ \hline
+S18 & GET & \texttt{/\allowbreak{}pedidos/\allowbreak{}boleta/\allowbreak{}:\allowbreak{}n} & cliente, admin, dueño & Cliente: solo la suya \\ \hline
+S20, S21 & POST & \texttt{/\allowbreak{}pedidos/\allowbreak{}:\allowbreak{}id/\allowbreak{}aceptar}, \texttt{/\allowbreak{}terminar} & admin, cocina & Desde PAGADO / EN\_\allowbreak{}PREPARACION, condición atómica \\ \hline
+S22, S23 & POST & \texttt{/\allowbreak{}pedidos/\allowbreak{}:\allowbreak{}id/\allowbreak{}despachar}, \texttt{/\allowbreak{}entregar} & admin, despacho & Chofer válido; estado correcto \\ \hline
+S25 & POST & \texttt{/\allowbreak{}pedidos/\allowbreak{}:\allowbreak{}id/\allowbreak{}anular} & cliente, admin & Cliente: solo el suyo. Solo en PENDIENTE\_\allowbreak{}PAGO o PAGADO; motivo obligatorio \\ \hline
+S26 & GET & \texttt{/\allowbreak{}reportes/\allowbreak{}ventas} & admin, dueño & Período máximo de un año \\ \hline
+S27 & POST & \texttt{/\allowbreak{}pagos} & cliente & Idempotency-Key; pedido suyo y pendiente (lo decide pedidos); monto del pedido \\ \hline
+S28 & GET & \texttt{/\allowbreak{}pagos?\allowbreak{}pedidoId} & cliente, admin, dueño & Pedidos decide si puede ver ese pedido \\ \hline
+S29 & POST & \texttt{/\allowbreak{}pagos/\allowbreak{}notificacion} & Sin sesión & Firma HMAC válida, token y monto coinciden \\ \hline
+S30 a S32 & POST & \texttt{/\allowbreak{}graphql} & Con sesión & Autorización por campo y por recurso (sección 8) \\ \hline
+S38, S39 & POST & \texttt{/\allowbreak{}auth/\allowbreak{}verificar}, \texttt{/\allowbreak{}auth/\allowbreak{}reenviar} & Público (20/min por IP) & No revela si el correo existe \\ \hline
+S37 & PUT & \texttt{/\allowbreak{}auth/\allowbreak{}clave} & Con sesión & La cuenta sale de la sesión, no del cuerpo \\ \hline
+S40 a S43 & GET, POST, PUT, PATCH & \texttt{/\allowbreak{}usuarios[\allowbreak{}.\allowbreak{}.\allowbreak{}.\allowbreak{}]} & admin & Siempre queda un admin activo; nadie cambia su propio perfil \\ \hline
+\end{longtable}
+}
+
+La tabla de arriba (“Permisos por rol y servicio”) es la decisión por rol; esta resume, por ruta, qué decide el gateway y qué decide el servicio.
+
