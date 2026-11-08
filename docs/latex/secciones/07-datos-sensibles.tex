@@ -65,7 +65,7 @@ Ejecutados contra el backend implementado con \texttt{pruebas/\allowbreak{}e2e/\
 
 {\footnotesize
 \setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
-\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 0.1715\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1880\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1009\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.2342\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.2045\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1009\linewidth-2\tabcolsep\relax}|}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 0.1598\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.2438\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.0940\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.2181\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1905\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.0940\linewidth-2\tabcolsep\relax}|}
 \hline
 \textbf{Caso} & \textbf{Entrada} & \textbf{Identidad} & \textbf{Esperado} & \textbf{Obtenido} & \textbf{Lo verifica} \\ \hline
 \endfirsthead
@@ -80,8 +80,8 @@ Ejecutados contra el backend implementado con \texttt{pruebas/\allowbreak{}e2e/\
 7.6 Pago alterado desde el frontend & \texttt{monto:\allowbreak{} 1}; notificación sin firma / firma falsa & cliente & monto real; 401 & monto 7.890; 401 y 401; pedido sigue pendiente & pagos \\ \hline
 7.7 CSRF & \texttt{Origin} ajeno & cliente & 403 & 403 ORIGEN\_\allowbreak{}NO\_\allowbreak{}PERMITIDO & Gateway \\ \hline
 7.8 Cookie y logout & login, logout & cliente & HttpOnly y Secure; 401 tras logout & Cumple & Gateway + Auth \\ \hline
-7.9 Acceso directo al backend & servicios sin gateway & atacante en la red & 403/401 & pedidos 403, inventario 403, GraphQL 403, Auth 401 & Cada servicio \\ \hline
-7.10 Secreto ajeno en Vault & token de inventario & inventario & 403 & propio 200; pagos 403; pepper 403 & Vault \\ \hline
+7.9 Acceso directo al backend & desde un contenedor de la red privada, sin la credencial del destino y con \texttt{X-\allowbreak{}Usuario-\allowbreak{}Rol:\allowbreak{} admin} & atacante dentro de la red & 403/401 & pedidos 403, inventario 403, GraphQL 403, Auth 401 & Cada servicio \\ \hline
+7.10 Secreto ajeno en Vault & dentro del contenedor de inventario, con su propio token & inventario & 403 & propio 200; pagos 403; pepper 403 & Vault \\ \hline
 7.11 Fuerza bruta & 25 logins fallidos & anónimo & bloqueo & 429 desde el intento 6 & Auth + gateway \\ \hline
 7.12 Transporte cifrado & GET en claro y por HTTPS & anónimo & sin HTTP en claro; HTTPS con HSTS; certificado verificado con la CA & Cumple & Gateway (TLS) \\ \hline
 \end{longtable}

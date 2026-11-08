@@ -20,7 +20,7 @@ Persistencia y creación & MongoDB con una base y un usuario por servicio; índi
 Contratos REST & Sección 1 y OpenAPI de cada servicio \\ \hline
 Contrato GraphQL & Sección 8 y \texttt{graphql-\allowbreak{}gateway/\allowbreak{}src/\allowbreak{}graphql/\allowbreak{}esquema.\allowbreak{}js} \\ \hline
 Contratos gRPC & No aplica (ADR 0001) \\ \hline
-Pruebas automatizadas & 86 unitarias y de integración + 20 de punta a punta (contra Docker, con TLS) + recorrido de pantallas + carga \\ \hline
+Pruebas automatizadas & 86 unitarias y de integración + 23 de punta a punta (contra Docker, con TLS) + recorrido de pantallas + carga \\ \hline
 Instrucciones & \texttt{README.\allowbreak{}md} \\ \hline
 \end{longtable}
 }
@@ -29,7 +29,7 @@ Instrucciones & \texttt{README.\allowbreak{}md} \\ \hline
 
 {\small
 \setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
-\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 0.1852\linewidth-2\tabcolsep\relax}|>{\raggedleft\arraybackslash}p{\dimexpr 0.2127\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.4129\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1892\linewidth-2\tabcolsep\relax}|}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 0.2074\linewidth-2\tabcolsep\relax}|>{\raggedleft\arraybackslash}p{\dimexpr 0.2069\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.4017\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.1840\linewidth-2\tabcolsep\relax}|}
 \hline
 \textbf{Conjunto} & \textbf{Cantidad} & \textbf{Qué cubre} & \textbf{Resultado} \\ \hline
 \endfirsthead
@@ -40,7 +40,7 @@ Instrucciones & \texttt{README.\allowbreak{}md} \\ \hline
 \texttt{auth-\allowbreak{}service/\allowbreak{}test} & 20 & Login, bloqueo, expiración, revocación, verificación, permisos por cliente, hash y pepper, Vault sellado & 20/20 \\ \hline
 \texttt{gateway/\allowbreak{}test} & 18 & Matriz de rutas, roles, cabeceras falsificadas, cookie, CSRF, webhook, Vault y servicio caídos, límite, healthcheck, HSTS & 18/18 \\ \hline
 \texttt{graphql-\allowbreak{}gateway/\allowbreak{}test} & 11 & Agregación, batching, identidad, autorización por campo, error parcial, límites, paginación & 11/11 \\ \hline
-\texttt{pruebas/\allowbreak{}e2e/\allowbreak{}casos.\allowbreak{}py} & 20 & Casos del módulo 7 y del 10 contra el sistema levantado en Docker, por HTTPS & 20/20 \\ \hline
+\texttt{pruebas/\allowbreak{}e2e/\allowbreak{}casos.\allowbreak{}py -\allowbreak{}-\allowbreak{}docker} & 23 & Casos del módulo 7 y del 10 contra el sistema levantado en Docker, por HTTPS; los casos 7.9, 7.10 y 10.7 se ejecutan dentro de la red privada & 23/23 \\ \hline
 \texttt{pruebas/\allowbreak{}e2e/\allowbreak{}pantallas.\allowbreak{}py} & 16 pantallas de escritorio + 6 móviles & Flujos principales en el navegador, en escritorio (1280×900) y en móvil (375×812, táctil) & Completo, sin errores de consola \\ \hline
 \texttt{pruebas/\allowbreak{}carga/\allowbreak{}carga.\allowbreak{}mjs} & 3 escenarios & Rendimiento contra el sistema en Docker & 0 \% de error \\ \hline
 \end{longtable}
@@ -90,7 +90,7 @@ Todas salen del sistema levantado en Docker, por HTTPS, con datos ficticios. Las
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=\linewidth,height=0.8\textheight,keepaspectratio]{../evidencias/pantallas/05-pasarela-servipag.png}
+\includegraphics[width=\linewidth,height=0.85\textheight,keepaspectratio]{../evidencias/pantallas/05-pasarela-servipag.png}
 \caption{Pasarela de pago simulada (Servipag), en el puerto 9000}
 \end{figure}
 
@@ -107,13 +107,13 @@ Todas salen del sistema levantado en Docker, por HTTPS, con datos ficticios. Las
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=\linewidth,height=0.8\textheight,keepaspectratio]{../evidencias/pantallas/09-seguimiento-entregado.png}
+\includegraphics[width=\linewidth,height=0.85\textheight,keepaspectratio]{../evidencias/pantallas/09-seguimiento-entregado.png}
 \caption{Seguimiento: el pedido en estado Entregado, con su boleta}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=\linewidth,height=0.8\textheight,keepaspectratio]{../evidencias/pantallas/10-mis-pedidos.png}
+\includegraphics[width=\linewidth,height=0.85\textheight,keepaspectratio]{../evidencias/pantallas/10-mis-pedidos.png}
 \caption{Mis pedidos: historial del cliente}
 \end{figure}
 
@@ -259,7 +259,7 @@ R14 & Pedido, Mis pedidos, Boleta & pedidos + GraphQL (S08, S09, S16 a S18, S30)
 \end{longtable}
 }
 
-\subsection{Ejemplo de autorización por pedido (lo pide la pauta)}
+\subsection{Ejemplo de autorización por pedido}
 
 Con la misma regla (“un cliente solo ve sus pedidos”, aplicada por el servicio de pedidos):
 

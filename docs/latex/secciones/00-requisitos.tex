@@ -48,7 +48,7 @@ Lo que no se implementa como en producción, por qué, y qué lo reemplaza:
 
 {\small
 \setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
-\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 0.2965\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.3517\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.3517\linewidth-2\tabcolsep\relax}|}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{\dimexpr 0.2798\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.3601\linewidth-2\tabcolsep\relax}|>{\raggedright\arraybackslash}p{\dimexpr 0.3601\linewidth-2\tabcolsep\relax}|}
 \hline
 \textbf{Brecha} & \textbf{Motivo} & \textbf{Cómo se cubre} \\ \hline
 \endfirsthead
@@ -64,7 +64,6 @@ Distribución de tokens de Vault & Docker Compose no entrega un archivo distinto
 Sesiones del Auth Service & Se guardan en memoria & Un reinicio del Auth Service cierra todas las sesiones (falla segura: hay que volver a ingresar) \\ \hline
 ActiveMQ sin autenticación & Broker solo accesible en la red privada y solo por STOMP sobre TLS (sin consola web ni otros protocolos) & Si se expone, se activa usuario y clave en el broker y se guardan en Vault \\ \hline
 Aviso a cocina “en vivo” & Sin WebSocket ni SSE & La pantalla de cocina consulta cada 8 s y avisa con sonido; ActiveMQ ya publica el evento por si se quiere empujar (ver ADR 0001) \\ \hline
-Casos 7.9, 7.10 y 10.7 no se ejecutan contra Docker & Prueban acceso directo a los servicios, secretos ajenos en Vault y Vault sellado, y desde el equipo la red privada no se alcanza (es lo que se busca) & Corren con \texttt{casos.\allowbreak{}py -\allowbreak{}-\allowbreak{}directo} en el entorno local sin Docker, donde todo va en HTTP (22 casos en total: los 19 que aplican sin TLS más esos 3; el 7.12 solo aplica con HTTPS); en Docker la separación de redes se comprueba porque solo se publican los puertos 8080 y 9000 \\ \hline
 GitHub Pages & El frontend ahora necesita la API & Se sirve desde el gateway (mismo origen que la API). La versión estática de la entrega anterior sigue en la rama \texttt{Front-\allowbreak{}end} \\ \hline
 \end{longtable}
 }

@@ -88,14 +88,16 @@ Pasarela (Servipag) & Externo & HTTPS + API key; notificación con HMAC & pagos 
 \end{longtable}
 }
 
-\begin{landscape}
 \subsection{Mapa de componentes y despliegue}
+
 \begin{figure}[H]
 \centering
-\includegraphics[width=\linewidth,height=0.78\textheight,keepaspectratio]{../diagramas/componentes.png}
+\includegraphics[width=\linewidth,height=0.85\textheight,keepaspectratio]{../diagramas/componentes.png}
 \caption{Mapa de componentes}
 \end{figure}
-\end{landscape}
+
+Leyenda: las flechas continuas son llamadas entre componentes (todas por TLS 1.2 o superior); \texttt{Basic} es HTTP Basic con un secreto de Vault, \texttt{API key} es la clave del comercio ante la pasarela y \texttt{webhook HMAC} es la notificación firmada; las líneas punteadas son la lectura de secretos en Vault, cada componente con su propio token; \texttt{STOMP} es la mensajería hacia ActiveMQ. El detalle de qué se verifica en cada salto está en la tabla de fronteras de confianza (sección 5).
+
 
 Modelo C4 (\texttt{docs/\allowbreak{}diagramas/\allowbreak{}poke-\allowbreak{}fresh.\allowbreak{}dsl}): 25 vistas, validadas con el comando \texttt{validate} de Structurizr (imagen \texttt{structurizr/\allowbreak{}structurizr}) y exportables a Mermaid. Incluye C1 (contexto con la pasarela externa), C2 (contenedores, con recortes de catálogo, pedidos y pagos, y secretos), C3 de API Gateway, GraphQL Gateway, Auth Service y pedidos, vistas dinámicas de los flujos de los casos de validación (catálogo y su recuperación, pedido y su reintento, pedido propio y ajeno, sesión expirada, GraphQL con éxito, con error parcial y sobre el límite, pago, confirmación firmada y notificación falsa) y dos despliegues: \texttt{Docker\_\allowbreak{}Compose} (el entregado) y \texttt{Local\_\allowbreak{}Sin\_\allowbreak{}Docker} (pruebas, con Mongo, Vault y ActiveMQ en memoria). Para verlo: pegar el archivo en https://structurizr.com/dsl o usar el CLI. No hay imágenes renderizadas de estas vistas en el repositorio; los \texttt{.\allowbreak{}png} de arriba siguen siendo los diagramas de referencia del informe.
 
@@ -103,13 +105,14 @@ Modelo C4 (\texttt{docs/\allowbreak{}diagramas/\allowbreak{}poke-\allowbreak{}fr
 Despliegue (\texttt{docker-\allowbreak{}compose.\allowbreak{}yml}): 15 contenedores en dos redes (\texttt{tls-\allowbreak{}init}, \texttt{vault-\allowbreak{}init} y \texttt{semilla} son de un solo uso). \texttt{privada} es \texttt{internal:\allowbreak{} true} (sin puertos al equipo ni salida a Internet). Solo el gateway (8080) y la pasarela simulada (9000) publican puertos.
 
 
+\begin{landscape}
 \subsection{Secuencia de integración: compra completa}
-
 \begin{figure}[H]
 \centering
-\includegraphics[width=\linewidth,height=0.8\textheight,keepaspectratio]{../diagramas/secuencia-compra.png}
+\includegraphics[width=\linewidth,height=0.78\textheight,keepaspectratio]{../diagramas/secuencia-compra.png}
 \caption{Secuencia de compra}
 \end{figure}
+\end{landscape}
 
 \subsection{Idempotencia del pago}
 

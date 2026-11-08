@@ -12,11 +12,11 @@
 %   - Las tablas están en el formato de longtable; para cambiar el ancho de una columna
 %     edita el número antes de \linewidth (las fracciones de una tabla suman 1).
 % =====================================================================================
-\documentclass[11pt,a4paper]{article}
+\documentclass[11pt,letterpaper]{article}
 
 \usepackage{fontspec}                       % requiere XeLaTeX o LuaLaTeX (acentos y símbolos)
 \usepackage[spanish,es-noshorthands]{babel}
-\usepackage[a4paper,top=2.3cm,bottom=2.3cm,left=2.3cm,right=2.3cm]{geometry}
+\usepackage[letterpaper,top=1.9cm,bottom=1.9cm,left=1.9cm,right=1.9cm]{geometry}
 \usepackage{graphicx}
 \usepackage{xcolor}
 \usepackage{longtable}
@@ -58,8 +58,8 @@
 
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[L]{\small Poke Fresh: backend seguro completo}
-\fancyhead[R]{\small Evaluación Unidad 2}
+\fancyhead[L]{\small Poke Fresh: Backend}
+\fancyhead[R]{\small Evaluación 2}
 \fancyfoot[C]{\small\thepage}
 \renewcommand{\headrulewidth}{0.3pt}
 
@@ -98,5 +98,7 @@
 \input{secciones/09-analitica-grpc}
 \clearpage
 \input{secciones/10-backend-integracion}
+\clearpage
+\input{secciones/anexo-a}
 
 \end{document}

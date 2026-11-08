@@ -26,6 +26,9 @@ Streaming & No se necesita (aviso a cocina en segundos) & Requisito & No; los av
 \end{longtable}
 }
 
+\textbf{CPU y memoria bajo carga.} La prueba de carga (\texttt{evidencias/\allowbreak{}carga.\allowbreak{}md}) registró también el consumo de los contenedores con \texttt{docker stats}, en una sola muestra tomada durante el tercer escenario (la cola de cocina): pedidos 108 \% de CPU y 63 MiB, MongoDB 91 \% y 359 MiB, API Gateway 65 \% y 130 MiB, Auth Service 40 \% y 73 MiB; inventario, clientes y pagos, 0,1 \% y entre 49 y 61 MiB; el GraphQL Gateway no se usó en ese escenario (0 \%, 151 MiB). Con 100 \% igual a un núcleo y una sola muestra, sirve para ver el orden de magnitud y que ningún contenedor se acerca a un límite de memoria; no permite afirmar cuánto consume cada pieza ni comparar con otra tecnología. Con esa carga (de 42 a 63 veces el pico proyectado) el consumo no justifica separar un servicio de alta demanda.
+
+
 \subsection{Por qué no se implementa cada componente}
 
 {\small

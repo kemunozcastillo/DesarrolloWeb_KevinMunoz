@@ -1,0 +1,437 @@
+% Generado desde docs/INFORME.md. Editar libremente.
+
+\section{Anexo A. Ejemplos de contrato por operación}
+
+La sección 1 muestra el ejemplo completo de S01, S07, S15, S20, S22, S25, S27, S29 y S33. Este anexo agrega uno para cada operación restante, de modo que las 44 tienen petición y respuesta con datos ficticios. En todos, los errores tienen la forma \texttt{\{"codigo":\allowbreak{} ".\allowbreak{}.\allowbreak{}.\allowbreak{}",\allowbreak{} "mensaje":\allowbreak{} ".\allowbreak{}.\allowbreak{}.\allowbreak{}",\allowbreak{} "idPeticion":\allowbreak{} ".\allowbreak{}.\allowbreak{}.\allowbreak{}"\}} y los códigos de la matriz del módulo 1. Se abrevian con \texttt{.\allowbreak{}.\allowbreak{}.\allowbreak{}} los campos que ya se mostraron en otro ejemplo. S30 (\texttt{resumenPedido}) tiene su consulta y su respuesta completas en la sección 8.
+
+
+\subsection{Catálogo (inventario)}
+
+\textbf{S02, obtener un producto} (anónimo).
+
+
+\begin{codigo}
+GET /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}catalogo/\allowbreak{}items/\allowbreak{}pro\_\allowbreak{}atun\par
+\end{codigo}
+
+\begin{codigo}
+200 \{"id":\allowbreak{} "pro\_\allowbreak{}atun",\allowbreak{} "categoria":\allowbreak{} "PROTEINA",\allowbreak{} "nombre":\allowbreak{} "Atún",\allowbreak{} "descripcion":\allowbreak{} "Grado sashimi,\allowbreak{} corte del día",\allowbreak{} "precio":\allowbreak{} 1500,\allowbreak{} "disponible":\allowbreak{} true\}\par
+404 \{"codigo":\allowbreak{} "NO\_\allowbreak{}ENCONTRADO",\allowbreak{} "mensaje":\allowbreak{} "No existe el item pro\_\allowbreak{}zzz.\allowbreak{}",\allowbreak{} "idPeticion":\allowbreak{} "e2e-\allowbreak{}4c1d9a0b7e2f"\}\par
+\end{codigo}
+
+\textbf{S03, reglas del armado} (anónimo).
+
+
+\begin{codigo}
+GET /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}catalogo/\allowbreak{}configuracion\par
+\end{codigo}
+
+\begin{codigo}
+200 \{"tamanos":\allowbreak{} [\allowbreak{}\{"id":\allowbreak{} "regular",\allowbreak{} "nombre":\allowbreak{} "Regular",\allowbreak{} "descripcion":\allowbreak{} "Porción individual",\allowbreak{} "precio":\allowbreak{} 6990,\allowbreak{} "salsasIncluidas":\allowbreak{} 2,\allowbreak{} "toppingsIncluidos":\allowbreak{} 3\},\allowbreak{} .\allowbreak{}.\allowbreak{}.\allowbreak{}],\allowbreak{}\par
+\hspace*{5\ttw}"reglas":\allowbreak{} \{"basesIncluidas":\allowbreak{} 1,\allowbreak{} "maxBases":\allowbreak{} 3,\allowbreak{} "recargoBaseExtra":\allowbreak{} 500,\allowbreak{} "proteinasIncluidas":\allowbreak{} 1,\allowbreak{} "maxProteinas":\allowbreak{} 3,\allowbreak{} "recargoProteinaExtra":\allowbreak{} 2500,\allowbreak{} .\allowbreak{}.\allowbreak{}.\allowbreak{}\},\allowbreak{}\par
+\hspace*{5\ttw}"promos":\allowbreak{} \{"promo\_\allowbreak{}combo":\allowbreak{} \{"bowls":\allowbreak{} 1,\allowbreak{} "bebida":\allowbreak{} true,\allowbreak{} "tamanoId":\allowbreak{} "regular",\allowbreak{} "detalle":\allowbreak{} "Arma tu bowl regular y elige tu bebida.\allowbreak{}"\},\allowbreak{} .\allowbreak{}.\allowbreak{}.\allowbreak{}\}\}\par
+\end{codigo}
+
+\textbf{S04, crear un producto} (admin o dueño). Con rol de administración la respuesta incluye \texttt{stock} y \texttt{activo}.
+
+
+\begin{codigo}
+POST /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}catalogo/\allowbreak{}items\par
+\{"categoria":\allowbreak{} "TOPPING",\allowbreak{} "nombre":\allowbreak{} "Cebolla crispy",\allowbreak{} "descripcion":\allowbreak{} "Crocante,\allowbreak{} para dar textura",\allowbreak{} "precio":\allowbreak{} 700,\allowbreak{} "stock":\allowbreak{} 50,\allowbreak{} "disponible":\allowbreak{} true\}\par
+\end{codigo}
+
+\begin{codigo}
+201 \{"id":\allowbreak{} "top\_\allowbreak{}cebolla\_\allowbreak{}crispy",\allowbreak{} "categoria":\allowbreak{} "TOPPING",\allowbreak{} "nombre":\allowbreak{} "Cebolla crispy",\allowbreak{} "descripcion":\allowbreak{} "Crocante,\allowbreak{} para dar textura",\allowbreak{} "precio":\allowbreak{} 700,\allowbreak{} "disponible":\allowbreak{} true,\allowbreak{} "stock":\allowbreak{} 50,\allowbreak{} "activo":\allowbreak{} true\}\par
+409 \{"codigo":\allowbreak{} "DUPLICADO",\allowbreak{} "mensaje":\allowbreak{} "Ya existe un item llamado \textbackslash{}"Cebolla crispy\textbackslash{}".\allowbreak{}",\allowbreak{} "idPeticion":\allowbreak{} ".\allowbreak{}.\allowbreak{}.\allowbreak{}"\}\par
+\end{codigo}
+
+\textbf{S05, modificar un producto} (admin o dueño). Solo se mandan los campos que cambian.
+
+
+\begin{codigo}
+PUT /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}catalogo/\allowbreak{}items/\allowbreak{}top\_\allowbreak{}cebolla\_\allowbreak{}crispy\par
+\{"precio":\allowbreak{} 800,\allowbreak{} "stock":\allowbreak{} 40\}\par
+\end{codigo}
+
+\begin{codigo}
+200 \{"id":\allowbreak{} "top\_\allowbreak{}cebolla\_\allowbreak{}crispy",\allowbreak{} "categoria":\allowbreak{} "TOPPING",\allowbreak{} "nombre":\allowbreak{} "Cebolla crispy",\allowbreak{} .\allowbreak{}.\allowbreak{}.\allowbreak{},\allowbreak{} "precio":\allowbreak{} 800,\allowbreak{} "disponible":\allowbreak{} true,\allowbreak{} "stock":\allowbreak{} 40,\allowbreak{} "activo":\allowbreak{} true\}\par
+\end{codigo}
+
+\textbf{S06, eliminar un producto} (solo admin).
+
+
+\begin{codigo}
+DELETE /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}catalogo/\allowbreak{}items/\allowbreak{}top\_\allowbreak{}cebolla\_\allowbreak{}crispy\par
+\end{codigo}
+
+\begin{codigo}
+204 (\allowbreak{}sin cuerpo)\par
+403 \{"codigo":\allowbreak{} "PROHIBIDO",\allowbreak{} "mensaje":\allowbreak{} "Tu perfil no tiene permiso para esta operación.\allowbreak{}",\allowbreak{} "idPeticion":\allowbreak{} ".\allowbreak{}.\allowbreak{}.\allowbreak{}"\}   (\allowbreak{}si es dueño)\par
+\end{codigo}
+
+\subsection{Clientes}
+
+\textbf{S08, ver la ficha propia} (cliente).
+
+
+\begin{codigo}
+GET /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}clientes/\allowbreak{}yo\par
+\end{codigo}
+
+\begin{codigo}
+200 \{"id":\allowbreak{} "cli\_\allowbreak{}3fa9c01b22de",\allowbreak{} "run":\allowbreak{} "12345678-\allowbreak{}5",\allowbreak{} "nombre":\allowbreak{} "Ana Prueba Soto",\allowbreak{} "direccion":\allowbreak{} "Av.\allowbreak{} Italia 1500",\allowbreak{} "region":\allowbreak{} "Región Metropolitana de Santiago",\allowbreak{} "provincia":\allowbreak{} "Santiago",\allowbreak{} "comuna":\allowbreak{} "Ñuñoa",\allowbreak{} "fechaNacimiento":\allowbreak{} "1995-\allowbreak{}03-\allowbreak{}10",\allowbreak{} "sexo":\allowbreak{} "F",\allowbreak{} "email":\allowbreak{} "ana.\allowbreak{}prueba@correo.\allowbreak{}cl",\allowbreak{} "telefono":\allowbreak{} "+56 9 1111 2222",\allowbreak{} "activo":\allowbreak{} true,\allowbreak{} "origen":\allowbreak{} "WEB",\allowbreak{} "creadoEn":\allowbreak{} "2026-\allowbreak{}11-\allowbreak{}08T14:\allowbreak{}02:\allowbreak{}11.\allowbreak{}000Z",\allowbreak{} "tieneDespacho":\allowbreak{} true\}\par
+\end{codigo}
+
+\textbf{S09, editar la ficha propia} (cliente). El \texttt{run} y el \texttt{origen} no se pueden cambiar.
+
+
+\begin{codigo}
+PUT /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}clientes/\allowbreak{}yo\par
+\{"direccion":\allowbreak{} "Av.\allowbreak{} Italia 1520",\allowbreak{} "telefono":\allowbreak{} "+56 9 1111 3333"\}\par
+\end{codigo}
+
+\begin{codigo}
+200 \{"id":\allowbreak{} "cli\_\allowbreak{}3fa9c01b22de",\allowbreak{} .\allowbreak{}.\allowbreak{}.\allowbreak{},\allowbreak{} "direccion":\allowbreak{} "Av.\allowbreak{} Italia 1520",\allowbreak{} "telefono":\allowbreak{} "+56 9 1111 3333",\allowbreak{} .\allowbreak{}.\allowbreak{}.\allowbreak{}\}\par
+\end{codigo}
+
+\textbf{S10, listar y buscar clientes} (admin).
+
+
+\begin{codigo}
+GET /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}clientes?\allowbreak{}q=\allowbreak{}ana\par
+\end{codigo}
+
+\begin{codigo}
+200 [\allowbreak{}\{"id":\allowbreak{} "cli\_\allowbreak{}3fa9c01b22de",\allowbreak{} "run":\allowbreak{} "12345678-\allowbreak{}5",\allowbreak{} "nombre":\allowbreak{} "Ana Prueba Soto",\allowbreak{} "direccion":\allowbreak{} "Av.\allowbreak{} Italia 1500",\allowbreak{} "region":\allowbreak{} "Región Metropolitana de Santiago",\allowbreak{} "provincia":\allowbreak{} "Santiago",\allowbreak{} "comuna":\allowbreak{} "Ñuñoa",\allowbreak{} "fechaNacimiento":\allowbreak{} "1995-\allowbreak{}03-\allowbreak{}10",\allowbreak{} "sexo":\allowbreak{} "F",\allowbreak{} "email":\allowbreak{} "ana.\allowbreak{}prueba@correo.\allowbreak{}cl",\allowbreak{} "telefono":\allowbreak{} "+56 9 1111 2222",\allowbreak{} "activo":\allowbreak{} true,\allowbreak{} "origen":\allowbreak{} "WEB",\allowbreak{} "creadoEn":\allowbreak{} "2026-\allowbreak{}11-\allowbreak{}08T14:\allowbreak{}02:\allowbreak{}11.\allowbreak{}000Z",\allowbreak{} "tieneDespacho":\allowbreak{} true,\allowbreak{} "emailVerificado":\allowbreak{} true\}]\par
+\end{codigo}
+
+\textbf{S11, registrar un cliente en el local} (admin). La clave temporal se entrega una sola vez y solo en modo demo.
+
+
+\begin{codigo}
+POST /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}clientes\par
+\{"run":\allowbreak{} "9.\allowbreak{}876.\allowbreak{}543-\allowbreak{}3",\allowbreak{} "nombre":\allowbreak{} "Luis Prueba Rojas",\allowbreak{} "direccion":\allowbreak{} "Av.\allowbreak{} Providencia 100",\allowbreak{} "region":\allowbreak{} "Región Metropolitana de Santiago",\allowbreak{} "provincia":\allowbreak{} "Santiago",\allowbreak{} "comuna":\allowbreak{} "Providencia",\allowbreak{} "fechaNacimiento":\allowbreak{} "1988-\allowbreak{}07-\allowbreak{}21",\allowbreak{} "sexo":\allowbreak{} "M",\allowbreak{} "email":\allowbreak{} "luis.\allowbreak{}prueba@correo.\allowbreak{}cl",\allowbreak{} "telefono":\allowbreak{} "+56 9 2222 3333"\}\par
+\end{codigo}
+
+\begin{codigo}
+201 \{"cliente":\allowbreak{} \{"id":\allowbreak{} "cli\_\allowbreak{}7be41c0d93aa",\allowbreak{} "run":\allowbreak{} "9876543-\allowbreak{}3",\allowbreak{} "nombre":\allowbreak{} "Luis Prueba Rojas",\allowbreak{} .\allowbreak{}.\allowbreak{}.\allowbreak{},\allowbreak{} "origen":\allowbreak{} "ADMIN",\allowbreak{} "emailVerificado":\allowbreak{} false\},\allowbreak{} "claveTemporal":\allowbreak{} "kmpa4821"\}\par
+\end{codigo}
+
+\textbf{S12, abrir una ficha} (admin).
+
+
+\begin{codigo}
+GET /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}clientes/\allowbreak{}cli\_\allowbreak{}3fa9c01b22de\par
+\end{codigo}
+
+\begin{codigo}
+200 \{"id":\allowbreak{} "cli\_\allowbreak{}3fa9c01b22de",\allowbreak{} "run":\allowbreak{} "12345678-\allowbreak{}5",\allowbreak{} "nombre":\allowbreak{} "Ana Prueba Soto",\allowbreak{} "direccion":\allowbreak{} "Av.\allowbreak{} Italia 1500",\allowbreak{} "region":\allowbreak{} "Región Metropolitana de Santiago",\allowbreak{} "provincia":\allowbreak{} "Santiago",\allowbreak{} "comuna":\allowbreak{} "Ñuñoa",\allowbreak{} "fechaNacimiento":\allowbreak{} "1995-\allowbreak{}03-\allowbreak{}10",\allowbreak{} "sexo":\allowbreak{} "F",\allowbreak{} "email":\allowbreak{} "ana.\allowbreak{}prueba@correo.\allowbreak{}cl",\allowbreak{} "telefono":\allowbreak{} "+56 9 1111 2222",\allowbreak{} "activo":\allowbreak{} true,\allowbreak{} "origen":\allowbreak{} "WEB",\allowbreak{} "creadoEn":\allowbreak{} "2026-\allowbreak{}11-\allowbreak{}08T14:\allowbreak{}02:\allowbreak{}11.\allowbreak{}000Z",\allowbreak{} "tieneDespacho":\allowbreak{} true\}\par
+404 \{"codigo":\allowbreak{} "NO\_\allowbreak{}ENCONTRADO",\allowbreak{} "mensaje":\allowbreak{} "No existe ese cliente.\allowbreak{}",\allowbreak{} "idPeticion":\allowbreak{} ".\allowbreak{}.\allowbreak{}.\allowbreak{}"\}\par
+\end{codigo}
+
+\textbf{S13, editar una ficha} (admin).
+
+
+\begin{codigo}
+PUT /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}clientes/\allowbreak{}cli\_\allowbreak{}3fa9c01b22de\par
+\{"telefono":\allowbreak{} "+56 9 7000 1111"\}\par
+\end{codigo}
+
+\begin{codigo}
+200 \{"id":\allowbreak{} "cli\_\allowbreak{}3fa9c01b22de",\allowbreak{} .\allowbreak{}.\allowbreak{}.\allowbreak{},\allowbreak{} "telefono":\allowbreak{} "+56 9 7000 1111",\allowbreak{} .\allowbreak{}.\allowbreak{}.\allowbreak{}\}\par
+\end{codigo}
+
+\textbf{S14, activar o desactivar} (admin). Al desactivar se cierran las sesiones del cliente.
+
+
+\begin{codigo}
+PATCH /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}clientes/\allowbreak{}cli\_\allowbreak{}3fa9c01b22de/\allowbreak{}estado\par
+\{"activo":\allowbreak{} false\}\par
+\end{codigo}
+
+\begin{codigo}
+200 \{"id":\allowbreak{} "cli\_\allowbreak{}3fa9c01b22de",\allowbreak{} .\allowbreak{}.\allowbreak{}.\allowbreak{},\allowbreak{} "activo":\allowbreak{} false,\allowbreak{} .\allowbreak{}.\allowbreak{}.\allowbreak{}\}\par
+\end{codigo}
+
+\subsection{Pedidos}
+
+\textbf{S16, cola de cocina} (cocina). Cocina recibe del cliente solo el nombre y el teléfono.
+
+
+\begin{codigo}
+GET /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}pedidos?\allowbreak{}cola=\allowbreak{}cocina\par
+\end{codigo}
+
+\begin{codigo}
+200 [\allowbreak{}\{"id":\allowbreak{} "PF-\allowbreak{}00084",\allowbreak{} "estado":\allowbreak{} "PAGADO",\allowbreak{} "modoEntrega":\allowbreak{} "DELIVERY",\allowbreak{} "total":\allowbreak{} 7890,\allowbreak{} "cliente":\allowbreak{} \{"nombre":\allowbreak{} "Javiera Morales Díaz",\allowbreak{} "telefono":\allowbreak{} "+56 9 8123 4567"\},\allowbreak{}\par
+\hspace*{6\ttw}"lineas":\allowbreak{} [\allowbreak{}\{"descripcion":\allowbreak{} "Bowl Regular:\allowbreak{} Arroz gohan,\allowbreak{} Salmón fresco,\allowbreak{} Ponzu,\allowbreak{} Palta",\allowbreak{} "cantidad":\allowbreak{} 1,\allowbreak{} "subtotal":\allowbreak{} 7890,\allowbreak{} .\allowbreak{}.\allowbreak{}.\allowbreak{}\}],\allowbreak{} "historial":\allowbreak{} [\allowbreak{}.\allowbreak{}.\allowbreak{}.\allowbreak{}]\}]\par
+\end{codigo}
+
+\textbf{S17, abrir un pedido} (el cliente dueño; para el cliente el historial no trae quién hizo cada paso).
+
+
+\begin{codigo}
+GET /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}pedidos/\allowbreak{}PF-\allowbreak{}00084\par
+\end{codigo}
+
+\begin{codigo}
+200 \{"id":\allowbreak{} "PF-\allowbreak{}00084",\allowbreak{} "estado":\allowbreak{} "PAGADO",\allowbreak{} "total":\allowbreak{} 7890,\allowbreak{} .\allowbreak{}.\allowbreak{}.\allowbreak{},\allowbreak{} "historial":\allowbreak{} [\allowbreak{}\{"estado":\allowbreak{} "PENDIENTE\_\allowbreak{}PAGO",\allowbreak{} "fecha":\allowbreak{} "2026-\allowbreak{}11-\allowbreak{}08T03:\allowbreak{}15:\allowbreak{}01.\allowbreak{}120Z"\},\allowbreak{} \{"estado":\allowbreak{} "PAGADO",\allowbreak{} "fecha":\allowbreak{} "2026-\allowbreak{}11-\allowbreak{}08T03:\allowbreak{}16:\allowbreak{}40.\allowbreak{}502Z"\}]\}\par
+404 \{"codigo":\allowbreak{} "NO\_\allowbreak{}ENCONTRADO",\allowbreak{} "mensaje":\allowbreak{} "No encontramos ese pedido.\allowbreak{}",\allowbreak{} "idPeticion":\allowbreak{} ".\allowbreak{}.\allowbreak{}.\allowbreak{}"\}   (\allowbreak{}ajeno o inexistente:\allowbreak{} igual respuesta)\par
+\end{codigo}
+
+\textbf{S18, ver la boleta} (cliente dueño, admin o dueño).
+
+
+\begin{codigo}
+GET /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}pedidos/\allowbreak{}boleta/\allowbreak{}79\par
+\end{codigo}
+
+\begin{codigo}
+200 \{"id":\allowbreak{} "PF-\allowbreak{}00084",\allowbreak{} "estado":\allowbreak{} "PAGADO",\allowbreak{} "total":\allowbreak{} 7890,\allowbreak{}\par
+\hspace*{5\ttw}"venta":\allowbreak{} \{"numero":\allowbreak{} 79,\allowbreak{} "caja":\allowbreak{} "CAJA-\allowbreak{}WEB-\allowbreak{}01",\allowbreak{} "cajero":\allowbreak{} "Cajero virtual",\allowbreak{} "fecha":\allowbreak{} "2026-\allowbreak{}11-\allowbreak{}08T03:\allowbreak{}16:\allowbreak{}40.\allowbreak{}502Z",\allowbreak{} "total":\allowbreak{} 7890,\allowbreak{} "anulada":\allowbreak{} false\},\allowbreak{}\par
+\hspace*{5\ttw}"boleta":\allowbreak{} \{"numero":\allowbreak{} 79,\allowbreak{} "fecha":\allowbreak{} "2026-\allowbreak{}11-\allowbreak{}08T03:\allowbreak{}16:\allowbreak{}40.\allowbreak{}502Z",\allowbreak{} "neto":\allowbreak{} 6630,\allowbreak{} "iva":\allowbreak{} 1260,\allowbreak{} "total":\allowbreak{} 7890,\allowbreak{} "enviadaA":\allowbreak{} "cliente@correo.\allowbreak{}cl"\},\allowbreak{} .\allowbreak{}.\allowbreak{}.\allowbreak{}\}\par
+404 \{"codigo":\allowbreak{} "NO\_\allowbreak{}ENCONTRADO",\allowbreak{} "mensaje":\allowbreak{} "No encontramos esa boleta.\allowbreak{}",\allowbreak{} "idPeticion":\allowbreak{} ".\allowbreak{}.\allowbreak{}.\allowbreak{}"\}\par
+\end{codigo}
+
+\textbf{S19, configuración de pedidos} (con sesión; sin pantalla).
+
+
+\begin{codigo}
+GET /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}pedidos/\allowbreak{}configuracion\par
+\end{codigo}
+
+\begin{codigo}
+200 \{"estados":\allowbreak{} \{"PENDIENTE\_\allowbreak{}PAGO":\allowbreak{} "Pendiente de pago",\allowbreak{} "PAGADO":\allowbreak{} "Esperando cocina",\allowbreak{} .\allowbreak{}.\allowbreak{}.\allowbreak{}\},\allowbreak{} "choferes":\allowbreak{} [\allowbreak{}"Luis Contreras",\allowbreak{} "Andrea Muñoz"],\allowbreak{} "caja":\allowbreak{} "CAJA-\allowbreak{}WEB-\allowbreak{}01",\allowbreak{} "cajero":\allowbreak{} "Cajero virtual"\}\par
+\end{codigo}
+
+\textbf{S21, marcar el pedido listo} (cocina).
+
+
+\begin{codigo}
+POST /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}pedidos/\allowbreak{}PF-\allowbreak{}00084/\allowbreak{}terminar\par
+\end{codigo}
+
+\begin{codigo}
+200 \{"id":\allowbreak{} "PF-\allowbreak{}00084",\allowbreak{} "estado":\allowbreak{} "LISTO\_\allowbreak{}DESPACHO",\allowbreak{} .\allowbreak{}.\allowbreak{}.\allowbreak{}\}\par
+409 \{"codigo":\allowbreak{} "ESTADO",\allowbreak{} "mensaje":\allowbreak{} ".\allowbreak{}.\allowbreak{}.\allowbreak{}",\allowbreak{} "idPeticion":\allowbreak{} ".\allowbreak{}.\allowbreak{}.\allowbreak{}"\}   (\allowbreak{}si no estaba en preparación)\par
+\end{codigo}
+
+\textbf{S23, registrar la entrega} (despacho).
+
+
+\begin{codigo}
+POST /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}pedidos/\allowbreak{}PF-\allowbreak{}00084/\allowbreak{}entregar\par
+\end{codigo}
+
+\begin{codigo}
+200 \{"id":\allowbreak{} "PF-\allowbreak{}00084",\allowbreak{} "estado":\allowbreak{} "ENTREGADO",\allowbreak{} .\allowbreak{}.\allowbreak{}.\allowbreak{}\}\par
+\end{codigo}
+
+\textbf{S24, registrar que se imprimió la orden} (cocina o despacho).
+
+
+\begin{codigo}
+POST /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}pedidos/\allowbreak{}PF-\allowbreak{}00084/\allowbreak{}impresa\par
+\end{codigo}
+
+\begin{codigo}
+204 (\allowbreak{}sin cuerpo)\par
+\end{codigo}
+
+\textbf{S26, reporte de ventas} (admin o dueño). El CSV se arma en el frontend con esta respuesta.
+
+
+\begin{codigo}
+GET /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}reportes/\allowbreak{}ventas?\allowbreak{}desde=\allowbreak{}2026-\allowbreak{}11-\allowbreak{}02\&\allowbreak{}hasta=\allowbreak{}2026-\allowbreak{}11-\allowbreak{}08\par
+\end{codigo}
+
+\begin{codigo}
+200 \{"desde":\allowbreak{} "2026-\allowbreak{}11-\allowbreak{}02",\allowbreak{} "hasta":\allowbreak{} "2026-\allowbreak{}11-\allowbreak{}08",\allowbreak{} "cantidad":\allowbreak{} 22,\allowbreak{} "monto":\allowbreak{} 229150,\allowbreak{} "promedio":\allowbreak{} 10416,\allowbreak{} "anuladas":\allowbreak{} 0,\allowbreak{} "montoAnulado":\allowbreak{} 0,\allowbreak{}\par
+\hspace*{5\ttw}"porDia":\allowbreak{} [\allowbreak{}\{"dia":\allowbreak{} "2026-\allowbreak{}11-\allowbreak{}02",\allowbreak{} "cantidad":\allowbreak{} 3,\allowbreak{} "monto":\allowbreak{} 24500\},\allowbreak{} .\allowbreak{}.\allowbreak{}.\allowbreak{}],\allowbreak{} "porEntrega":\allowbreak{} [\allowbreak{}\{"modo":\allowbreak{} "DELIVERY",\allowbreak{} "nombre":\allowbreak{} "Despacho a domicilio",\allowbreak{} "cantidad":\allowbreak{} 11,\allowbreak{} "monto":\allowbreak{} 108180\},\allowbreak{} .\allowbreak{}.\allowbreak{}.\allowbreak{}],\allowbreak{}\par
+\hspace*{5\ttw}"masVendidos":\allowbreak{} [\allowbreak{}.\allowbreak{}.\allowbreak{}.\allowbreak{}],\allowbreak{} "ventas":\allowbreak{} [\allowbreak{}.\allowbreak{}.\allowbreak{}.\allowbreak{}]\}\par
+400 \{"codigo":\allowbreak{} ".\allowbreak{}.\allowbreak{}.\allowbreak{}",\allowbreak{} "mensaje":\allowbreak{} "Indica las fechas como AAAA-\allowbreak{}MM-\allowbreak{}DD.\allowbreak{}",\allowbreak{} "idPeticion":\allowbreak{} ".\allowbreak{}.\allowbreak{}.\allowbreak{}"\}\par
+\end{codigo}
+
+\subsection{Pagos}
+
+\textbf{S28, pagos de un pedido} (sin pantalla). El \texttt{token} de la pasarela no sale.
+
+
+\begin{codigo}
+GET /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}pagos?\allowbreak{}pedidoId=\allowbreak{}PF-\allowbreak{}00084\par
+\end{codigo}
+
+\begin{codigo}
+200 [\allowbreak{}\{"id":\allowbreak{} "PAG-\allowbreak{}07A5E9CF2BEF",\allowbreak{} "pedidoId":\allowbreak{} "PF-\allowbreak{}00084",\allowbreak{} "monto":\allowbreak{} 7890,\allowbreak{} "medio":\allowbreak{} "SERVIPAG",\allowbreak{} "estado":\allowbreak{} "APROBADO",\allowbreak{} "referencia":\allowbreak{} "SVP-\allowbreak{}99801681",\allowbreak{} "creadoEn":\allowbreak{} "2026-\allowbreak{}11-\allowbreak{}08T03:\allowbreak{}16:\allowbreak{}02.\allowbreak{}000Z",\allowbreak{} "actualizadoEn":\allowbreak{} "2026-\allowbreak{}11-\allowbreak{}08T03:\allowbreak{}16:\allowbreak{}40.\allowbreak{}000Z",\allowbreak{} "urlPago":\allowbreak{} null\}]\par
+\end{codigo}
+
+\subsection{Agregaciones GraphQL}
+
+\textbf{S31, historial paginado} (cliente; sin pantalla).
+
+
+\begin{codigo}
+POST /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}graphql\par
+\{"query":\allowbreak{} "query (\allowbreak{}\$n:\allowbreak{} Int) \{ misPedidos(\allowbreak{}primeros:\allowbreak{} \$n) \{ nodos \{ id estadoTexto total \} siguiente \} \}",\allowbreak{} "variables":\allowbreak{} \{"n":\allowbreak{} 2\}\}\par
+\end{codigo}
+
+\begin{codigo}
+200 \{"data":\allowbreak{} \{"misPedidos":\allowbreak{} \{"nodos":\allowbreak{} [\allowbreak{}\{"id":\allowbreak{} "PF-\allowbreak{}00084",\allowbreak{} "estadoTexto":\allowbreak{} "Esperando cocina",\allowbreak{} "total":\allowbreak{} 7890\},\allowbreak{} \{"id":\allowbreak{} "PF-\allowbreak{}00081",\allowbreak{} "estadoTexto":\allowbreak{} "Entregado",\allowbreak{} "total":\allowbreak{} 7890\}],\allowbreak{} "siguiente":\allowbreak{} "eyJ.\allowbreak{}.\allowbreak{}.\allowbreak{}"\}\}\}\par
+\end{codigo}
+
+\textbf{S32, reporte con categorías y conciliación} (admin o dueño).
+
+
+\begin{codigo}
+POST /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}graphql\par
+\{"query":\allowbreak{} "\{ reporteVentas(\allowbreak{}desde:\allowbreak{} \textbackslash{}"2026-\allowbreak{}11-\allowbreak{}02\textbackslash{}",\allowbreak{} hasta:\allowbreak{} \textbackslash{}"2026-\allowbreak{}11-\allowbreak{}08\textbackslash{}") \{ cantidad monto porCategoria \{ categoria unidades \} conciliacion \{ ventas pagosAprobados pedidosConDiferencia \} \} \}"\}\par
+\end{codigo}
+
+\begin{codigo}
+200 \{"data":\allowbreak{} \{"reporteVentas":\allowbreak{} \{"cantidad":\allowbreak{} 22,\allowbreak{} "monto":\allowbreak{} 229150,\allowbreak{} "porCategoria":\allowbreak{} [\allowbreak{}\{"categoria":\allowbreak{} "BASE",\allowbreak{} "unidades":\allowbreak{} 25\},\allowbreak{} .\allowbreak{}.\allowbreak{}.\allowbreak{}],\allowbreak{} "conciliacion":\allowbreak{} \{"ventas":\allowbreak{} 22,\allowbreak{} "pagosAprobados":\allowbreak{} 22,\allowbreak{} "pedidosConDiferencia":\allowbreak{} [\allowbreak{}]\}\}\}\}\par
+\end{codigo}
+
+Para un cocina: \texttt{\{"data":\allowbreak{} \{"reporteVentas":\allowbreak{} null\},\allowbreak{} "errors":\allowbreak{} [\allowbreak{}\{"message":\allowbreak{} "Tu perfil no puede consultar este dato.\allowbreak{}",\allowbreak{} "extensions":\allowbreak{} \{"code":\allowbreak{} "PROHIBIDO"\}\}]\}}.
+
+
+\subsection{Sesión y cuentas}
+
+\textbf{S34, cerrar sesión.}
+
+
+\begin{codigo}
+POST /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}auth/\allowbreak{}logout\par
+Cookie:\allowbreak{} pf\_\allowbreak{}sesion=\allowbreak{}<token>\par
+\end{codigo}
+
+\begin{codigo}
+204 (\allowbreak{}sin cuerpo; la cookie se borra y el token queda revocado)\par
+\end{codigo}
+
+\textbf{S35, saber quién tiene sesión.}
+
+
+\begin{codigo}
+GET /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}auth/\allowbreak{}sesion\par
+\end{codigo}
+
+\begin{codigo}
+200 \{"tipo":\allowbreak{} "CLIENTE",\allowbreak{} "id":\allowbreak{} "cli\_\allowbreak{}demo\_\allowbreak{}1",\allowbreak{} "perfil":\allowbreak{} "CLIENTE",\allowbreak{} "nombre":\allowbreak{} "Javiera Morales Díaz",\allowbreak{} "email":\allowbreak{} "cliente@correo.\allowbreak{}cl",\allowbreak{} "expira":\allowbreak{} "2026-\allowbreak{}11-\allowbreak{}08T03:\allowbreak{}45:\allowbreak{}01.\allowbreak{}000Z"\}\par
+200 null   (\allowbreak{}sin sesión:\allowbreak{} no es un error)\par
+\end{codigo}
+
+\textbf{S36, modo demostración.}
+
+
+\begin{codigo}
+GET /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}auth/\allowbreak{}config\par
+\end{codigo}
+
+\begin{codigo}
+200 \{"modoDemo":\allowbreak{} true,\allowbreak{} "cuentasDemo":\allowbreak{} [\allowbreak{}\{"perfil":\allowbreak{} "Cliente",\allowbreak{} "email":\allowbreak{} "cliente@correo.\allowbreak{}cl",\allowbreak{} "clave":\allowbreak{} "Cliente2026"\},\allowbreak{} .\allowbreak{}.\allowbreak{}.\allowbreak{}]\}\par
+200 \{"modoDemo":\allowbreak{} false,\allowbreak{} "cuentasDemo":\allowbreak{} [\allowbreak{}]\}\par
+\end{codigo}
+
+\textbf{S37, cambiar la contraseña} (con sesión).
+
+
+\begin{codigo}
+PUT /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}auth/\allowbreak{}clave\par
+\{"actual":\allowbreak{} "Cliente2026",\allowbreak{} "nueva":\allowbreak{} "OtraClave2027"\}\par
+\end{codigo}
+
+\begin{codigo}
+204 (\allowbreak{}sin cuerpo)\par
+400 \{"codigo":\allowbreak{} "CLAVE\_\allowbreak{}ACTUAL",\allowbreak{} "mensaje":\allowbreak{} "La contraseña actual no es correcta.\allowbreak{}",\allowbreak{} "idPeticion":\allowbreak{} ".\allowbreak{}.\allowbreak{}.\allowbreak{}"\}\par
+\end{codigo}
+
+\textbf{S38, verificar el correo.}
+
+
+\begin{codigo}
+POST /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}auth/\allowbreak{}verificar\par
+\{"email":\allowbreak{} "ana.\allowbreak{}prueba@correo.\allowbreak{}cl",\allowbreak{} "codigo":\allowbreak{} "482915"\}\par
+\end{codigo}
+
+\begin{codigo}
+200 \{"verificado":\allowbreak{} true\}\par
+400 \{"codigo":\allowbreak{} "CODIGO",\allowbreak{} "mensaje":\allowbreak{} "El código no coincide.\allowbreak{} Revisa el correo más reciente.\allowbreak{}",\allowbreak{} "idPeticion":\allowbreak{} ".\allowbreak{}.\allowbreak{}.\allowbreak{}"\}\par
+\end{codigo}
+
+\textbf{S39, pedir un código nuevo.} La respuesta es la misma exista o no la cuenta.
+
+
+\begin{codigo}
+POST /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}auth/\allowbreak{}reenviar\par
+\{"email":\allowbreak{} "ana.\allowbreak{}prueba@correo.\allowbreak{}cl"\}\par
+\end{codigo}
+
+\begin{codigo}
+200 \{"mensaje":\allowbreak{} "Si el correo está registrado y sin verificar,\allowbreak{} enviamos un código nuevo.\allowbreak{}",\allowbreak{} "codigoDemo":\allowbreak{} "731540"\}\par
+\end{codigo}
+
+\subsection{Usuarios internos}
+
+\textbf{S40, listar} (admin). Sin hash ni datos de verificación.
+
+
+\begin{codigo}
+GET /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}usuarios\par
+\end{codigo}
+
+\begin{codigo}
+200 [\allowbreak{}\{"id":\allowbreak{} "6d0b8e47-\allowbreak{}12af-\allowbreak{}4c93-\allowbreak{}8b55-\allowbreak{}9f3e2a7c1d60",\allowbreak{} "email":\allowbreak{} "admin@pokefresh.\allowbreak{}cl",\allowbreak{} "rol":\allowbreak{} "admin",\allowbreak{} "nombre":\allowbreak{} "Camila Rojas",\allowbreak{} "activo":\allowbreak{} true,\allowbreak{} "emailVerificado":\allowbreak{} true,\allowbreak{} "creadoEn":\allowbreak{} "2026-\allowbreak{}11-\allowbreak{}08T14:\allowbreak{}20:\allowbreak{}00.\allowbreak{}000Z"\},\allowbreak{} .\allowbreak{}.\allowbreak{}.\allowbreak{}]\par
+\end{codigo}
+
+\textbf{S41, crear} (admin).
+
+
+\begin{codigo}
+POST /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}usuarios\par
+\{"nombre":\allowbreak{} "Pedro Soto",\allowbreak{} "email":\allowbreak{} "pedro@pokefresh.\allowbreak{}cl",\allowbreak{} "rol":\allowbreak{} "cocina",\allowbreak{} "clave":\allowbreak{} "Cocina2027"\}\par
+\end{codigo}
+
+\begin{codigo}
+201 \{"id":\allowbreak{} "a3f1c9e2-\allowbreak{}5b7d-\allowbreak{}4c6a-\allowbreak{}9e10-\allowbreak{}2f8d7b6c4a11",\allowbreak{} "email":\allowbreak{} "pedro@pokefresh.\allowbreak{}cl",\allowbreak{} "rol":\allowbreak{} "cocina",\allowbreak{} "nombre":\allowbreak{} "Pedro Soto",\allowbreak{} "activo":\allowbreak{} true,\allowbreak{} "emailVerificado":\allowbreak{} true,\allowbreak{} "creadoEn":\allowbreak{} "2026-\allowbreak{}11-\allowbreak{}08T14:\allowbreak{}20:\allowbreak{}00.\allowbreak{}000Z"\}\par
+400 \{"codigo":\allowbreak{} "CLAVE\_\allowbreak{}DEBIL",\allowbreak{} "mensaje":\allowbreak{} "La contraseña debe combinar letras y números.\allowbreak{}",\allowbreak{} "idPeticion":\allowbreak{} ".\allowbreak{}.\allowbreak{}.\allowbreak{}"\}\par
+\end{codigo}
+
+\textbf{S42, editar} (admin). Cambiar la clave o el perfil cierra las sesiones de ese usuario.
+
+
+\begin{codigo}
+PUT /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}usuarios/\allowbreak{}a3f1c9e2-\allowbreak{}5b7d-\allowbreak{}4c6a-\allowbreak{}9e10-\allowbreak{}2f8d7b6c4a11\par
+\{"nombre":\allowbreak{} "Pedro Soto Vera",\allowbreak{} "rol":\allowbreak{} "despacho"\}\par
+\end{codigo}
+
+\begin{codigo}
+200 \{"id":\allowbreak{} "a3f1c9e2-\allowbreak{}5b7d-\allowbreak{}4c6a-\allowbreak{}9e10-\allowbreak{}2f8d7b6c4a11",\allowbreak{} "email":\allowbreak{} "pedro@pokefresh.\allowbreak{}cl",\allowbreak{} "rol":\allowbreak{} "despacho",\allowbreak{} "nombre":\allowbreak{} "Pedro Soto Vera",\allowbreak{} "activo":\allowbreak{} true,\allowbreak{} "emailVerificado":\allowbreak{} true,\allowbreak{} "creadoEn":\allowbreak{} "2026-\allowbreak{}11-\allowbreak{}08T14:\allowbreak{}20:\allowbreak{}00.\allowbreak{}000Z"\}\par
+400 \{"codigo":\allowbreak{} "ULTIMO\_\allowbreak{}ADMIN",\allowbreak{} "mensaje":\allowbreak{} "Debe quedar al menos un administrador activo.\allowbreak{}",\allowbreak{} "idPeticion":\allowbreak{} ".\allowbreak{}.\allowbreak{}.\allowbreak{}"\}\par
+\end{codigo}
+
+\textbf{S43, activar o desactivar} (admin).
+
+
+\begin{codigo}
+PATCH /\allowbreak{}api/\allowbreak{}v1/\allowbreak{}usuarios/\allowbreak{}a3f1c9e2-\allowbreak{}5b7d-\allowbreak{}4c6a-\allowbreak{}9e10-\allowbreak{}2f8d7b6c4a11/\allowbreak{}estado\par
+\{"activo":\allowbreak{} false\}\par
+\end{codigo}
+
+\begin{codigo}
+200 \{"id":\allowbreak{} "a3f1c9e2-\allowbreak{}5b7d-\allowbreak{}4c6a-\allowbreak{}9e10-\allowbreak{}2f8d7b6c4a11",\allowbreak{} .\allowbreak{}.\allowbreak{}.\allowbreak{},\allowbreak{} "activo":\allowbreak{} false,\allowbreak{} .\allowbreak{}.\allowbreak{}.\allowbreak{}\}\par
+400 \{"codigo":\allowbreak{} "PROPIA\_\allowbreak{}CUENTA",\allowbreak{} "mensaje":\allowbreak{} "No puedes desactivar tu propia cuenta.\allowbreak{}",\allowbreak{} "idPeticion":\allowbreak{} ".\allowbreak{}.\allowbreak{}.\allowbreak{}"\}\par
+\end{codigo}
+
+\subsection{Estado del sistema}
+
+\textbf{S44, salud} (anónimo; sin datos personales).
+
+
+\begin{codigo}
+GET /\allowbreak{}api/\allowbreak{}salud\par
+\end{codigo}
+
+\begin{codigo}
+200 \{"gateway":\allowbreak{} "ok",\allowbreak{} "vault":\allowbreak{} "ok",\allowbreak{} "auth":\allowbreak{} "ok",\allowbreak{} "graphql":\allowbreak{} "ok",\allowbreak{} "inventario":\allowbreak{} "ok",\allowbreak{} "clientes":\allowbreak{} "ok",\allowbreak{} "pedidos":\allowbreak{} "ok",\allowbreak{} "pagos":\allowbreak{} "ok"\}\par
+503 \{"gateway":\allowbreak{} "ok",\allowbreak{} "vault":\allowbreak{} "sin respuesta",\allowbreak{} .\allowbreak{}.\allowbreak{}.\allowbreak{}\}   (\allowbreak{}si algo no responde)\par
+\end{codigo}
