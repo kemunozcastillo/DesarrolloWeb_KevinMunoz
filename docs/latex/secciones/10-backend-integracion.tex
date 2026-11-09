@@ -1,4 +1,4 @@
-% Generado desde docs/INFORME.md. Editar libremente.
+% Generado desde README.md. Editar libremente.
 
 \section{10. Backend completo e integración verificable}
 
@@ -24,7 +24,7 @@ Contratos REST & Sección 1 y OpenAPI de cada servicio \\ \hline
 Contrato GraphQL & Sección 8 y \texttt{graphql-\allowbreak{}gateway/\allowbreak{}src/\allowbreak{}graphql/\allowbreak{}esquema.\allowbreak{}js} \\ \hline
 Contratos gRPC & No aplica (ADR 0001) \\ \hline
 Pruebas automatizadas & 86 unitarias y de integración + 23 de punta a punta (contra Docker, con TLS) + recorrido de pantallas + carga \\ \hline
-Instrucciones & \texttt{README.\allowbreak{}md} \\ \hline
+Instrucciones & Sección «Cómo ejecutarlo» del README del repositorio \\ \hline
 \end{longtable}
 }
 
@@ -278,7 +278,7 @@ Ambas en el caso 7.5 (\texttt{evidencias/\allowbreak{}e2e-\allowbreak{}resultado
 \subsection{Operación}
 
 \begin{itemize}[nosep,leftmargin=*]
-\item \textbf{Iniciar y detener:} ver \texttt{README.\allowbreak{}md} (\texttt{docker compose up -\allowbreak{}d -\allowbreak{}-\allowbreak{}build}, \texttt{docker compose down}).
+\item \textbf{Iniciar y detener:} ver «Cómo ejecutarlo» en el README del repositorio (\texttt{docker compose up -\allowbreak{}d -\allowbreak{}-\allowbreak{}build}, \texttt{docker compose down}).
 \item \textbf{Acceso:} \texttt{https:\allowbreak{}/\allowbreak{}/\allowbreak{}localhost:\allowbreak{}8080} (tienda y API) y \texttt{https:\allowbreak{}/\allowbreak{}/\allowbreak{}localhost:\allowbreak{}9000} (pasarela). Los certificados los firma una CA de prueba que crea \texttt{tls-\allowbreak{}init}, así que el navegador, o un antivirus que revise HTTPS, mostrará una advertencia en cada puerto; hay que aceptarla en ambos. Si otro programa ocupa el puerto 8080 en IPv4, hay que detenerlo (ver README).
 \item \textbf{Configurar secretos:} solo \texttt{.\allowbreak{}env} con la clave raíz de Mongo; el resto lo crea \texttt{vault-\allowbreak{}init}. Para rotar un secreto: borrarlo en Vault y volver a correr \texttt{docker compose up -\allowbreak{}d} (excepto el pepper).
 \item \textbf{Datos de prueba:} automáticos con \texttt{MODO\_\allowbreak{}DEMO=\allowbreak{}true} (servicio \texttt{semilla}).
